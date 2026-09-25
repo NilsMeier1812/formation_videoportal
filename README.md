@@ -62,14 +62,19 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   überlappender Aufnahmezeit als „gleichzeitig gefilmt“ gruppiert. Eines oder mehrere wählen → Choreo, Tänze,
   Tags und die **Stelle in der Musik**: Der Planer öffnet sich mit „Stelle wählen“, das Video läuft mit,
   Start und Ende werden auf die Position gesetzt. Außerdem Choreos (Tänze, Audios, Hauptaudio) und Tags verwalten,
-  Videos in den Papierkorb legen.
+  Videos in den Papierkorb legen. **Projekt & Takt** einer Audio (Titel, privat, Tempo-Abschnitte) öffnet sich
+  von hier aus im Planer, weil das Einstellen des Takts Welle und Raster braucht; „Fertig“ führt zurück.
 - **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
   erst im Player) und die **Videothek** mit Suche und Filtern (Choreo, Tanz, Tag). Im Player: „In der Musik
   zeigen“ und für Trainer „Zuordnung bearbeiten“.
 - API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
   `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.
 
-**Rahmen:** untere Navigation (Choreo · Videos · Hochladen, für Trainer · Zuordnen), Hell/Dunkel wählbar (im Menü).
+**Rahmen:** gleiche Kopfzeile in allen Bereichen (☰ oben links, `.appbar` in `shell.css`), untere Navigation
+(Choreo · Videos · Hochladen, für Trainer · Zuordnen), Hell/Dunkel wählbar (im Menü).
+
+**Planer-Bedienung am PC:** in der Welle kurz klicken = an die Stelle springen, gedrückt halten und ziehen =
+Welle verschieben. Schritt-Anzeige startet mit „123“.
 Farben in `public/css/theme.css`.
 
 **PWA:** ein Manifest und ein Service Worker für alles; startet im Planer, startet offline an jeder Adresse.

@@ -69,6 +69,7 @@
 
   /* Layout */
   --nav-h: 58px;
+  --bar-h: 48px; /* Kopfzeile aller Bereiche */
   --radius: 12px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }

@@ -31,6 +31,7 @@ export function videos() {
       window.addEventListener("librarychange", () => { this.libraryData = library.data; });
       window.addEventListener("pick-range", (e) => this.startPick(e.detail));
       window.addEventListener("show-in-choreo", (e) => this.showInChoreo(e.detail));
+      window.addEventListener("open-project-settings", (e) => this.openSettingsFor(e.detail.projectId));
       window.addEventListener("videos-changed", () => { if (this.planVideosLoaded) this.loadPlanVideos(); });
     },
 

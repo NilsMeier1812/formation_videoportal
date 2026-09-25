@@ -125,6 +125,7 @@ export function audio() {
       rt.wsRegions = rt.ws.registerPlugin(RegionsPlugin.create());
 
       this.setupOverlays(container);
+      this.setupDragScroll(container);
 
       rt.ws.on("ready", () => this.onAudioReady());
       rt.ws.on("decode", () => this.onAudioReady());
