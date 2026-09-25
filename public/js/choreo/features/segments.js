@@ -4,8 +4,6 @@ import { repo } from "../data/index.js";
 import { round3, uuid } from "../lib/util.js";
 import { rt } from "../runtime.js";
 
-const MARKER_COLOR = "rgba(108,140,255,0.85)";
-
 export function segments() {
   return {
     async loadSegments(projectId) {
@@ -23,7 +21,7 @@ export function segments() {
           id: s.id,
           start: Number(s.timestamp),
           content: s.label || "♪",
-          color: MARKER_COLOR,
+          color: rt.palette.marker,
           drag: draggable,
           resize: false,
         });
@@ -48,7 +46,7 @@ export function segments() {
       const timestamp = rt.ws ? round3(rt.ws.getCurrentTime()) : 0;
       const seg = { id: uuid(), project_id: this.project.id, timestamp, label: "", notes: "" };
       this.segments.push(seg);
-      rt.wsRegions?.addRegion({ id: seg.id, start: timestamp, content: "♪", color: MARKER_COLOR, drag: true, resize: false });
+      rt.wsRegions?.addRegion({ id: seg.id, start: timestamp, content: "♪", color: rt.palette.marker, drag: true, resize: false });
       repo.insert("choreo_segments", seg, {
         offlineMessage: "Offline – Marke gespeichert, wird später synchronisiert",
       });

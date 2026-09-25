@@ -37,11 +37,25 @@ media.formation.nils-meier.de      R2 – Videos (und ab Schritt B die Musik)
 | **A** | Planer ins Repo holen, in Module zerlegen, unter `/choreo/` ausliefern (noch gegen Supabase), gemeinsames Menü, eine PWA | **erledigt** |
 | **B** | Planer-Daten nach D1, Musik nach R2, API im Worker inkl. Bearbeitungssperre; Adapter tauschen; Übernahme der Daten per GitHub-Workflow; Umstieg der Gruppe | **erledigt** (Übernahme startest du, siehe unten) |
 | **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | **im Planer erledigt**; Video-Seiten folgen mit dem Frontend-Umbau |
-| **E** | Einheitliches Aussehen (hell/dunkel, ein Layout) für alle Bereiche | danach |
-| **D** | Videos ↔ Choreo verknüpfen: Sprungmarken als Abschnitte, Tagging, „Videos zu dieser Stelle" im Planer | Portal Phase 2 |
+| **E** | Einheitliches Aussehen: Hell/Dunkel wählbar (Automatisch/Hell/Dunkel), untere Navigation Choreo · Videos · Hochladen, Video-Seiten neu | **erledigt** |
+| **D** | Videos ↔ Choreo verknüpfen (siehe unten) | als Nächstes |
 
 Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter; seine Phase 2 wird zu Schritt D
 und nutzt die Choreos und Sprungmarken des Planers statt einer eigenen Verwaltung.
+
+## Videos finden – zwei Wege (Schritt D)
+
+1. **Videothek** (Reiter *Videos*): alle Videos, durchsuchbar und filterbar (Choreo, Datum, Kamera, Video-Art).
+2. **Im Planer** (Reiter *Choreo*): Stelle im Lied antippen (Sprungmarke oder Zeitleiste) → ein neuer Tab unten
+   zeigt die Videos zu dieser Stelle, jeweils mit Sprung an die passende Zeit. Dort wird auch getaggt
+   (Clip → Sprungmarke, Durchlauf → Musikstart setzen).
+
+## Aussehen
+
+- Farben für Hell und Dunkel stehen in `public/css/theme.css`. Die dunklen Werte sind exakt die des alten
+  Planers; auch Welle, Taktraster und Spuren lesen ihre Farben dort (`--wave-*`, `--grid-*`, `--lane-*`).
+- `public/js/theme.js` setzt das Thema vor dem ersten Zeichnen (kein Aufblitzen) und merkt sich die Wahl.
+- `public/css/shell.css`: untere Navigation und Hell/Dunkel-Auswahl – gemeinsam für alle Seiten.
 
 ## Aufbau des Planers (`public/js/choreo/`)
 

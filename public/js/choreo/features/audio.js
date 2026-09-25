@@ -103,11 +103,12 @@ export function audio() {
       const container = document.getElementById("waveform");
       const height = Math.max(60, container.clientHeight - 6);
 
+      const palette = this.refreshPalette();
       rt.ws = WaveSurfer.create({
         container,
         height,
-        waveColor: "#5a5a5a",
-        progressColor: "#6c8cff",
+        waveColor: palette.wave,
+        progressColor: palette.waveProgress,
         cursorWidth: 0, // eigener Playhead über dem Canvas
         barWidth: 2,
         barGap: 1,

@@ -1,5 +1,8 @@
-const CODE_KEY = "portal.code";
+// Gemeinsame Helfer der Video-Seiten: API-Aufrufe, Anmeldung, kleine DOM-Helfer.
+// Angemeldet wird per Cookie (/api/session) – einmal Code eingeben, ein Jahr gemerkt.
+
 const NAME_KEY = "portal.name";
+const OLD_CODE_KEY = "portal.code"; // früher lag der Code im Browser – wird einmalig umgezogen
 
 // localStorage kann in privaten Fenstern fehlen oder werfen – dann eben ohne Merken.
 function load(key) {
@@ -8,9 +11,10 @@ function load(key) {
 function save(key, value) {
   try { localStorage.setItem(key, value); } catch { /* egal */ }
 }
+function forget(key) {
+  try { localStorage.removeItem(key); } catch { /* egal */ }
+}
 
-export const getCode = () => load(CODE_KEY);
-export const setCode = (code) => save(CODE_KEY, code);
 export const getName = () => load(NAME_KEY);
 export const setName = (name) => save(NAME_KEY, name);
 
@@ -21,21 +25,42 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(path, { method = "GET", body, code } = {}) {
-  const headers = {};
-  if (body !== undefined) headers["content-type"] = "application/json";
-  const portalCode = code ?? getCode();
-  if (portalCode) headers["x-portal-code"] = portalCode;
-
+export async function api(path, { method = "GET", body } = {}) {
   const res = await fetch(path, {
     method,
-    headers,
+    credentials: "same-origin",
+    headers: body === undefined ? {} : { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data.error ?? `Fehler ${res.status}`);
   return data;
 }
+
+// ---------------- Anmeldung ----------------
+
+/** Aktuelle Rolle: "tagger" (Trainer), "group" oder null. */
+export async function currentRole() {
+  const { role } = await api("/api/session");
+  if (role) return role;
+  // Einmaliger Umzug: früher gespeicherten Code gegen ein Cookie tauschen
+  const old = load(OLD_CODE_KEY);
+  if (!old) return null;
+  forget(OLD_CODE_KEY);
+  try { return await login(old); } catch { return null; }
+}
+
+/** Code prüfen und Anmeldung per Cookie merken; wirft bei falschem Code. */
+export async function login(code) {
+  const { role } = await api("/api/session", { method: "POST", body: { code } });
+  return role;
+}
+
+export async function logout() {
+  await api("/api/session", { method: "DELETE" });
+}
+
+// ---------------- DOM ----------------
 
 /** Kleiner DOM-Helfer; Text immer über textContent, nie als HTML. */
 export function el(tag, attrs = {}, ...children) {
@@ -53,10 +78,28 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+/** SVG-Symbol aus einer Pfadliste (currentColor, 24er-Raster). */
+export function icon(paths, size = 20) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  for (const [k, v] of Object.entries({
+    viewBox: "0 0 24 24", width: size, height: size, fill: "none", stroke: "currentColor",
+    "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true",
+  })) svg.setAttribute(k, v);
+  svg.innerHTML = paths; // nur feste Pfade aus dem Code, nie Nutzereingaben
+  return svg;
+}
+
 export function formatDate(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}.${m}.${y}`;
+}
+
+export function formatDuration(sec) {
+  if (!sec && sec !== 0) return "";
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 export function formatBytes(bytes) {

@@ -30,6 +30,7 @@ export function core() {
     bottomTab: "steps", // 'steps' | 'notes'
     stepDisplay: "dots", // 'dots' | 'letters' | 'numbers'
     showMarkers: true, // Sprungmarken in der Welle zeigen
+    themeMode: window.formationTheme?.mode || "system", // 'system' | 'light' | 'dark'
 
     // ---- Daten des offenen Projekts ----
     projects: [],
@@ -86,6 +87,11 @@ export function core() {
       this._toastTimer = setTimeout(() => { this.toast = ""; }, 3200);
     },
     setTab(tab) { this.bottomTab = tab; this.scheduleDraw(); },
+    /** Hell/Dunkel wählen (gilt für die ganze App, siehe /js/theme.js). */
+    setTheme(mode) {
+      window.formationTheme?.set(mode);
+      this.themeMode = mode;
+    },
 
     // ---- Start ----
     async init() {
@@ -120,6 +126,9 @@ export function core() {
         // Nach dem Hintergrund Canvas neu vermessen, sonst verrutscht das Raster
         requestAnimationFrame(() => this.recalibrate());
       });
+      // Hell/Dunkel umgeschaltet → Zeichenflächen neu einfärben
+      window.addEventListener("themechange", () => this.onThemeChange());
+
       window.addEventListener("pagehide", () => {
         repo.flush();
         this.releaseLockBeacon();

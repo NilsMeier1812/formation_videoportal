@@ -31,7 +31,11 @@ der per Cookie ein Jahr gemerkt wird. Übernahme der alten Daten aus Supabase: s
 - `POST /api/videos/:id/complete` – prüft die Datei in R2 (Existenz, echte Größe, Content-Type)
 - `GET /api/videos`, `GET /api/videos/:id` – Liste und Einzelvideo
 - `GET /api/auth` – prüft einen Code
-- Seiten: Videoliste, Upload (mehrere Dateien, Fortschritt, Bildschirm bleibt an), Player (Tempo, Spiegeln)
+- Seiten: Videothek mit Suche, Upload (Anmeldung per Cookie, mehrere Dateien, Fortschritt, Bildschirm bleibt an),
+  Player (Tempo, Spiegeln)
+
+**Rahmen:** untere Navigation (Choreo · Videos · Hochladen), Hell/Dunkel wählbar (im Planer im Menü,
+auf den Video-Seiten oben rechts). Farben in `public/css/theme.css`.
 
 **PWA:** ein Manifest und ein Service Worker für alles; startet im Planer.
 

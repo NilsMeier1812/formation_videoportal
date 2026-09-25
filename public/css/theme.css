@@ -1,0 +1,127 @@
+/* ============================================================================
+   Formation-App – Farben für Hell und Dunkel (gilt für alle Bereiche)
+
+   Das Thema setzt /js/theme.js als data-theme="light|dark" auf <html>, noch
+   bevor die Seite gezeichnet wird. Die dunklen Werte sind exakt die des
+   bisherigen Choreo-Planers – im dunklen Modus sieht der Planer aus wie vorher.
+
+   Auch die Zeichenflächen des Planers (Welle, Taktraster, Spuren) lesen ihre
+   Farben hier aus (--wave-*, --grid-*, --lane-*, --foot-*); nach einem
+   Themenwechsel zeichnen sie neu.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Flächen */
+  --bg: #f4f5f8;
+  --panel: #ffffff;
+  --panel-2: #eef0f4;
+  --border: #d9dde5;
+  --press: #e2e5ec;
+  --raised: #ffffff; /* gewählter Knopf in Umschaltern */
+  --overlay: rgba(244, 245, 248, 0.75);
+  --scrim: rgba(15, 18, 25, 0.45);
+  --shadow: 0 6px 24px rgba(20, 24, 40, 0.14);
+
+  /* Text */
+  --text: #15181e;
+  --text-soft: #3a3f4a;
+  --muted: #646b78;
+  --muted-2: #8a909c;
+
+  /* Akzent */
+  --accent: #4f6ef7;
+  --accent-dim: rgba(79, 110, 247, 0.16);
+  --accent-surface: #e9eeff;
+  --on-accent: #ffffff;
+
+  /* Status */
+  --danger: #d93838;
+  --danger-border: #f1b9b9;
+  --ok: #1f9d63;
+  --toast-bg: #20242c;
+  --toast-text: #ffffff;
+  --badge-lock-bg: #fff1cf;
+  --badge-lock-text: #7a5600;
+  --badge-offline-bg: #ffe1e1;
+  --badge-offline-text: #b42323;
+  --scrollbar: #b8bec9;
+
+  /* Planer: Welle, Raster, Spuren */
+  --wave: #b9bfcb;
+  --wave-progress: #4f6ef7;
+  --marker: rgba(79, 110, 247, 0.85);
+  --playhead: rgba(20, 22, 28, 0.9);
+  --grid-bar: rgba(52, 76, 180, 0.75);
+  --grid-beat: rgba(80, 90, 115, 0.28);
+  --grid-number: rgba(52, 76, 180, 0.95);
+  --lane-grid: rgba(80, 90, 115, 0.18);
+  --lane-divider: rgba(0, 0, 0, 0.08);
+  --lane-hint: rgba(80, 90, 115, 0.55);
+  --note: #d99100;
+  --note-text: #2a2e36;
+  --part-line: rgba(59, 111, 224, 0.45);
+  --part-mark: #3b6fe0;
+  --foot-left: #4f6ef7;
+  --foot-right: #e03e3e;
+  --foot-none: #8a909c;
+
+  /* Layout */
+  --nav-h: 58px;
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #121212;
+  --panel: #1e1e1e;
+  --panel-2: #242424;
+  --border: #333333;
+  --press: #2e2e2e;
+  --raised: #3a3a3a;
+  --overlay: rgba(18, 18, 18, 0.7);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+
+  --text: #ffffff;
+  --text-soft: #d8d8d8;
+  --muted: #9a9a9a;
+  --muted-2: #6b7180;
+
+  --accent: #6c8cff;
+  --accent-dim: rgba(108, 140, 255, 0.25);
+  --accent-surface: #1b2030;
+  --on-accent: #0b1020;
+
+  --danger: #ff5a5a;
+  --danger-border: #5a2b2b;
+  --ok: #3ecf8e;
+  --toast-bg: #2b2b2b;
+  --toast-text: #ffffff;
+  --badge-lock-bg: #4a3a1a;
+  --badge-lock-text: #ffcf6a;
+  --badge-offline-bg: #4a2020;
+  --badge-offline-text: #ff9a9a;
+  --scrollbar: #555555;
+
+  --wave: #5a5a5a;
+  --wave-progress: #6c8cff;
+  --marker: rgba(108, 140, 255, 0.85);
+  --playhead: rgba(255, 255, 255, 0.95);
+  --grid-bar: rgba(195, 204, 255, 0.85);
+  --grid-beat: rgba(150, 160, 180, 0.30);
+  --grid-number: rgba(195, 204, 255, 0.9);
+  --lane-grid: rgba(150, 160, 180, 0.18);
+  --lane-divider: rgba(255, 255, 255, 0.10);
+  --lane-hint: rgba(180, 190, 210, 0.45);
+  --note: #ffcf6a;
+  --note-text: #e8e8e8;
+  --part-line: rgba(138, 180, 255, 0.4);
+  --part-mark: #8ab4ff;
+  --foot-left: #6c8cff;
+  --foot-right: #ff5a5a;
+  --foot-none: #cccccc;
+}
