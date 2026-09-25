@@ -1,22 +1,5 @@
-// Gemeinsame Helfer der Video-Seiten: API-Aufrufe, Anmeldung, kleine DOM-Helfer.
-// Angemeldet wird per Cookie (/api/session) – einmal Code eingeben, ein Jahr gemerkt.
-
-const NAME_KEY = "portal.name";
-const OLD_CODE_KEY = "portal.code"; // früher lag der Code im Browser – wird einmalig umgezogen
-
-// localStorage kann in privaten Fenstern fehlen oder werfen – dann eben ohne Merken.
-function load(key) {
-  try { return localStorage.getItem(key) ?? ""; } catch { return ""; }
-}
-function save(key, value) {
-  try { localStorage.setItem(key, value); } catch { /* egal */ }
-}
-function forget(key) {
-  try { localStorage.removeItem(key); } catch { /* egal */ }
-}
-
-export const getName = () => load(NAME_KEY);
-export const setName = (name) => save(NAME_KEY, name);
+// Gemeinsame Helfer der Video-Bereiche: API-Aufrufe und kleine DOM-Helfer.
+// Die Anmeldung steht in session.js.
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -35,29 +18,6 @@ export async function api(path, { method = "GET", body } = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data.error ?? `Fehler ${res.status}`);
   return data;
-}
-
-// ---------------- Anmeldung ----------------
-
-/** Aktuelle Rolle: "tagger" (Trainer), "group" oder null. */
-export async function currentRole() {
-  const { role } = await api("/api/session");
-  if (role) return role;
-  // Einmaliger Umzug: früher gespeicherten Code gegen ein Cookie tauschen
-  const old = load(OLD_CODE_KEY);
-  if (!old) return null;
-  forget(OLD_CODE_KEY);
-  try { return await login(old); } catch { return null; }
-}
-
-/** Code prüfen und Anmeldung per Cookie merken; wirft bei falschem Code. */
-export async function login(code) {
-  const { role } = await api("/api/session", { method: "POST", body: { code } });
-  return role;
-}
-
-export async function logout() {
-  await api("/api/session", { method: "DELETE" });
 }
 
 // ---------------- DOM ----------------

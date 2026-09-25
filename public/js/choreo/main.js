@@ -1,7 +1,7 @@
 // Einstieg des Choreo-Planers: setzt die Alpine-Komponente aus den Bereichen zusammen.
 //
 //   core      Grundzustand, abgeleitete Werte, Start
-//   auth      Editor-Login
+//   auth      Anmeldung (gemeinsam mit der ganzen App, siehe /js/session.js)
 //   projects  Projekte laden/öffnen/anlegen/duplizieren/löschen, Einstellungen
 //   audio     Musik laden, Wellenform, Wiedergabe
 //   canvas    Taktraster, Schritt-Spuren, Playhead, Tippen in die Spuren
@@ -9,11 +9,14 @@
 //   segments  Sprungmarken
 //   tempo     Tempo-Abschnitte
 //   groups    Paare, Abschnitte, Gruppen, Zuteilung
-//   editing   Training ↔ Editor, Bearbeitungssperre
+//   editing   Bearbeiten an/aus (nur Trainer), Bearbeitungssperre
+//
+// Die Komponente hängt am <body> der App: Das gemeinsame Menü (Choreo-Wahl,
+// Anmeldung, Hell/Dunkel) und die Dialoge liegen außerhalb des Planer-Bereichs,
+// damit sie aus jedem Bereich heraus funktionieren.
 //
 // Datenzugriff läuft ausschließlich über ./data (siehe dort).
 import Alpine from "/vendor/alpine.esm.js";
-import { registerServiceWorker } from "/js/pwa.js";
 import { audio } from "./features/audio.js";
 import { auth } from "./features/auth.js";
 import { canvas } from "./features/canvas.js";
@@ -48,4 +51,3 @@ Alpine.data("choreo", () =>
 
 window.Alpine = Alpine;
 Alpine.start();
-registerServiceWorker();

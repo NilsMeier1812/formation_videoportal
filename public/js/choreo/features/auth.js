@@ -1,10 +1,18 @@
-// Editor-Login: Bearbeiten nur mit Trainer-Code, Lesen/Training für alle.
+// Anmeldung – gilt für die ganze App (Stand und Server-Aufrufe in /js/session.js).
+// Ansehen und Training gehen ohne Anmeldung; Bearbeiten nur mit Trainer-Code.
 // Der Server merkt sich die Anmeldung per Cookie ein Jahr lang.
-import { remote } from "../data/index.js";
+import { session } from "/js/session.js";
+
+const ROLE_LABELS = { tagger: "Trainer", group: "Gruppe" };
+const ROLE_HINTS = {
+  tagger: "Choreos bearbeiten und Videos hochladen",
+  group: "Videos hochladen",
+};
 
 export function auth() {
   return {
-    isEditor: false,
+    role: null, // null | 'group' | 'tagger'
+    isEditor: false, // darf bearbeiten (Trainer-Code)
     loginOpen: false,
     loginPassword: "",
     loginName: "",
@@ -12,9 +20,27 @@ export function auth() {
     loggingIn: false,
     showPw: false,
 
+    get roleLabel() {
+      const label = ROLE_LABELS[this.role];
+      if (!label) return "Nicht angemeldet";
+      return this.userName ? `${label} · ${this.userName}` : label;
+    },
+    get roleHint() { return ROLE_HINTS[this.role] || "Ansehen und Training gehen ohne Anmeldung"; },
+
     async initAuth() {
-      this.isEditor = await remote.restoreSession();
-      remote.onAuthChange((isEditor) => { this.isEditor = isEditor; });
+      this.applyRole(await session.restore());
+      // Anmeldung kann sich auch in einem anderen Bereich ändern (z. B. beim Hochladen)
+      window.addEventListener("sessionchange", (e) => this.applyRole(e.detail.role));
+    },
+
+    applyRole(role) {
+      const wasEditor = this.isEditor;
+      this.role = role;
+      this.isEditor = role === "tagger";
+      if (wasEditor === this.isEditor) return;
+      if (!this.isEditor && this.currentMode === "editor") this.exitEditor();
+      // Private Projekte schickt der Server nur Trainern → Liste neu holen
+      if (this.projects.length) this.loadProjects();
     },
 
     openLogin() {
@@ -22,40 +48,39 @@ export function auth() {
       this.loginPassword = "";
       this.loginName = this.userName || "";
       this.showPw = false;
-      this.loginOpen = true;
+      this.loginOpen = true; // liegt über dem Menü – danach ist man wieder im Menü
     },
     closeLogin() { this.loginOpen = false; },
 
     async doLogin() {
-      const password = this.loginPassword;
-      if (!password || this.loggingIn) return;
+      const code = this.loginPassword;
+      if (!code || this.loggingIn) return;
       this.loggingIn = true;
       this.loginError = "";
       try {
-        await remote.login(password);
-        this.isEditor = true;
+        const role = await session.login(code);
         // Name ist optional; leer = Anzeige „wer bearbeitet“ bleibt leer
         this.userName = (this.loginName || "").trim();
-        localStorage.setItem("choreo_user_name", this.userName);
+        session.setName(this.userName);
         this.loginPassword = "";
         this.loginName = "";
         this.loginOpen = false;
-        // Angemeldet heißt nur: darf bearbeiten. Den Modus wählt man selbst.
-        this.setStatus("Angemeldet – zum Bearbeiten „Editor“ wählen");
+        // Angemeldet heißt nur: darf bearbeiten. Einschalten tut man es selbst.
+        this.setStatus(role === "tagger" ? "Angemeldet als Trainer" : "Angemeldet mit Gruppen-Code");
       } catch (e) {
-        this.loginError = e.code === "group"
-          ? e.message
-          : "Code falsch (oder offline). Bitte erneut versuchen.";
+        this.loginError = e.status === 401
+          ? "Code falsch. Bitte erneut versuchen."
+          : e.message;
       } finally {
         this.loggingIn = false;
       }
     },
 
     async logout() {
+      // Erst die Sperre freigeben – dafür braucht es die Anmeldung noch
       if (this.currentMode === "editor") await this.exitEditor();
-      await remote.logout();
-      this.isEditor = false;
-      this.setStatus("Abgemeldet – nur noch Lesen/Training");
+      await session.logout();
+      this.setStatus("Abgemeldet – nur noch Ansehen und Training");
     },
   };
 }

@@ -1,7 +1,7 @@
-// Adapter für die eigene API (/api/choreo, /api/session). Gleiche Funktionen wie
-// früher der Supabase-Adapter – der Rest des Planers merkt vom Wechsel nichts.
-// Anmeldung läuft über ein HttpOnly-Cookie, das der Server nach Eingabe des
-// Trainer-Codes setzt; es wird bei jeder Anfrage automatisch mitgeschickt.
+// Adapter für die eigene API (/api/choreo). Gleiche Funktionen wie früher der
+// Supabase-Adapter – der Rest des Planers merkt vom Wechsel nichts.
+// Anmeldung läuft über ein HttpOnly-Cookie (gesetzt über /js/session.js);
+// es wird bei jeder Anfrage automatisch mitgeschickt.
 
 /** Fehler mit HTTP-Status. Ohne Status = Netzwerkfehler (offline). */
 export class RemoteError extends Error {
@@ -34,25 +34,7 @@ const lock = (projectId, action = "") => `/api/choreo/projects/${enc(projectId)}
 export function createApiRemote() {
   return {
     // ---------------- Anmeldung ----------------
-    /** true = mit Trainer-Code angemeldet (darf bearbeiten). */
-    async restoreSession() {
-      try {
-        const { role } = await request("GET", "/api/session");
-        return role === "tagger";
-      } catch {
-        return false; // offline → Lese-Modus
-      }
-    },
-    onAuthChange() { /* Anmeldung ändert sich nur über login/logout */ },
-    async login(code) {
-      const { role } = await request("POST", "/api/session", { body: { code } });
-      if (role !== "tagger") {
-        throw new RemoteError(403, "Das ist der Gruppen-Code – zum Bearbeiten braucht es den Trainer-Code.", "group");
-      }
-    },
-    async logout() {
-      await request("DELETE", "/api/session").catch(() => {});
-    },
+    // Anmelden/Abmelden: /js/session.js (gilt für die ganze App).
     /** Code erneut prüfen (Bestätigung vor dem Löschen). */
     async verifyPassword(code) {
       try {

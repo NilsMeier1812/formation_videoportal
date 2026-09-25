@@ -13,6 +13,8 @@ directory = "./public"
 binding = "ASSETS"
 # API-Pfade immer an den Worker, alles andere zuerst als statische Datei
 run_worker_first = ["/api/*"]
+# Die App ist eine Seite: /videos, /upload … (alles ohne eigene Datei) liefert index.html
+not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"

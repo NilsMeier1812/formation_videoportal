@@ -1,21 +1,8 @@
 /* ===== Choreo-Planer – Layout ===== */
-/* Farben: siehe theme.css (Hell/Dunkel) */
+/* Farben: siehe theme.css (Hell/Dunkel). Seitenrahmen und Bereiche: shell.css.
+   Der Planer-Bereich ist eine Spalte: Audio · Leiste · unterer Bereich. */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100dvh;            /* dynamische Viewport-Höhe (kritisch für iOS Safari) */
-  overflow: hidden;          /* verhindert Body-Scroll */
-  display: flex;
-  flex-direction: column;
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
-}
 
 [x-cloak] { display: none !important; }
 
@@ -94,10 +81,19 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   text-overflow: ellipsis;
 }
 .topbar .meta { font-size: 11px; color: var(--muted); font-weight: 400; }
+/* Titel öffnet das Menü (Choreo wählen) */
+.topbar .title { cursor: pointer; }
+.topbar .title .chev { display: inline-block; vertical-align: -2px; margin-left: 4px; color: var(--muted); }
 
-.mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.mode-toggle button { border: none; border-radius: 0; padding: 6px 12px; font-size: 12px; background: transparent; }
-.mode-toggle button.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+/* Bearbeiten an/aus – nur für Trainer sichtbar */
+.edit-toggle {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 32px; padding: 0 11px;
+  font-size: 12px; font-weight: 600;
+}
+.edit-toggle svg { display: block; }
+.edit-toggle.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 #waveform {
   flex-grow: 1;
@@ -353,16 +349,24 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .project-item .pi-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .project-item .pi-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
-.editor-bar { margin-bottom: 14px; }
-.editor-bar .eb-row {
+/* Anmeldung im Menü */
+.account {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border); border-radius: 12px;
   background: var(--panel-2);
 }
-.editor-bar .eb-row button { margin-left: auto; }
-.eb-on { color: var(--ok); font-weight: 600; font-size: 14px; }
-.eb-off { color: var(--muted); font-weight: 600; font-size: 14px; }
+.account .acc-icon {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--press); color: var(--muted);
+}
+.account .acc-icon.on { background: var(--accent-dim); color: var(--accent); }
+.account .acc-icon svg { display: block; }
+.account .acc-main { flex: 1; min-width: 0; }
+.account .acc-title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account .acc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.account button { flex-shrink: 0; }
 
 .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 4px 8px; }
 .field { margin-bottom: 12px; }
