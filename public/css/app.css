@@ -120,7 +120,7 @@
 }
 .vpage input:focus { outline: none; border-color: var(--accent); }
 
-.vpage label.field { display: grid; gap: 6px; margin: 0; font-size: 13px; color: var(--muted); }
+.vpage label.field, .vpage div.field { display: grid; gap: 6px; margin: 0; font-size: 13px; color: var(--muted); }
 .vpage .fields { display: grid; gap: 14px; }
 .vpage .row { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
 @media (max-width: 520px) { .vpage .row { grid-template-columns: 1fr; } }
@@ -246,6 +246,7 @@
 .vpage .upload-item { display: grid; gap: 8px; }
 .vpage .upload-item .name { font-weight: 600; overflow-wrap: anywhere; }
 .vpage .upload-item .state { font-size: 13px; color: var(--muted); }
+.vpage .upload-item .when { font-size: 13px; color: var(--muted); }
 .vpage .upload-item .state.ok { color: var(--ok); }
 .vpage .upload-item .state.error { color: var(--danger); }
 .vpage .bar { height: 6px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
@@ -281,3 +282,113 @@
 .vpage dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
 .vpage dl.facts dt { color: var(--muted); }
 .vpage dl.facts dd { margin: 0; }
+
+/* ---------------- Gemeinsame Bausteine (Zuordnen, Filter) ---------------- */
+.vpage .muted.small { font-size: 13px; }
+.vpage .first { margin-top: 0; }
+.vpage select {
+  width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2); color: var(--text); font: 16px var(--font);
+}
+.vpage .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vpage .chip-toggle {
+  min-height: 34px; padding: 6px 12px; border-radius: 999px;
+  background: var(--panel-2); color: var(--text); font-size: 14px; font-weight: 500;
+}
+.vpage .chip-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.vpage .icon-btn.danger { color: var(--danger); }
+.vpage button.danger-link { color: var(--danger); margin: 8px auto 0; display: flex; }
+
+/* ---------------- Zuordnen ---------------- */
+.vpage .ad-tabs { margin: 4px 0 8px; }
+.vpage .ad-tabs button { flex: 1; }
+.vpage .ad-tabs .count:not(:empty) {
+  display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 2px; border-radius: 10px;
+  background: var(--danger); color: #fff; font-size: 11px; line-height: 18px; font-weight: 700;
+}
+
+.vpage .ad-group {
+  margin: 0 0 10px; padding: 4px 8px 8px;
+  border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-dim);
+}
+.vpage .ad-group-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 4px 4px 6px; font-size: 13px; font-weight: 600; color: var(--accent);
+}
+.vpage .ad-item {
+  display: grid; grid-template-columns: auto 104px 1fr; align-items: center; gap: 12px;
+  margin: 0 0 8px; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel);
+  cursor: pointer;
+}
+.vpage .ad-group .ad-item:last-child { margin-bottom: 0; }
+.vpage .ad-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.vpage .ad-item input[type="checkbox"] { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
+.vpage .ad-thumb {
+  position: relative; display: grid; place-items: center; width: 104px; aspect-ratio: 16 / 9;
+  overflow: hidden; border-radius: 8px; background: var(--panel-2); color: var(--muted);
+}
+.vpage .ad-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vpage .ad-thumb .chip { bottom: 4px; padding: 1px 6px; font-size: 10px; }
+.vpage .ad-thumb .chip.right { right: 4px; }
+.vpage .ad-meta { min-width: 0; }
+.vpage .ad-when { font-weight: 600; font-variant-numeric: tabular-nums; }
+.vpage .ad-sub { font-size: 13px; color: var(--muted); }
+.vpage .ad-assigned { font-size: 13px; color: var(--accent); overflow-wrap: anywhere; }
+
+.vpage .select-bar {
+  position: sticky; bottom: 12px; z-index: 15;
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px; padding: 8px 8px 8px 16px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--panel); box-shadow: var(--shadow);
+}
+.vpage .select-bar span { flex: 1; font-weight: 600; }
+
+.vpage .sheet { position: absolute; inset: 0; z-index: 25; overflow-y: auto; background: var(--bg); }
+.vpage .sheet main { display: grid; gap: 12px; padding-bottom: 32px; }
+.vpage .ed-player { display: block; width: 100%; max-height: 40vh; border-radius: var(--radius); background: #000; }
+.vpage .ed-thumbs:empty { display: none; }
+.vpage .ed-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.vpage .ed-thumb {
+  flex-shrink: 0; display: grid; justify-items: center; gap: 2px; min-height: 0; padding: 4px;
+  border-radius: 10px; font-size: 12px; font-weight: 600;
+}
+.vpage .ed-thumb img { width: 72px; height: 40px; object-fit: cover; border-radius: 6px; }
+.vpage .ed-thumb[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.vpage .ed-range { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.vpage .ed-range.muted { font-weight: 400; color: var(--muted); }
+.vpage .ed-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Choreos & Tags verwalten */
+.vpage .lib-choreo { display: grid; gap: 8px; margin-bottom: 12px; }
+.vpage .lib-choreo .section-title { margin: 10px 0 0; }
+.vpage .lib-head, .vpage .lib-row, .vpage .add-row, .vpage .lib-free { display: flex; align-items: center; gap: 8px; }
+.vpage .lib-head input { flex: 1; font-weight: 700; font-size: 17px; }
+.vpage .lib-row input, .vpage .add-row input { flex: 1; min-width: 0; }
+.vpage .add-row button { flex-shrink: 0; }
+.vpage .lib-audio { display: grid; gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); }
+.vpage .lib-audio-head { display: flex; align-items: center; gap: 8px; }
+.vpage .lib-audio-title { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.vpage .main-toggle {
+  flex-shrink: 0; min-height: 32px; padding: 4px 10px; gap: 4px;
+  border-radius: 999px; font-size: 12px; color: var(--muted);
+}
+.vpage .main-toggle.on { background: var(--badge-lock-bg); border-color: transparent; color: var(--badge-lock-text); }
+.vpage .main-toggle svg { display: block; }
+.vpage .lib-free { justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--border); }
+.vpage .lib-free:first-of-type { border-top: none; }
+.vpage .lib-free select { width: auto; max-width: 55%; }
+
+/* Player: Zuordnung */
+.vpage .pl-assign { display: grid; gap: 10px; margin: 0 0 12px; }
+.vpage .pl-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.vpage .pl-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.vpage .tag { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+.vpage .pl-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vpage .pl-actions:empty { display: none; }
+
+/* Videothek: Filter */
+.vpage .filters { display: flex; gap: 8px; margin: 0 0 10px; overflow-x: auto; }
+.vpage .filters select { flex: 0 0 auto; width: auto; max-width: 70vw; padding: 8px 10px; border-radius: 999px; font-size: 14px; background: var(--panel); }
+.vpage .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }

@@ -14,18 +14,20 @@ export function segments() {
     renderRegions() {
       if (!rt.wsRegions) return;
       rt.wsRegions.clearRegions();
-      if (!this.showMarkers) return;
-      const draggable = this.currentMode === "editor";
-      for (const s of this.sortedSegments) {
-        rt.wsRegions.addRegion({
-          id: s.id,
-          start: Number(s.timestamp),
-          content: s.label || "♪",
-          color: rt.palette.marker,
-          drag: draggable,
-          resize: false,
-        });
+      if (this.showMarkers) {
+        const draggable = this.currentMode === "editor";
+        for (const s of this.sortedSegments) {
+          rt.wsRegions.addRegion({
+            id: s.id,
+            start: Number(s.timestamp),
+            content: s.label || "♪",
+            color: rt.palette.marker,
+            drag: draggable,
+            resize: false,
+          });
+        }
       }
+      this.renderPickRegion(); // Zeitraum beim „Stelle wählen“ (Admin), siehe videos.js
     },
     toggleMarkers() {
       this.showMarkers = !this.showMarkers;

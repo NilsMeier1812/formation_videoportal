@@ -10,6 +10,7 @@
 //   tempo     Tempo-Abschnitte
 //   groups    Paare, Abschnitte, Gruppen, Zuteilung
 //   editing   Bearbeiten an/aus (nur Trainer), Bearbeitungssperre
+//   videos    Tab „Videos“, Stelle wählen (Admin), Menü nach Choreos gruppiert
 //
 // Die Komponente hängt am <body> der App: Das gemeinsame Menü (Choreo-Wahl,
 // Anmeldung, Hell/Dunkel) und die Dialoge liegen außerhalb des Planer-Bereichs,
@@ -27,6 +28,7 @@ import { projects } from "./features/projects.js";
 import { segments } from "./features/segments.js";
 import { steps } from "./features/steps.js";
 import { tempo } from "./features/tempo.js";
+import { videos } from "./features/videos.js";
 
 /**
  * Fügt die Bereiche zu einem Objekt zusammen. Anders als Object.assign bleiben
@@ -46,7 +48,7 @@ function compose(...parts) {
 }
 
 Alpine.data("choreo", () =>
-  compose(core(), auth(), projects(), audio(), canvas(), steps(), segments(), tempo(), groups(), editing())
+  compose(core(), auth(), projects(), audio(), canvas(), steps(), segments(), tempo(), groups(), editing(), videos())
 );
 
 window.Alpine = Alpine;

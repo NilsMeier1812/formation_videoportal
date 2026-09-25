@@ -109,9 +109,92 @@
       <div class="tabbar">
         <button :class="{ active: bottomTab === 'steps' }" @click="setTab('steps')">Schritte &amp; Gruppen</button>
         <button :class="{ active: bottomTab === 'notes' }" @click="setTab('notes')">Sprungmarken</button>
+        <button x-show="!pick" :class="{ active: bottomTab === 'videos' }" @click="openVideosTab()">Videos<span class="tab-count" x-show="videosHere.length" x-cloak x-text="videosHere.length"></span></button>
+        <button x-show="pick" x-cloak :class="{ active: bottomTab === 'pick' }" @click="setTab('pick')">Stelle wählen</button>
       </div>
 
       <div class="tab-content">
+
+        <!-- Tab: Videos an der aktuellen Stelle (nur Vorschaubilder – Videos laden erst im Player) -->
+        <div x-show="bottomTab === 'videos'" x-cloak class="tab-pane">
+          <template x-if="!planVideosLoaded">
+            <div class="empty">Lade Videos…</div>
+          </template>
+          <template x-if="planVideosLoaded">
+            <div>
+              <div class="notes-head">
+                <h2 x-text="videosHere.length ? 'An dieser Stelle' : 'Videos'"></h2>
+                <span class="vt-time" x-text="fmt(currentTime)"></span>
+              </div>
+              <template x-for="v in videosHere" :key="v.id">
+                <button class="vt-card" @click="openVideo(v)">
+                  <span class="vt-thumb">
+                    <template x-if="v.thumb_url"><img :src="v.thumb_url" alt="" loading="lazy"></template>
+                    <span class="vt-play"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+                  </span>
+                  <span class="vt-main">
+                    <span class="vt-title" x-text="videoTitle(v)"></span>
+                    <span class="vt-sub" x-text="[videoDate(v), '♪ ' + fmtShort(v.audio_start_s) + '–' + fmtShort(v.audio_end_s)].filter(Boolean).join(' · ')"></span>
+                    <span class="vt-tags"><template x-for="t in videoTags(v)" :key="t"><span class="vt-tag" x-text="t"></span></template></span>
+                  </span>
+                </button>
+              </template>
+              <template x-if="!videosHere.length">
+                <div class="vt-empty">
+                  <p x-show="audioVideos.length">An dieser Stelle gibt es keine Videos. Videos gibt es bei:</p>
+                  <p x-show="!audioVideos.length && !mainAudioElsewhere">Zu dieser Musik gibt es noch keine Videos.</p>
+                  <template x-if="!audioVideos.length && mainAudioElsewhere">
+                    <p>Die Videos hängen an der Hauptaudio „<span x-text="mainAudioElsewhere.title"></span>“.
+                      <button class="primary" style="margin-top:8px;width:100%" @click="selectProject(mainAudioElsewhere)">Hauptaudio öffnen</button></p>
+                  </template>
+                  <div class="vt-ranges">
+                    <template x-for="r in videoRanges" :key="r.start">
+                      <button @click="seekTo(r.start)" x-text="fmtShort(r.start) + '–' + fmtShort(r.end) + (r.count > 1 ? ' (' + r.count + ')' : '')"></button>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+
+        <!-- Tab: Stelle wählen (Admin, aus „Zuordnen“) -->
+        <div x-show="bottomTab === 'pick'" x-cloak class="tab-pane">
+          <template x-if="pick">
+            <div>
+              <div class="notes-head">
+                <h2>Stelle wählen</h2>
+                <span class="badge lock" x-text="pick.videos.length === 1 ? '1 Video' : pick.videos.length + ' Videos'"></span>
+              </div>
+              <video class="pick-video" controls playsinline preload="metadata" :src="pickVideo()?.url" :poster="pickVideo()?.poster || ''"></video>
+              <div class="pick-thumbs" x-show="pick.videos.length > 1">
+                <template x-for="(v, i) in pick.videos" :key="v.id">
+                  <button :class="{ active: pick.preview === i }" @click="pick.preview = i" x-text="v.label"></button>
+                </template>
+              </div>
+              <p class="hint">Musik abspielen oder in die Welle tippen, dann Start und Ende auf die aktuelle Position setzen. Mit − / + um 0,1 s verschieben.</p>
+              <div class="pick-row">
+                <span class="pick-label">Start</span>
+                <span class="pick-val" x-text="pick.start == null ? '–' : fmt(pick.start)"></span>
+                <button class="icon" @click="nudgePick('start', -0.1)" :disabled="pick.start == null" aria-label="Start früher">−</button>
+                <button class="icon" @click="nudgePick('start', 0.1)" :disabled="pick.start == null" aria-label="Start später">+</button>
+                <button class="primary" @click="pickHere('start')">hier</button>
+              </div>
+              <div class="pick-row">
+                <span class="pick-label">Ende</span>
+                <span class="pick-val" x-text="pick.end == null ? '–' : fmt(pick.end)"></span>
+                <button class="icon" @click="nudgePick('end', -0.1)" :disabled="pick.end == null" aria-label="Ende früher">−</button>
+                <button class="icon" @click="nudgePick('end', 0.1)" :disabled="pick.end == null" aria-label="Ende später">+</button>
+                <button class="primary" @click="pickHere('end')">hier</button>
+              </div>
+              <p class="hint" x-show="pick.start != null && pick.end != null && !pickValid" style="color:var(--danger)">Das Ende muss nach dem Start liegen.</p>
+              <div class="calib-row" style="margin-top:12px">
+                <button style="flex:1" @click="finishPick(false)">Abbrechen</button>
+                <button class="primary" style="flex:1" :disabled="!pickValid" @click="finishPick(true)">Übernehmen</button>
+              </div>
+            </div>
+          </template>
+        </div>
 
         <!-- Tab: Sprungmarken -->
         <div x-show="bottomTab === 'notes'" class="tab-pane">
@@ -291,8 +374,13 @@
       <div class="search">
         <label>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="vl-q" type="search" placeholder="Suchen: Titel, Name, Kamera, Datum" aria-label="Videos durchsuchen" autocomplete="off">
+          <input id="vl-q" type="search" placeholder="Suchen: Titel, Name, Tag, Datum" aria-label="Videos durchsuchen" autocomplete="off">
         </label>
+      </div>
+      <div class="filters" id="vl-filters">
+        <select id="vl-choreo" aria-label="Choreo"><option value="">Alle Choreos</option></select>
+        <select id="vl-dance" aria-label="Tanz"><option value="">Alle Tänze</option></select>
+        <select id="vl-tag" aria-label="Tag"><option value="">Alle Tags</option></select>
       </div>
       <p id="vl-info" class="result-info" aria-live="polite">Lade …</p>
       <ul id="vl-videos" class="grid"></ul>
@@ -327,6 +415,7 @@
           auf manchen Geräten erst nach der Aufbereitung.
         </p>
 
+        <div id="pl-assign" class="pl-assign"></div>
         <dl id="pl-facts" class="facts card"></dl>
       </div>
     </main>
@@ -364,40 +453,63 @@
             <input id="up-files" type="file" accept="video/*" multiple required>
           </label>
 
-          <div class="row">
-            <label class="field">Dein Name
-              <input id="up-name" type="text" maxlength="50" autocomplete="given-name" required>
-            </label>
-            <label class="field">Aufgenommen am
-              <input id="up-date" type="date" required>
-            </label>
-          </div>
-          <div class="row">
-            <label class="field">Kamera / Perspektive
-              <input id="up-camera" type="text" maxlength="50" list="up-cameras" placeholder="z. B. vorne">
-              <datalist id="up-cameras">
-                <option value="vorne"><option value="hinten"><option value="links"><option value="rechts"><option value="oben">
-              </datalist>
-            </label>
-            <label class="field">Titel
-              <input id="up-title" type="text" maxlength="200" placeholder="optional – sonst Dateiname">
-            </label>
-          </div>
-
-          <label class="switch">
-            <input id="up-no-choreo" type="checkbox">
-            <span class="track"></span>
-            Gehört zu keiner Choreo (z. B. Technik-Erklärung, fremder Auftritt)
+          <label class="field">Dein Name (optional)
+            <input id="up-name" type="text" maxlength="50" autocomplete="given-name" placeholder="damit man weiß, von wem es ist">
           </label>
 
           <button id="up-submit" class="primary block" type="submit">Hochladen</button>
-          <p class="muted" style="margin:0;font-size:13px">Während des Uploads Bildschirm anlassen und die App nicht schließen – in andere Bereiche wechseln geht.</p>
+          <p class="muted" style="margin:0;font-size:13px">Aufnahmezeit und Länge liest die App aus dem Video; zugeordnet wird von den Trainern.
+            Während des Uploads Bildschirm anlassen und die App nicht schließen – in andere Bereiche wechseln geht.</p>
           <p id="up-message" class="message" role="status"></p>
         </form>
 
         <ul id="up-list" class="uploads"></ul>
       </section>
     </main>
+  </section>
+
+  <!-- ============================ Zuordnen (nur Trainer) ============================ -->
+  <section class="view vpage" data-view="admin" x-ignore>
+    <header class="app-bar">
+      <button class="icon-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1>Zuordnen</h1>
+    </header>
+    <main>
+      <section id="ad-denied" class="card login-card" hidden>
+        <p>Videos zuordnen und Choreos verwalten können nur Trainer. Im Menü (☰) mit dem <strong>Trainer-Code</strong> anmelden.</p>
+      </section>
+
+      <div id="ad-main" hidden>
+        <div class="seg ad-tabs" role="group" aria-label="Ansicht">
+          <button type="button" data-pane="inbox" aria-pressed="true">Eingang <span class="count" id="ad-count"></span></button>
+          <button type="button" data-pane="all" aria-pressed="false">Alle</button>
+          <button type="button" data-pane="choreos" aria-pressed="false">Choreos</button>
+          <button type="button" data-pane="tags" aria-pressed="false">Tags</button>
+        </div>
+
+        <div id="ad-videos">
+          <p id="ad-info" class="result-info"></p>
+          <div id="ad-list"></div>
+        </div>
+        <div id="ad-choreos" hidden></div>
+        <div id="ad-tags" hidden></div>
+      </div>
+
+      <div id="ad-bar" class="select-bar" hidden>
+        <span id="ad-selected"></span>
+        <button type="button" class="link" id="ad-clear">Aufheben</button>
+        <button type="button" class="primary" id="ad-assign">Zuordnen</button>
+      </div>
+    </main>
+
+    <!-- Zuordnen einer Auswahl: liegt über der Liste -->
+    <div id="ad-editor" class="sheet" hidden>
+      <header class="app-bar">
+        <button class="icon-btn back" type="button" id="ed-close" aria-label="Zurück"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <h1 id="ed-title">Zuordnen</h1>
+      </header>
+      <main class="narrow" id="ed-body"></main>
+    </div>
   </section>
 
 </div>
@@ -415,6 +527,11 @@
   <a href="/upload" data-tab="upload">
     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg></span>
     Hochladen
+  </a>
+  <!-- nur für Trainer (views/index.js blendet ein) -->
+  <a href="/zuordnen" data-tab="admin" hidden>
+    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span class="nav-badge" id="nav-inbox" hidden></span></span>
+    Zuordnen
   </a>
 </nav>
 
@@ -443,15 +560,20 @@
           </div>
 
           <div class="section-title">Choreos</div>
-          <template x-for="p in visibleProjects" :key="p.id">
+          <template x-for="g in projectGroups" :key="g.key">
+          <div>
+          <div class="pgroup-title" x-show="g.title" x-text="g.title"></div>
+          <template x-for="p in g.projects" :key="p.id">
             <div class="project-item" :class="{ active: p.id === selectedProjectId }" @click="selectProject(p)">
               <div class="pi-main">
-                <div class="pi-title" x-text="p.title"></div>
-                <div class="pi-meta" x-text="`${p.bpm} BPM · ${p.time_signature}` + (p.is_private ? ' · privat' : '')"></div>
+                <div class="pi-title"><span class="pi-main-mark" x-show="isMainAudio(p)" title="Hauptaudio">★</span><span x-text="p.title"></span></div>
+                <div class="pi-meta" x-text="(audioDances(p) ? audioDances(p) + ' · ' : '') + `${p.bpm} BPM · ${p.time_signature}` + (p.is_private ? ' · privat' : '')"></div>
               </div>
               <button x-show="isEditor" class="icon" @click.stop="duplicateProject(p)" aria-label="Projekt duplizieren" title="Projekt duplizieren"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
               <button x-show="isEditor" class="icon danger" @click.stop="askDeleteProject(p)" aria-label="Projekt löschen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></button>
             </div>
+          </template>
+          </div>
           </template>
           <template x-if="visibleProjects.length === 0">
             <div class="empty" style="padding:20px 0" x-text="online ? 'Noch keine Projekte.' : 'Offline – keine zwischengespeicherten Projekte.'"></div>

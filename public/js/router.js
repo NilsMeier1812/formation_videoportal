@@ -6,6 +6,7 @@
 //   /videos          Videothek             früher /
 //   /videos/<id>     Player                früher /video?id=<id>
 //   /upload          Hochladen
+//   /zuordnen        Admin: Videos zuordnen, Choreos und Tags verwalten (nur Trainer)
 //
 // Alte Adressen (geteilte Links, installierte App) werden auf die neuen umgeschrieben.
 // Bei jedem Wechsel feuert window "routechange" (detail: { view, prev, id }).
@@ -15,9 +16,10 @@ const TITLES = {
   videos: "Videos · Formation",
   upload: "Hochladen · Formation",
   player: "Video · Formation",
+  admin: "Zuordnen · Formation",
 };
 /** Welcher Reiter der unteren Navigation zu einem Bereich gehört. */
-const TAB_OF = { choreo: "choreo", videos: "videos", player: "videos", upload: "upload" };
+const TAB_OF = { choreo: "choreo", videos: "videos", player: "videos", upload: "upload", admin: "admin" };
 
 /** Adresse → Bereich. Unbekanntes landet im Planer. */
 export function parse(url) {
@@ -30,6 +32,7 @@ export function parse(url) {
     return id ? player(id) : { view: "videos", path: "/videos" };
   }
   if (path === "/upload") return { view: "upload", path: "/upload" };
+  if (path === "/zuordnen") return { view: "admin", path: "/zuordnen" };
   return { view: "choreo", path: "/" };
 }
 
