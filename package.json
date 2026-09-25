@@ -7,10 +7,15 @@
     "deploy": "wrangler deploy",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply formation-portal --local",
-    "db:migrate:remote": "wrangler d1 migrations apply formation-portal --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply formation-portal --remote",
+    "vendor": "node scripts/vendor.mjs"
   },
   "dependencies": {
-    "aws4fetch": "^1.0.20"
+    "@supabase/supabase-js": "^2.117.1",
+    "alpinejs": "^3.17.4",
+    "aws4fetch": "^1.0.20",
+    "dexie": "^4.4.6",
+    "wavesurfer.js": "^7.12.12"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

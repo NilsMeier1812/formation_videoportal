@@ -1,27 +1,40 @@
-# Formation-Videoportal
+# Formation-App
 
-Trainingsvideos hochladen, mit Abschnitten der Choreo verknüpfen und darüber wiederfinden.
-Der Plan dazu steht in [`docs/umsetzungsplan.md`](docs/umsetzungsplan.md).
+Choreo-Planer und Trainingsvideos der Formation – eine App unter `formation.nils-meier.de`.
+Wohin es geht, steht in [`docs/zielbild.md`](docs/zielbild.md); der Plan fürs Videoportal in
+[`docs/umsetzungsplan.md`](docs/umsetzungsplan.md).
 
 **Aufbau:** Ein Cloudflare Worker liefert Frontend (`public/`, reines HTML/CSS/JS ohne Build)
-und API (`src/`) aus. Metadaten liegen in D1 (`migrations/`), Videos in R2.
+und API (`src/`) aus. Metadaten liegen in D1 (`migrations/`), Videos in R2. Der Choreo-Planer
+spricht bis zum Umzug (Schritt B im Zielbild) noch mit Supabase.
 
 ```
-public/          Frontend: index.html (Liste), upload.html, video.html, css/, js/
-src/index.js     Router der API
-src/routes/      Endpunkte (videos.js; dev.js nur lokal)
-src/lib/         Codes, Presigned URLs, Eingabeprüfung
-migrations/      D1-Schema
-test/            Tests (laufen lokal in der Workers-Laufzeit)
+public/choreo/       Choreo-Planer (Seite)       public/js/choreo/   Planer-Code (Aufbau: docs/zielbild.md)
+public/index.html    Videoliste                   public/js/          Code der Video-Seiten, pwa.js
+public/upload.html   Upload                       public/vendor/      Bibliotheken (npm run vendor)
+public/video.html    Player                       public/sw.js        Service Worker der PWA
+src/index.js         Router der API               src/routes/, src/lib/
+migrations/          D1-Schema                    test/               Tests (Workers-Laufzeit)
 ```
 
-## Stand: Phase 1
+## Stand
 
+**Choreo-Planer** (`/choreo/`): vom alten Repo `choreoplanner` übernommen und in Module zerlegt,
+Funktionen unverändert (Training/Editor, Taktraster, Schritte, Gruppen, Sprungmarken, Offline-Betrieb).
+
+**Videos** (Phase 1):
 - `POST /api/videos` – legt ein Video an (Gruppen-Code), gibt eine 15 Minuten gültige Upload-URL zurück
 - `POST /api/videos/:id/complete` – prüft die Datei in R2 (Existenz, echte Größe, Content-Type)
 - `GET /api/videos`, `GET /api/videos/:id` – Liste und Einzelvideo
 - `GET /api/auth` – prüft einen Code
 - Seiten: Videoliste, Upload (mehrere Dateien, Fortschritt, Bildschirm bleibt an), Player (Tempo, Spiegeln)
+
+**PWA:** ein Manifest und ein Service Worker für alles; startet im Planer.
+
+## Bibliotheken aktualisieren
+
+Versionen stehen in `package.json` (`alpinejs`, `dexie`, `wavesurfer.js`, `@supabase/supabase-js`).
+Nach einem Update `npm run vendor` ausführen und `public/vendor/` mit committen.
 
 ## Lokal entwickeln
 
