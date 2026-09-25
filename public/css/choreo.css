@@ -195,9 +195,14 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   border-bottom: 1px solid var(--border);
 }
 .tabbar button {
-  flex: 1; border: none; border-radius: 0; background: transparent;
-  padding: 10px; font-size: 13px; color: var(--muted);
+  /* drei Reiter: Breite nach Inhalt verteilen, damit nichts umbricht */
+  flex: 1 1 auto; white-space: nowrap; border: none; border-radius: 0; background: transparent;
+  padding: 10px 6px; font-size: 13px; color: var(--muted);
   border-bottom: 2px solid transparent;
+}
+.tabbar .tab-count {
+  display: inline-block; min-width: 18px; margin-left: 5px; padding: 0 5px; border-radius: 9px;
+  background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; line-height: 18px;
 }
 .tabbar button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
 .tab-content {
@@ -433,3 +438,45 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; }
 .badge.lock { background: var(--badge-lock-bg); color: var(--badge-lock-text); }
 .badge.offline { background: var(--badge-offline-bg); color: var(--badge-offline-text); }
+
+/* ===== Tab „Videos“ ===== */
+.vt-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.vt-card {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  margin-bottom: 8px; padding: 8px; text-align: left;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+}
+.vt-thumb {
+  position: relative; flex-shrink: 0; display: grid; place-items: center;
+  width: 112px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; background: var(--panel-2);
+}
+.vt-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vt-play {
+  position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(0, 0, 0, .5); color: #fff;
+}
+.vt-play svg { display: block; }
+.vt-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.vt-title { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.vt-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.vt-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.vt-tags:empty { display: none; }
+.vt-tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--accent-dim); color: var(--accent); }
+.vt-empty { padding: 4px 4px 12px; font-size: 14px; color: var(--muted); }
+.vt-empty p { margin: 0 0 10px; }
+.vt-ranges { display: flex; flex-wrap: wrap; gap: 6px; }
+.vt-ranges button { padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* ===== Stelle wählen (Admin) ===== */
+.pick-video { display: block; width: 100%; max-height: 28dvh; margin-bottom: 8px; border-radius: 10px; background: #000; }
+.pick-thumbs { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
+.pick-thumbs button { padding: 6px 10px; font-size: 13px; }
+.pick-thumbs button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.pick-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.pick-label { width: 42px; font-size: 13px; color: var(--muted); }
+.pick-val { flex: 1; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.pick-row .icon { width: 40px; height: 40px; }
+
+/* Menü: Audios nach Choreos gruppiert */
+.pgroup-title { margin: 14px 4px 6px; font-size: 13px; font-weight: 700; color: var(--text-soft); }
+.pi-main-mark { margin-right: 5px; color: var(--note); }

@@ -76,15 +76,20 @@ function putFile(upload, file, onProgress) {
   });
 }
 
+/** Manche Kameras schreiben Unsinn (1904, 1970, Zukunft) – das wäre schlimmer als nichts. */
+function plausible(date) {
+  return Boolean(date) && date.getFullYear() >= 2000 && date.getTime() < Date.now() + 24 * 3600 * 1000;
+}
+
 /**
  * Aufnahmezeit: aus den Metadaten; sonst das Dateidatum (auf Android meist die
  * Aufnahmezeit, bei manchen Wegen aber der Zeitpunkt des Kopierens).
  */
 async function recordingInfo(file) {
   const meta = await readVideoMeta(blobReader(file), file.size);
-  if (meta.createdAt) return { recorded_at: meta.createdAt.toISOString(), recorded_source: "meta", duration_s: meta.duration };
+  if (plausible(meta.createdAt)) return { recorded_at: meta.createdAt.toISOString(), recorded_source: "meta", duration_s: meta.duration };
   const fromFile = file.lastModified ? new Date(file.lastModified) : null;
-  return fromFile && fromFile.getFullYear() >= 2000
+  return plausible(fromFile)
     ? { recorded_at: fromFile.toISOString(), recorded_source: "file", duration_s: meta.duration }
     : { recorded_at: null, recorded_source: null, duration_s: meta.duration };
 }

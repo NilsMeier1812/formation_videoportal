@@ -39,17 +39,32 @@ media.formation.nils-meier.de      R2 – Videos (und ab Schritt B die Musik)
 | **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | **erledigt** |
 | **E** | Einheitliches Aussehen: Hell/Dunkel wählbar (Automatisch/Hell/Dunkel), untere Navigation Choreo · Videos · Hochladen, Video-Seiten neu | **erledigt** |
 | **F** | Eine Seite statt einzelner Seiten (kein Neuladen beim Wechsel), gemeinsames Menü mit Anmeldung und Choreo-Wahl, „Bearbeiten“ nur für Trainer | **erledigt** |
-| **D** | Videos ↔ Choreo verknüpfen (siehe unten) | als Nächstes |
+| **D** | Videos ↔ Choreo: Choreos/Tänze/Audios/Tags, Hochladen ohne Angaben, Zuordnen (Admin), Tab „Videos“ im Planer, Filter in der Videothek | **erledigt** |
 
-Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter; seine Phase 2 wird zu Schritt D
-und nutzt die Choreos und Sprungmarken des Planers statt einer eigenen Verwaltung.
+Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter, wo er nicht durch Schritt D ersetzt ist
+(Datenmodell der Videos: `migrations/0003_choreos_and_tagging.sql`).
 
-## Videos finden – zwei Wege (Schritt D)
+## Choreos, Tänze, Audios, Videos (Schritt D)
 
-1. **Videothek** (Reiter *Videos*): alle Videos, durchsuchbar und filterbar (Choreo, Datum, Kamera, Video-Art).
-2. **Im Planer** (Reiter *Choreo*): Stelle im Lied antippen (Sprungmarke oder Zeitleiste) → ein neuer Tab unten
-   zeigt die Videos zu dieser Stelle, jeweils mit Sprung an die passende Zeit. Dort wird auch getaggt
-   (Clip → Sprungmarke, Durchlauf → Musikstart setzen).
+```
+Choreo ── genau eine Hauptaudio (choreos.main_project_id)
+ ├─ Tänze   (dances)
+ ├─ Audios  (projects = Planer-Projekte; project_dances: welche Tänze eine Audio enthält)
+ └─ Videos  (video.choreo_id; video_dances; video_tags; audio_project_id + audio_start_s/audio_end_s)
+```
+
+- **Hochladen:** nur die Datei (und optional der Name). `public/js/lib/mp4meta.js` liest Aufnahmezeit
+  (Apple `creationdate` mit Zeitzone, sonst `mvhd`) und Länge aus der Datei – nur das Inhaltsverzeichnis,
+  nicht das ganze Video. Fehlt beides, gilt das Dateidatum (`recorded_source = 'file'`). Das Vorschaubild
+  (`thumb/<id>.jpg`) erzeugt der Browser.
+- **Eingang:** alle Videos mit `tag_state = 'untagged'`, nach Tag und Uhrzeit. Überschneiden sich
+  Aufnahmezeiten (Start bis Start + Länge, 5 s Spielraum), stehen die Videos als „gleichzeitig gefilmt“ zusammen.
+- **Zuordnen:** eines oder mehrere Videos auf einmal (`POST /api/videos/assign`). Die Stelle (von–bis) wird im
+  Planer gewählt: Der Admin-Bereich schickt `pick-range`, der Planer öffnet die Audio mit dem Tab „Stelle wählen“
+  und meldet `range-picked` zurück. Die Zeiten beziehen sich auf die gewählte Audio (in der Regel die Hauptaudio);
+  wird die Audio gelöscht, entfallen sie.
+- **Finden:** Tab „Videos“ im Planer (Videos, deren von–bis die aktuelle Position enthält; ohne Treffer die
+  Bereiche mit Videos zum Hinspringen) und die Videothek mit Filtern.
 
 ## Eine Seite
 
@@ -65,7 +80,8 @@ und nutzt die Choreos und Sprungmarken des Planers statt einer eigenen Verwaltun
   `open-menu`.
 - **Anmeldung:** `public/js/session.js` für alle Bereiche; Änderungen gehen als Ereignis `sessionchange` an alle.
   Offline gilt die zuletzt bekannte Rolle (der Server prüft beim Synchronisieren ohnehin selbst).
-- **Gewählte Choreo** gilt für die ganze App (`selectedProjectId`); Schritt D filtert damit die Videos.
+- **Gewählte Choreo** gilt für die ganze App (`selectedProjectId`); das Menü zeigt die Audios nach Choreos
+  gruppiert (★ = Hauptaudio). Der Admin-Bereich schlägt sie beim Zuordnen neuer Videos vor.
 
 ## Aussehen
 
@@ -87,7 +103,7 @@ data/api.js        EINZIGE Stelle, die das Backend kennt (/api/choreo, /api/sess
 data/local.js      IndexedDB: Spiegel, Audio-Cache, Warteschlange
 data/repository.js offline-fähiges Lesen/Schreiben, verzögertes Speichern – getestet
 data/index.js      Verdrahtung (hier wird der Adapter gewählt)
-features/*.js      Bereiche: core, auth, projects, audio, canvas, steps, segments, tempo, groups, editing
+features/*.js      Bereiche: core, auth, projects, audio, canvas, steps, segments, tempo, groups, editing, videos
 ```
 
 ## Umzug der Daten (Schritt B)

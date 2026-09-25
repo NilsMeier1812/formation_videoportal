@@ -9,6 +9,7 @@ describe("Adresse → Bereich", () => {
     expect(at("/videos")).toEqual({ view: "videos", path: "/videos" });
     expect(at("/videos/")).toEqual({ view: "videos", path: "/videos" });
     expect(at("/upload")).toEqual({ view: "upload", path: "/upload" });
+    expect(at("/zuordnen")).toEqual({ view: "admin", path: "/zuordnen" });
     expect(at("/videos/abc-123")).toEqual({ view: "player", id: "abc-123", path: "/videos/abc-123" });
   });
 

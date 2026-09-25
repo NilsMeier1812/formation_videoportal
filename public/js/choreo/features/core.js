@@ -30,7 +30,7 @@ export function core() {
     online: navigator.onLine,
     toast: "",
     _toastTimer: null,
-    bottomTab: "steps", // 'steps' | 'notes'
+    bottomTab: "steps", // 'steps' | 'notes' | 'videos' | 'pick' (Stelle wählen, Admin)
     stepDisplay: "dots", // 'dots' | 'letters' | 'numbers'
     showMarkers: true, // Sprungmarken in der Welle zeigen
     themeMode: window.formationTheme?.mode || "system", // 'system' | 'light' | 'dark'
@@ -148,6 +148,8 @@ export function core() {
       // Bereichswechsel und Menü-Knopf der Video-Bereiche
       window.addEventListener("routechange", (e) => this.onRouteChange(e.detail.view));
       window.addEventListener("open-menu", () => { this.menuOpen = true; });
+      window.addEventListener("toast", (e) => this.setStatus(e.detail)); // Hinweise der Video-Bereiche
+      this.initVideos();
 
       window.addEventListener("pagehide", () => {
         repo.flush();

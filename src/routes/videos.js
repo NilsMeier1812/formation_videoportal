@@ -38,9 +38,10 @@ function publicVideo(env, row) {
     choreo_id: row.choreo_id,
     dance_ids: idArray(row.dance_ids),
     tag_ids: idArray(row.tag_ids),
+    // Wurde die Audio gelöscht, gelten die Zeiten nicht mehr
     audio_project_id: row.audio_project_id,
-    audio_start_s: row.audio_start_s,
-    audio_end_s: row.audio_end_s,
+    audio_start_s: row.audio_project_id ? row.audio_start_s : null,
+    audio_end_s: row.audio_project_id ? row.audio_end_s : null,
     // Bis die Abspielfassung da ist, wird das Original abgespielt.
     playback_url: mediaUrl(env, row.play_key ?? row.storage_key),
     thumb_url: mediaUrl(env, row.thumb_key),

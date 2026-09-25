@@ -30,6 +30,7 @@ scripts/             vendor.mjs, Übernahme aus Supabase (migrate-from-supabase.
 | `/videos` | Videothek | `/` |
 | `/videos/<id>` | Player | `/video?id=<id>` |
 | `/upload` | Hochladen | `/upload` |
+| `/zuordnen` | Zuordnen (nur Trainer) | – |
 
 Alte Adressen (geteilte Links, installierte App) funktionieren weiter und werden umgeschrieben.
 
@@ -46,15 +47,29 @@ Alte Adressen (geteilte Links, installierte App) funktionieren weiter und werden
 (Taktraster, Schritte, Gruppen, Sprungmarken, Bearbeitungssperre, Offline-Betrieb). Daten in D1, Musik in R2,
 API unter `/api/choreo/…`. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
 
-**Videos** (Phase 1):
-- `POST /api/videos` – legt ein Video an (Gruppen-Code), gibt eine 15 Minuten gültige Upload-URL zurück
-- `POST /api/videos/:id/complete` – prüft die Datei in R2 (Existenz, echte Größe, Content-Type)
-- `GET /api/videos`, `GET /api/videos/:id` – Liste und Einzelvideo
-- `GET /api/auth` – prüft einen Code
-- Bereiche: Videothek mit Suche, Hochladen (mehrere Dateien, Fortschritt, Bildschirm bleibt an; läuft weiter,
-  während man in andere Bereiche wechselt), Player (Tempo)
+**Choreos, Tänze, Audios, Tags:**
+```
+Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
+ ├─ Tänze    (z. B. Standard, Latein)
+ ├─ Audios   (= Planer-Projekte; jede mit einem oder mehreren Tänzen)
+ └─ Videos   (je Video: eine Choreo, mehrere Tänze, mehrere Tags, Stelle von–bis in einer Audio)
+```
 
-**Rahmen:** untere Navigation (Choreo · Videos · Hochladen), Hell/Dunkel wählbar (im Menü).
+**Videos:**
+- **Hochladen:** nur Datei(en) und optional der Name. Aufnahmezeit und Länge liest der Browser aus den
+  Metadaten (MP4/MOV; sonst Dateidatum), das Vorschaubild erzeugt er selbst. Neue Videos landen im Eingang.
+- **Zuordnen** (Reiter nur für Trainer, mit Zahl der neuen Videos): Eingang nach Tag und Uhrzeit, Videos mit
+  überlappender Aufnahmezeit als „gleichzeitig gefilmt“ gruppiert. Eines oder mehrere wählen → Choreo, Tänze,
+  Tags und die **Stelle in der Musik**: Der Planer öffnet sich mit „Stelle wählen“, das Video läuft mit,
+  Start und Ende werden auf die Position gesetzt. Außerdem Choreos (Tänze, Audios, Hauptaudio) und Tags verwalten,
+  Videos in den Papierkorb legen.
+- **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
+  erst im Player) und die **Videothek** mit Suche und Filtern (Choreo, Tanz, Tag). Im Player: „In der Musik
+  zeigen“ und für Trainer „Zuordnung bearbeiten“.
+- API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
+  `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.
+
+**Rahmen:** untere Navigation (Choreo · Videos · Hochladen, für Trainer · Zuordnen), Hell/Dunkel wählbar (im Menü).
 Farben in `public/css/theme.css`.
 
 **PWA:** ein Manifest und ein Service Worker für alles; startet im Planer, startet offline an jeder Adresse.

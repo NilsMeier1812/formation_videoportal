@@ -197,6 +197,14 @@ describe("Videos zuordnen", () => {
     expect(await data(await call(`/api/videos/${V1}`))).toMatchObject({ audio_project_id: null, audio_start_s: null });
   });
 
+  it("löst die Zuordnung, wenn die Audio im Planer gelöscht wird", async () => {
+    await assign({ ids: [V1], changes: { choreo_id: ids.kuer, audio: { project_id: ids.voll, start_s: 1, end_s: 2 } } });
+    expect((await call(`/api/choreo/projects/${ids.voll}`, { method: "DELETE" })).status).toBe(204);
+    expect(await data(await call(`/api/videos/${V1}`))).toMatchObject({ choreo_id: ids.kuer, audio_project_id: null, audio_start_s: null, audio_end_s: null });
+    const lib = await data(await call("/api/library"));
+    expect(lib.choreos.find((c) => c.id === ids.kuer).main_project_id).toBeNull();
+  });
+
   it("dürfen nur Trainer", async () => {
     expect((await assign({ ids: [V1], changes: { title: "x" } }, GROUP)).status).toBe(401);
     expect((await assign({ ids: [], changes: {} })).status).toBe(400);

@@ -67,6 +67,14 @@ html, body {
 .bottom-nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
 .bottom-nav a[aria-current="page"] .nav-icon { background: var(--accent-dim); color: var(--accent); }
 .bottom-nav a:active .nav-icon { background: var(--press); }
+/* Anzahl neuer Videos am Reiter „Zuordnen“ */
+.bottom-nav .nav-badge {
+  position: absolute; top: -3px; right: 6px;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--danger); color: #fff;
+  font: 700 11px/18px var(--font); text-align: center;
+  box-shadow: 0 0 0 2px var(--panel);
+}
 /* Upload läuft (Punkt am Reiter, auch aus anderen Bereichen sichtbar) */
 .bottom-nav .nav-icon { position: relative; }
 .bottom-nav a.busy .nav-icon::after {
