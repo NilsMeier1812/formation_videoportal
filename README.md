@@ -5,8 +5,7 @@ Wohin es geht, steht in [`docs/zielbild.md`](docs/zielbild.md); der Plan fürs V
 [`docs/umsetzungsplan.md`](docs/umsetzungsplan.md).
 
 **Aufbau:** Ein Cloudflare Worker liefert Frontend (`public/`, reines HTML/CSS/JS ohne Build)
-und API (`src/`) aus. Metadaten liegen in D1 (`migrations/`), Videos in R2. Der Choreo-Planer
-spricht bis zum Umzug (Schritt B im Zielbild) noch mit Supabase.
+und API (`src/`) aus. Daten liegen in D1 (`migrations/`), Videos und Musik in R2.
 
 ```
 public/choreo/       Choreo-Planer (Seite)       public/js/choreo/   Planer-Code (Aufbau: docs/zielbild.md)
@@ -15,12 +14,17 @@ public/upload.html   Upload                       public/vendor/      Bibliothek
 public/video.html    Player                       public/sw.js        Service Worker der PWA
 src/index.js         Router der API               src/routes/, src/lib/
 migrations/          D1-Schema                    test/               Tests (Workers-Laufzeit)
+scripts/             vendor.mjs, Übernahme aus Supabase (migrate-from-supabase.mjs)
 ```
 
 ## Stand
 
 **Choreo-Planer** (`/choreo/`): vom alten Repo `choreoplanner` übernommen und in Module zerlegt,
 Funktionen unverändert (Training/Editor, Taktraster, Schritte, Gruppen, Sprungmarken, Offline-Betrieb).
+Daten in D1, Musik in R2, API unter `/api/choreo/…`. Bearbeiten mit dem **Trainer-Code** (Secret `TAGGER_CODE`),
+der per Cookie ein Jahr gemerkt wird. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
+
+**Anmeldung** (`/api/session`): Code eingeben → HttpOnly-Cookie für ein Jahr; gilt für die ganze App.
 
 **Videos** (Phase 1):
 - `POST /api/videos` – legt ein Video an (Gruppen-Code), gibt eine 15 Minuten gültige Upload-URL zurück
@@ -33,7 +37,7 @@ Funktionen unverändert (Training/Editor, Taktraster, Schritte, Gruppen, Sprungm
 
 ## Bibliotheken aktualisieren
 
-Versionen stehen in `package.json` (`alpinejs`, `dexie`, `wavesurfer.js`, `@supabase/supabase-js`).
+Versionen stehen in `package.json` (`alpinejs`, `dexie`, `wavesurfer.js`).
 Nach einem Update `npm run vendor` ausführen und `public/vendor/` mit committen.
 
 ## Lokal entwickeln
@@ -75,7 +79,7 @@ ist also ein Deploy.
    *Workers & Pages* → `formation-portal` → *Settings* → *Variables and Secrets* → *Add*,
    jeweils Typ **Secret**:
    - `GROUP_CODE` – Code zum Hochladen
-   - `TAGGER_CODE` – Code für Tagger (ab Phase 2 gebraucht)
+   - `TAGGER_CODE` – Trainer-Code: Choreos bearbeiten (und später taggen)
    - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` – aus dem R2-API-Token
 
    Die Secrets bleiben bei späteren Deploys erhalten.

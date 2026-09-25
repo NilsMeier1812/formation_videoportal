@@ -12,8 +12,6 @@ const files = {
   "dexie.mjs": "dexie/dist/modern/dexie.min.mjs",
   "wavesurfer.esm.js": "wavesurfer.js/dist/wavesurfer.esm.js",
   "wavesurfer-regions.esm.js": "wavesurfer.js/dist/plugins/regions.esm.js",
-  // Nur bis zum Umzug der Planer-Daten nach Cloudflare (Schritt B)
-  "supabase.umd.js": "@supabase/supabase-js/dist/umd/supabase.js",
 };
 
 for (const [target, source] of Object.entries(files)) {

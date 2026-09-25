@@ -35,8 +35,9 @@ media.formation.nils-meier.de      R2 – Videos (und ab Schritt B die Musik)
 | Schritt | Inhalt | Stand |
 | --- | --- | --- |
 | **A** | Planer ins Repo holen, in Module zerlegen, unter `/choreo/` ausliefern (noch gegen Supabase), gemeinsames Menü, eine PWA | **erledigt** |
-| **B** | Planer-Daten nach D1, Musik nach R2, API im Worker inkl. Bearbeitungssperre; Adapter tauschen; Übernahme der Daten per GitHub-Workflow; Umstieg der Gruppe | als Nächstes |
-| **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | mit/nach B |
+| **B** | Planer-Daten nach D1, Musik nach R2, API im Worker inkl. Bearbeitungssperre; Adapter tauschen; Übernahme der Daten per GitHub-Workflow; Umstieg der Gruppe | **erledigt** (Übernahme startest du, siehe unten) |
+| **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | **im Planer erledigt**; Video-Seiten folgen mit dem Frontend-Umbau |
+| **E** | Einheitliches Aussehen (hell/dunkel, ein Layout) für alle Bereiche | danach |
 | **D** | Videos ↔ Choreo verknüpfen: Sprungmarken als Abschnitte, Tagging, „Videos zu dieser Stelle" im Planer | Portal Phase 2 |
 
 Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter; seine Phase 2 wird zu Schritt D
@@ -50,20 +51,41 @@ config.js          Einstellungen (Supabase, Zeiten, Sperre)
 runtime.js         nicht-reaktiver Laufzeitzustand (Wavesurfer, Canvas, Timer)
 lib/timeline.js    reine Rechenlogik: Takt, Beats, Bereiche, Gruppen – getestet
 lib/util.js        kleine Helfer
-data/supabase.js   EINZIGE Stelle, die Supabase kennt  ← wird in Schritt B ersetzt
+data/api.js        EINZIGE Stelle, die das Backend kennt (/api/choreo, /api/session)
 data/local.js      IndexedDB: Spiegel, Audio-Cache, Warteschlange
 data/repository.js offline-fähiges Lesen/Schreiben, verzögertes Speichern – getestet
-data/index.js      Verdrahtung (hier wird der Adapter getauscht)
+data/index.js      Verdrahtung (hier wird der Adapter gewählt)
 features/*.js      Bereiche: core, auth, projects, audio, canvas, steps, segments, tempo, groups, editing
 ```
 
-## Umzug der Daten (Schritt B) – geplanter Ablauf
+## Umzug der Daten (Schritt B)
 
-1. D1-Migration mit den Planer-Tabellen (`projects`, `tempo_sections`, `choreo_segments`, `persons`,
-   `parts`, `group_memberships`, `steps`) – gleiche Spalten, gleiche IDs.
-2. API-Endpunkte im Worker nach dem Muster von `data/supabase.js` (lesen, anlegen, ändern, löschen, Sperre).
-3. `data/api.js` als neuer Adapter; in `data/index.js` umstellen.
-4. GitHub-Workflow „Daten übernehmen": liest Supabase (öffentlicher Lese-Schlüssel), schreibt nach D1,
-   kopiert die Audiodateien nach R2. Erst als Probelauf, dann echt.
-5. Umstieg: Bearbeiten im alten Planer kurz anhalten, Übernahme starten, der Gruppe den neuen Link geben.
-   Wer den alten Planer installiert hat, fügt die neue App einmal neu zum Homescreen hinzu.
+**Wie es jetzt aussieht:**
+
+- Die Planer-Tabellen liegen in D1 (`migrations/0002_choreo_planner.sql`), gleiche Spalten und IDs wie in Supabase.
+- Die API steht in `src/routes/choreo.js`:
+  - Lesen dürfen alle; private Projekte sehen nur Trainer (das prüft jetzt der Server, nicht mehr der Browser).
+  - Schreiben geht nur mit Trainer-Code.
+  - Die Bearbeitungssperre hat eigene Endpunkte.
+- Die Musik liegt in R2 unter `audio/` und wird über `/api/choreo/audio/<datei>` ausgeliefert.
+- **Login:** `POST /api/session` mit dem Code setzt ein HttpOnly-Cookie, das ein Jahr gilt. Es ist mit dem Code
+  signiert: Wird ein Code geändert, sind alle Anmeldungen dieser Rolle automatisch ungültig.
+  - Zum Bearbeiten im Planer braucht es den **Trainer-Code** (Secret `TAGGER_CODE`).
+  - Das alte Editor-Passwort gilt nicht mehr.
+- **Übernahme:** der Workflow `.github/workflows/choreo-migration.yml` („Choreo-Daten übernehmen“) mit dem Skript
+  `scripts/migrate-from-supabase.mjs`. Supabase wird dabei nur gelesen.
+
+**Umstieg – so gehst du vor:**
+
+1. Pull Request mergen. Danach sind die neuen Tabellen da, aber noch leer: `/choreo/` zeigt vorerst keine Projekte.
+2. GitHub → *Actions* → **Choreo-Daten übernehmen** → *Run workflow* → `probelauf`. In der Zusammenfassung
+   des Laufs stehen die Anzahlen pro Tabelle, die Musikdateien und Hinweise (z. B. verwaiste Zeilen oder
+   Spalten, die nicht übernommen werden).
+3. Passt der Bericht: der Gruppe sagen, dass im alten Planer gerade niemand bearbeiten soll.
+4. Denselben Workflow mit `uebernehmen` starten. Am Ende stehen die Anzahlen in Cloudflare in der Zusammenfassung.
+5. `formation.nils-meier.de/choreo/` öffnen, mit dem Trainer-Code anmelden, stichprobenartig vergleichen.
+6. Der Gruppe den neuen Link geben. Wer den alten Planer installiert hat, fügt die neue App einmal neu zum
+   Homescreen hinzu. Den alten Planer auf Vercel danach abschalten oder mit einem Hinweis versehen.
+
+Die Übernahme lässt sich wiederholen: Bestehende Zeilen werden aktualisiert, nichts wird verdoppelt.
+Was nach der Übernahme im neuen Planer entstanden ist, bleibt erhalten.

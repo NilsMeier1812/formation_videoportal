@@ -11,8 +11,8 @@ const API_HEADERS = {
   "x-robots-tag": "noindex, nofollow",
 };
 
-export function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: API_HEADERS });
+export function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { ...API_HEADERS, ...extraHeaders } });
 }
 
 export function errorResponse(status, message) {
