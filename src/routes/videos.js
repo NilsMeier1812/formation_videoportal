@@ -2,6 +2,7 @@
 import { requireRole } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
 import { presignPut } from "../lib/presign.js";
+import { dispatchProcessing } from "./processing.js";
 import {
   contentTypeFor,
   extensionFor,
@@ -46,6 +47,7 @@ function publicVideo(env, row) {
     playback_url: mediaUrl(env, row.play_key ?? row.storage_key),
     thumb_url: mediaUrl(env, row.thumb_key),
     is_processed: Boolean(row.play_key),
+    processing: row.processing, // pending | done | failed
   };
 }
 
@@ -56,10 +58,13 @@ const SELECT_VIDEO = `
          (SELECT json_group_array(tag_id) FROM video_tags WHERE video_id = v.id) AS tag_ids
     FROM video v`;
 
+/** Belegte Bytes eines Videos: Original (bis es gelöscht ist) + Abspielfassung. */
+const BYTES = "CASE WHEN raw_deleted_at IS NULL THEN size_bytes ELSE 0 END + COALESCE(play_size_bytes, 0)";
+
 /** Belegter Speicher; `excludeId` nimmt ein Video aus der Summe (für die Nachprüfung in /complete). */
 async function usedBytes(env, excludeId = "") {
   const row = await env.DB.prepare(
-    `SELECT COALESCE(SUM(size_bytes + COALESCE(play_size_bytes, 0)), 0) AS used
+    `SELECT COALESCE(SUM(${BYTES}), 0) AS used
        FROM video
       WHERE file_state != 'missing' AND id != ?`
   )
@@ -158,6 +163,8 @@ export async function completeVideo(request, env, id) {
     .first();
   if (!updated) throw new HttpError(409, "Video wurde parallel verändert");
 
+  // Umwandlung anstoßen; klappt das nicht, holt der stündliche Cron es nach
+  await dispatchProcessing(env, { id, storage_key: row.storage_key });
   return json(await loadVideo(env, id));
 }
 
@@ -369,8 +376,9 @@ export async function restoreVideo(request, env, id) {
 export async function storageInfo(request, env) {
   await requireRole(request, env, "tagger");
   const row = await env.DB.prepare(
-    `SELECT COALESCE(SUM(size_bytes + COALESCE(play_size_bytes, 0)), 0) AS used,
-            COALESCE(SUM(CASE WHEN deleted_at IS NOT NULL THEN size_bytes + COALESCE(play_size_bytes, 0) END), 0) AS trash_bytes,
+    `SELECT COALESCE(SUM(${BYTES}), 0) AS used,
+            COALESCE(SUM(CASE WHEN deleted_at IS NOT NULL THEN ${BYTES} END), 0) AS trash_bytes,
+            COUNT(CASE WHEN processing = 'failed' AND file_state = 'ready' THEN 1 END) AS failed,
             COUNT(CASE WHEN file_state = 'ready' THEN 1 END) AS videos,
             COUNT(CASE WHEN deleted_at IS NOT NULL THEN 1 END) AS trashed,
             COUNT(CASE WHEN file_state = 'ready' AND tag_state = 'untagged' THEN 1 END) AS untagged

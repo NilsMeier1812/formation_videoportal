@@ -5,6 +5,7 @@ import { devUpload } from "./routes/dev.js";
 import * as choreo from "./routes/choreo.js";
 import * as library from "./routes/library.js";
 import { getMedia } from "./routes/media.js";
+import * as processing from "./routes/processing.js";
 import * as session from "./routes/session.js";
 import * as videos from "./routes/videos.js";
 
@@ -25,6 +26,9 @@ const routes = [
   ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],
   ["PUT", new RegExp(`^/api/videos/${ID}/thumb$`), videos.putThumb],
   ["POST", new RegExp(`^/api/videos/${ID}/restore$`), videos.restoreVideo],
+  ["POST", new RegExp(`^/api/videos/${ID}/reprocess$`), processing.reprocessVideo],
+  // Rückmeldung der Umwandlung (GitHub Actions) – eigenes Geheimnis statt Login
+  ["POST", /^\/api\/internal\/processed$/, processing.processedCallback],
 
   // Choreos, Tänze, Audios, Tags
   ["GET", /^\/api\/library$/, library.getLibrary],
@@ -66,10 +70,11 @@ const devRoutes = [
   ["PUT", new RegExp(`^/api/dev-upload/${ID}$`), devUpload],
 ];
 
-// Ohne Anmeldung erreichbar: nur die Anmeldung selbst (und lokal der Upload-Ersatz,
-// dessen Schutz wie die Presigned URL in der unbekannten Video-ID liegt).
+// Ohne Anmeldung erreichbar: nur die Anmeldung selbst, die Rückmeldung der Umwandlung
+// (prüft CALLBACK_SECRET) und lokal der Upload-Ersatz (Schutz wie bei der Presigned URL:
+// die unbekannte Video-ID).
 // Alles andere braucht mindestens den Nutzer-Code – die App ist privat.
-const PUBLIC = [/^\/api\/session$/, /^\/api\/dev-upload\//];
+const PUBLIC = [/^\/api\/session$/, /^\/api\/dev-upload\//, /^\/api\/internal\/processed$/];
 
 async function handle(request, env) {
   const { pathname } = new URL(request.url);

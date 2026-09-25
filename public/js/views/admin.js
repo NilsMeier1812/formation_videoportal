@@ -98,7 +98,8 @@ function item(v) {
   });
   const source = { file: "Dateidatum", manual: "von Hand" }[v.recorded_source];
   const when = hasTime(v) ? formatTime(v.recorded_at) : v.recorded_at ? "Uhrzeit unbekannt" : "Aufnahmezeit unbekannt";
-  const sub = [v.uploaded_by, source].filter(Boolean).join(" · ");
+  const conversion = { pending: "wird umgewandelt", failed: "Umwandlung fehlgeschlagen" }[v.processing];
+  const sub = [v.uploaded_by, source, conversion].filter(Boolean).join(" · ");
   return el("label", { class: `ad-item${selected.has(v.id) ? " selected" : ""}` },
     checkbox,
     el("a", { class: "ad-thumb", href: `/videos/${encodeURIComponent(v.id)}`, "aria-label": "Ansehen" },

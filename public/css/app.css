@@ -383,3 +383,4 @@
 .vpage .trash-main { flex: 1; min-width: 0; display: grid; }
 .vpage .trash-title { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .vpage .card > .lib-row + .lib-row, .vpage .card > .lib-row + .add-row { margin-top: 8px; }
+.vpage .error.small { font-size: 13px; margin: 4px 0; }

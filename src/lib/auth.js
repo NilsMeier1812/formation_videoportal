@@ -21,7 +21,7 @@ async function sha256(text) {
 }
 
 // Vergleich in konstanter Zeit; die Hashes gleichen die Längen an.
-async function codeMatches(given, expected) {
+export async function codeMatches(given, expected) {
   if (!given || !expected) return false;
   const [a, b] = await Promise.all([sha256(given), sha256(expected)]);
   return crypto.subtle.timingSafeEqual(a, b);

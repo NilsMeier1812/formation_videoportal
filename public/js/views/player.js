@@ -46,6 +46,18 @@ function showAssignment(v) {
           router.navigate("/");
         },
       }, `♪ In der Musik zeigen (${mmss(v.audio_start_s)}–${mmss(v.audio_end_s)})`),
+      session.isTrainer && v.processing === "failed" && el("button", {
+        type: "button",
+        onclick: async (e) => {
+          e.currentTarget.disabled = true;
+          try {
+            const { started } = await api(`/api/videos/${v.id}/reprocess`, { method: "POST" });
+            window.dispatchEvent(new CustomEvent("toast", { detail: started ? "Umwandlung neu gestartet" : "Umwandlung vorgemerkt" }));
+          } catch (err) {
+            window.dispatchEvent(new CustomEvent("toast", { detail: err.message }));
+          }
+        },
+      }, "Neu umwandeln"),
       session.isTrainer && el("button", {
         type: "button",
         onclick: () => {
@@ -55,6 +67,15 @@ function showAssignment(v) {
       }, "Zuordnung bearbeiten"),
     ),
   );
+}
+
+/** Hinweis, solange die Abspielfassung fehlt (bis dahin läuft das Original). */
+function showProcessing(v) {
+  const note = $("pl-processing");
+  note.hidden = v.is_processed;
+  note.textContent = v.processing === "failed"
+    ? "Die Umwandlung ist fehlgeschlagen – es läuft die Originaldatei. iPhone-Videos spielen dann nicht überall."
+    : "Wird noch umgewandelt (dauert meist wenige Minuten) – bis dahin läuft die Originaldatei. iPhone-Videos spielen auf manchen Geräten erst danach.";
 }
 
 function activeRate() {
@@ -84,7 +105,7 @@ async function load(id) {
     showAssignment(v);
     video.src = v.playback_url;
     if (v.thumb_url) video.poster = v.thumb_url;
-    $("pl-processing").hidden = v.is_processed;
+    showProcessing(v);
     showFacts(v);
     $("pl-status").hidden = true;
     $("pl-box").hidden = false;

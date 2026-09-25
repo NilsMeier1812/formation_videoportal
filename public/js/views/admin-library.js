@@ -178,6 +178,8 @@ function storageCard(info) {
       `${gb(info.used)} von ${gb(info.quota)} belegt · ${info.videos} ${info.videos === 1 ? "Video" : "Videos"}` +
       (info.trashed ? ` · Papierkorb ${info.trashed} (${gb(info.trash_bytes)})` : "") +
       ` · einzelne Datei höchstens ${gb(info.max_file)}`),
+    info.failed ? el("p", { class: "error small" }, `${info.failed} ${info.failed === 1 ? "Video" : "Videos"}: Umwandlung fehlgeschlagen (im Video „Neu umwandeln“)`) : null,
+    el("p", { class: "muted small" }, "Nach der Umwandlung (1080p) bleiben die Originale noch 7 Tage, dann werden sie gelöscht."),
   );
 }
 

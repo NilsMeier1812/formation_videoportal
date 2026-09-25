@@ -33,9 +33,11 @@ BUCKET_NAME = "formation-videos"
 MEDIA_BASE_URL = "/media"            # Videos/Bilder über den Worker (nur für Angemeldete)
 QUOTA_BYTES = "200000000000"     # 200 GB
 MAX_FILE_BYTES = "5000000000"    # 5 GB
+GH_REPO = "NilsMeier1812/formation_videoportal"  # Umwandlung: .github/workflows/process-video.yml
 
 # Zeitgesteuerte Aufgaben (src/cron.js), Zeiten in UTC:
-#   stündlich: abgebrochene Uploads aufräumen · täglich 03:33: Papierkorb nach 30 Tagen leeren
+#   stündlich: abgebrochene Uploads aufräumen, Umwandlung wiederholen
+#   täglich 03:33: Papierkorb nach 30 Tagen leeren, Originale 7 Tage nach der Umwandlung löschen
 [triggers]
 crons = ["17 * * * *", "33 3 * * *"]
 
@@ -46,4 +48,5 @@ namespace_id = "1001"
 simple = { limit = 10, period = 60 }
 
 # Secrets (nicht hier eintragen, sondern `npx wrangler secret put <NAME>`):
-#   GROUP_CODE, TAGGER_CODE, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+#   GROUP_CODE, TAGGER_CODE, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+#   GH_TOKEN (Umwandlung anstoßen), CALLBACK_SECRET (Rückmeldung der Umwandlung)
