@@ -3,22 +3,29 @@
 
    - App-Dateien (HTML/CSS/JS/Bibliotheken): NETWORK-FIRST. Online kommt immer
      der neueste Stand, offline der zuletzt geladene.
+   - Die App ist eine Seite: Jede Adresse (/, /videos, /upload …) liefert
+     dieselbe index.html. Sie liegt einmal unter "/" im Cache und startet
+     offline für jede Adresse.
    - /api/* wird nie zwischengespeichert – Daten kommen immer frisch.
    - Andere Domains (Videos auf media.…) laufen am Service Worker vorbei.
      Die Musik des Planers liegt in IndexedDB, nicht hier.
    ========================================================================== */
 
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `formation-shell-${VERSION}`;
 
 // Grundausstattung, damit der Planer offline startet, auch wenn man ihn nach
 // der Installation noch nicht geöffnet hat. Alles Weitere landet beim ersten Laden im Cache.
 const PRECACHE = [
-  "/choreo/",
+  "/",
   "/css/theme.css",
   "/css/shell.css",
   "/css/choreo.css",
+  "/css/app.css",
   "/js/theme.js",
+  "/js/app.js",
+  "/js/router.js",
+  "/js/session.js",
   "/js/pwa.js",
   "/js/choreo/main.js",
   "/vendor/alpine.esm.js",
@@ -54,17 +61,18 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Videos: direkt übers Netz
   if (url.pathname.startsWith("/api/")) return; // Daten nie aus dem Cache
-  event.respondWith(networkFirst(req));
+  // Seitenaufrufe: immer die eine App-Seite, gemerkt unter "/"
+  event.respondWith(networkFirst(req, req.mode === "navigate" ? "/" : req));
 });
 
-async function networkFirst(req) {
+async function networkFirst(req, key) {
   const cache = await caches.open(CACHE);
   try {
     const res = await fetch(req);
-    if (res.ok && res.status === 200) cache.put(req, res.clone());
+    if (res.ok && res.status === 200 && !res.redirected) cache.put(key, res.clone());
     return res;
   } catch (err) {
-    const cached = await cache.match(req, { ignoreSearch: true });
+    const cached = await cache.match(key, { ignoreSearch: true });
     if (cached) return cached;
     throw err;
   }

@@ -9,9 +9,9 @@ Alles läuft bei Cloudflare.
 ## Zielarchitektur
 
 ```
-formation.nils-meier.de            EIN Worker
- ├─ /choreo/        Choreo-Planer   (Musik, Taktraster, Schritte, Gruppen, Sprungmarken)
- ├─ /  /upload …    Videos          (Upload, Liste, Player, später Tagging + Suche)
+formation.nils-meier.de            EIN Worker, EINE Seite (Bereiche werden nur umgeschaltet)
+ ├─ /               Choreo-Planer   (Musik, Taktraster, Schritte, Gruppen, Sprungmarken)
+ ├─ /videos …       Videos          (Liste, Player, Upload unter /upload, später Tagging + Suche)
  ├─ /api/*          API             (D1 für Daten, R2 für Dateien)
  └─ /sw.js          eine PWA        (offline: App-Dateien + lokaler Datenspiegel)
 
@@ -36,8 +36,9 @@ media.formation.nils-meier.de      R2 – Videos (und ab Schritt B die Musik)
 | --- | --- | --- |
 | **A** | Planer ins Repo holen, in Module zerlegen, unter `/choreo/` ausliefern (noch gegen Supabase), gemeinsames Menü, eine PWA | **erledigt** |
 | **B** | Planer-Daten nach D1, Musik nach R2, API im Worker inkl. Bearbeitungssperre; Adapter tauschen; Übernahme der Daten per GitHub-Workflow; Umstieg der Gruppe | **erledigt** (Übernahme startest du, siehe unten) |
-| **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | **im Planer erledigt**; Video-Seiten folgen mit dem Frontend-Umbau |
+| **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | **erledigt** |
 | **E** | Einheitliches Aussehen: Hell/Dunkel wählbar (Automatisch/Hell/Dunkel), untere Navigation Choreo · Videos · Hochladen, Video-Seiten neu | **erledigt** |
+| **F** | Eine Seite statt einzelner Seiten (kein Neuladen beim Wechsel), gemeinsames Menü mit Anmeldung und Choreo-Wahl, „Bearbeiten“ nur für Trainer | **erledigt** |
 | **D** | Videos ↔ Choreo verknüpfen (siehe unten) | als Nächstes |
 
 Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter; seine Phase 2 wird zu Schritt D
@@ -50,18 +51,35 @@ und nutzt die Choreos und Sprungmarken des Planers statt einer eigenen Verwaltun
    zeigt die Videos zu dieser Stelle, jeweils mit Sprung an die passende Zeit. Dort wird auch getaggt
    (Clip → Sprungmarke, Durchlauf → Musikstart setzen).
 
+## Eine Seite
+
+- `public/index.html` enthält alle Bereiche. `public/js/router.js` ordnet Adressen den Bereichen zu und schaltet um;
+  alte Adressen werden umgeschrieben. Der Worker liefert für jede unbekannte Adresse `index.html`
+  (`not_found_handling = "single-page-application"`).
+- Unsichtbare Bereiche sind nur versteckt (`visibility`), nicht entfernt: Der Planer behält Musik, Position, Zoom
+  und seine Maße; Listen behalten die Scroll-Position; ein Upload läuft weiter.
+- Beim Verlassen des Planers hält die Musik an. Startet man über einen Video-Link, lädt die Musik erst, wenn der
+  Planer geöffnet wird.
+- **Menü und Dialoge** gehören zur Planer-Komponente (Alpine, am `<body>`), liegen aber außerhalb des
+  Planer-Bereichs und funktionieren überall. Die Video-Bereiche (reines JS) öffnen das Menü über das Ereignis
+  `open-menu`.
+- **Anmeldung:** `public/js/session.js` für alle Bereiche; Änderungen gehen als Ereignis `sessionchange` an alle.
+  Offline gilt die zuletzt bekannte Rolle (der Server prüft beim Synchronisieren ohnehin selbst).
+- **Gewählte Choreo** gilt für die ganze App (`selectedProjectId`); Schritt D filtert damit die Videos.
+
 ## Aussehen
 
 - Farben für Hell und Dunkel stehen in `public/css/theme.css`. Die dunklen Werte sind exakt die des alten
   Planers; auch Welle, Taktraster und Spuren lesen ihre Farben dort (`--wave-*`, `--grid-*`, `--lane-*`).
 - `public/js/theme.js` setzt das Thema vor dem ersten Zeichnen (kein Aufblitzen) und merkt sich die Wahl.
-- `public/css/shell.css`: untere Navigation und Hell/Dunkel-Auswahl – gemeinsam für alle Seiten.
+- `public/css/shell.css`: Seite, Bereiche, untere Navigation, Hell/Dunkel-Auswahl.
+- `public/css/app.css` gilt nur in den Video-Bereichen (`.vpage`), damit nichts in den Planer durchschlägt.
 
 ## Aufbau des Planers (`public/js/choreo/`)
 
 ```
-main.js            setzt die Alpine-Komponente aus den Bereichen zusammen
-config.js          Einstellungen (Supabase, Zeiten, Sperre)
+main.js            setzt die Alpine-Komponente aus den Bereichen zusammen (hängt am <body> der App)
+config.js          Einstellungen (Zeiten, Sperre, Version)
 runtime.js         nicht-reaktiver Laufzeitzustand (Wavesurfer, Canvas, Timer)
 lib/timeline.js    reine Rechenlogik: Takt, Beats, Bereiche, Gruppen – getestet
 lib/util.js        kleine Helfer
@@ -97,7 +115,7 @@ features/*.js      Bereiche: core, auth, projects, audio, canvas, steps, segment
    Spalten, die nicht übernommen werden).
 3. Passt der Bericht: der Gruppe sagen, dass im alten Planer gerade niemand bearbeiten soll.
 4. Denselben Workflow mit `uebernehmen` starten. Am Ende stehen die Anzahlen in Cloudflare in der Zusammenfassung.
-5. `formation.nils-meier.de/choreo/` öffnen, mit dem Trainer-Code anmelden, stichprobenartig vergleichen.
+5. `formation.nils-meier.de` öffnen, mit dem Trainer-Code anmelden, stichprobenartig vergleichen.
 6. Der Gruppe den neuen Link geben. Wer den alten Planer installiert hat, fügt die neue App einmal neu zum
    Homescreen hinzu. Den alten Planer auf Vercel danach abschalten oder mit einem Hinweis versehen.
 

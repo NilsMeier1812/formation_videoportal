@@ -7,37 +7,57 @@ Wohin es geht, steht in [`docs/zielbild.md`](docs/zielbild.md); der Plan fürs V
 **Aufbau:** Ein Cloudflare Worker liefert Frontend (`public/`, reines HTML/CSS/JS ohne Build)
 und API (`src/`) aus. Daten liegen in D1 (`migrations/`), Videos und Musik in R2.
 
+Die App ist **eine Seite** (`public/index.html`): Choreo, Videos und Hochladen liegen darin
+nebeneinander und werden nur umgeschaltet – beim Wechsel lädt nichts neu.
+
 ```
-public/choreo/       Choreo-Planer (Seite)       public/js/choreo/   Planer-Code (Aufbau: docs/zielbild.md)
-public/index.html    Videoliste                   public/js/          Code der Video-Seiten, pwa.js
-public/upload.html   Upload                       public/vendor/      Bibliotheken (npm run vendor)
-public/video.html    Player                       public/sw.js        Service Worker der PWA
-src/index.js         Router der API               src/routes/, src/lib/
-migrations/          D1-Schema                    test/               Tests (Workers-Laufzeit)
+public/index.html    die App (alle Bereiche)      public/js/app.js     Einstieg
+public/js/router.js  Adresse ↔ Bereich            public/js/session.js Anmeldung (gilt überall)
+public/js/views/     Videothek, Player, Upload    public/js/choreo/    Planer + Menü (Aufbau: docs/zielbild.md)
+public/css/          theme, shell, choreo, app    public/vendor/       Bibliotheken (npm run vendor)
+public/sw.js         Service Worker der PWA       src/index.js         Router der API (src/routes/, src/lib/)
+migrations/          D1-Schema                    test/                Tests (Workers-Laufzeit)
 scripts/             vendor.mjs, Übernahme aus Supabase (migrate-from-supabase.mjs)
 ```
 
 ## Stand
 
-**Choreo-Planer** (`/choreo/`): vom alten Repo `choreoplanner` übernommen und in Module zerlegt,
-Funktionen unverändert (Training/Editor, Taktraster, Schritte, Gruppen, Sprungmarken, Offline-Betrieb).
-Daten in D1, Musik in R2, API unter `/api/choreo/…`. Bearbeiten mit dem **Trainer-Code** (Secret `TAGGER_CODE`),
-der per Cookie ein Jahr gemerkt wird. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
+**Bereiche und Adressen:**
 
-**Anmeldung** (`/api/session`): Code eingeben → HttpOnly-Cookie für ein Jahr; gilt für die ganze App.
+| Adresse | Bereich | früher |
+| --- | --- | --- |
+| `/` | Choreo (Planer) | `/choreo/` |
+| `/videos` | Videothek | `/` |
+| `/videos/<id>` | Player | `/video?id=<id>` |
+| `/upload` | Hochladen | `/upload` |
+
+Alte Adressen (geteilte Links, installierte App) funktionieren weiter und werden umgeschrieben.
+
+**Menü** (☰ oben links, in jedem Bereich; im Planer auch über den Titel): Anmeldung, Choreo wählen
+(gilt für die ganze App), neue Choreo anlegen (Trainer), Hell/Dunkel.
+
+**Anmeldung** (`/api/session`): einmal Code eingeben → HttpOnly-Cookie für ein Jahr; gilt für die ganze App.
+- ohne Anmeldung: ansehen und Training
+- **Gruppen-Code** (Secret `GROUP_CODE`): zusätzlich Videos hochladen
+- **Trainer-Code** (Secret `TAGGER_CODE`): zusätzlich Choreos bearbeiten – im Planer erscheint dann oben
+  rechts **Bearbeiten** (setzt die Bearbeitungssperre, „Fertig“ gibt sie wieder frei)
+
+**Choreo-Planer:** vom alten Repo `choreoplanner` übernommen und in Module zerlegt, Funktionen unverändert
+(Taktraster, Schritte, Gruppen, Sprungmarken, Bearbeitungssperre, Offline-Betrieb). Daten in D1, Musik in R2,
+API unter `/api/choreo/…`. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
 
 **Videos** (Phase 1):
 - `POST /api/videos` – legt ein Video an (Gruppen-Code), gibt eine 15 Minuten gültige Upload-URL zurück
 - `POST /api/videos/:id/complete` – prüft die Datei in R2 (Existenz, echte Größe, Content-Type)
 - `GET /api/videos`, `GET /api/videos/:id` – Liste und Einzelvideo
 - `GET /api/auth` – prüft einen Code
-- Seiten: Videothek mit Suche, Upload (Anmeldung per Cookie, mehrere Dateien, Fortschritt, Bildschirm bleibt an),
-  Player (Tempo, Spiegeln)
+- Bereiche: Videothek mit Suche, Hochladen (mehrere Dateien, Fortschritt, Bildschirm bleibt an; läuft weiter,
+  während man in andere Bereiche wechselt), Player (Tempo)
 
-**Rahmen:** untere Navigation (Choreo · Videos · Hochladen), Hell/Dunkel wählbar (im Planer im Menü,
-auf den Video-Seiten oben rechts). Farben in `public/css/theme.css`.
+**Rahmen:** untere Navigation (Choreo · Videos · Hochladen), Hell/Dunkel wählbar (im Menü).
+Farben in `public/css/theme.css`.
 
-**PWA:** ein Manifest und ein Service Worker für alles; startet im Planer.
+**PWA:** ein Manifest und ein Service Worker für alles; startet im Planer, startet offline an jeder Adresse.
 
 ## Bibliotheken aktualisieren
 

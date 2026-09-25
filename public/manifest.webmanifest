@@ -2,7 +2,7 @@
   "name": "Formation",
   "short_name": "Formation",
   "description": "Choreo-Planer und Trainingsvideos der Formation.",
-  "start_url": "/choreo/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

@@ -13,6 +13,8 @@ import {
 } from "../lib/timeline.js";
 import { formatTime, isTypingTarget, uuid } from "../lib/util.js";
 import { rt } from "../runtime.js";
+import { router } from "/js/router.js";
+import { session } from "/js/session.js";
 
 export function core() {
   return {
@@ -21,6 +23,7 @@ export function core() {
     userName: "",
 
     // ---- Oberfläche ----
+    appView: router.view, // offener Bereich der App: 'choreo' | 'videos' | 'player' | 'upload'
     version: APP_VERSION,
     menuOpen: false,
     settingsOpen: false,
@@ -35,6 +38,7 @@ export function core() {
     // ---- Daten des offenen Projekts ----
     projects: [],
     project: null,
+    pendingProject: null, // gewählt, aber noch nicht geladen (Planer war beim Start nicht offen)
     segments: [], // Sprungmarken
     tempoSections: [], // Tempo-/Takt-Abschnitte
     persons: [], // Paare
@@ -93,6 +97,19 @@ export function core() {
       this.themeMode = mode;
     },
 
+    /** Bereich der App gewechselt (untere Navigation). Der Planer bleibt dabei geladen. */
+    onRouteChange(view) {
+      const prev = this.appView;
+      this.appView = view;
+      if (view === prev) return;
+      // Beim Verlassen anhalten – sonst läuft die Musik unsichtbar weiter
+      if (prev === "choreo" && this.isPlaying) rt.ws?.pause();
+      if (view === "choreo") {
+        if (this.pendingProject) this.openProject(this.pendingProject);
+        else requestAnimationFrame(() => this.recalibrate());
+      }
+    },
+
     // ---- Start ----
     async init() {
       repo.onNotice((msg) => this.setStatus(msg));
@@ -103,7 +120,7 @@ export function core() {
         localStorage.setItem("choreo_user_id", id);
         return id;
       })();
-      this.userName = localStorage.getItem("choreo_user_name") || "";
+      this.userName = session.getName();
 
       window.addEventListener("online", () => {
         this.online = true;
@@ -128,6 +145,9 @@ export function core() {
       });
       // Hell/Dunkel umgeschaltet → Zeichenflächen neu einfärben
       window.addEventListener("themechange", () => this.onThemeChange());
+      // Bereichswechsel und Menü-Knopf der Video-Bereiche
+      window.addEventListener("routechange", (e) => this.onRouteChange(e.detail.view));
+      window.addEventListener("open-menu", () => { this.menuOpen = true; });
 
       window.addEventListener("pagehide", () => {
         repo.flush();
@@ -136,7 +156,7 @@ export function core() {
 
       // Tastatur (PC): Leertaste = Play/Pause, Pfeile = ±5 s
       window.addEventListener("keydown", (e) => {
-        if (isTypingTarget(e.target) || !rt.ws) return;
+        if (this.appView !== "choreo" || isTypingTarget(e.target) || !rt.ws) return;
         if (e.code === "Space") {
           e.preventDefault();
           this.togglePlay();
@@ -155,7 +175,9 @@ export function core() {
       const last = localStorage.getItem("choreo_last_project");
       const visible = this.visibleProjects;
       const target = visible.find((p) => p.id === last) || visible[0];
-      if (target) await this.openProject(target);
+      // Musik erst laden, wenn der Planer wirklich geöffnet wird (z. B. Start über einen Video-Link)
+      if (target && this.appView === "choreo") await this.openProject(target);
+      else if (target) this.pendingProject = target;
     },
   };
 }

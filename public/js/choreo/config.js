@@ -1,7 +1,7 @@
 // Zentrale Einstellungen des Choreo-Planers.
 
 /** Hochzählend; landet im Menü (vX) und hilft beim Nachvollziehen von Updates. */
-export const APP_VERSION = 36;
+export const APP_VERSION = 37;
 
 // ---- Bearbeitungssperre (verwaist nach 30 s – das prüft der Server) ----
 export const HEARTBEAT_MS = 15000; // so oft wird die eigene Sperre erneuert

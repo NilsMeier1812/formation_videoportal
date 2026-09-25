@@ -25,6 +25,21 @@ export function projects() {
     get visibleProjects() {
       return (this.projects || []).filter((p) => this.isEditor || !p.is_private);
     },
+    /** Gewählte Choreo – auch wenn sie noch nicht geladen ist. */
+    get selectedProjectId() { return (this.pendingProject || this.project)?.id || null; },
+
+    /**
+     * Choreo im Menü gewählt – gilt für die ganze App. Ist gerade ein anderer
+     * Bereich offen, wird die Musik erst beim Öffnen des Planers geladen.
+     */
+    async selectProject(p) {
+      if (this.appView === "choreo") { await this.openProject(p); return; }
+      this.menuOpen = false;
+      if (p.id === this.selectedProjectId) return;
+      this.pendingProject = p.id === this.project?.id ? null : p;
+      localStorage.setItem("choreo_last_project", p.id);
+      this.setStatus(`Choreo „${p.title}“ gewählt`);
+    },
 
     async loadProjects() {
       const { rows, fromCache } = await repo.loadProjects();
@@ -36,6 +51,7 @@ export function projects() {
       if (this.currentMode === "editor") await this.releaseLock();
       this.currentMode = "training";
       this.menuOpen = false;
+      this.pendingProject = null;
       this.project = p;
       localStorage.setItem("choreo_last_project", p.id);
       this.activeSegmentId = null;
@@ -229,6 +245,7 @@ export function projects() {
         }
         await remote.remove("projects", p.id);
         await local.forgetProject(p.id);
+        if (this.pendingProject?.id === p.id) this.pendingProject = null;
         if (this.project && this.project.id === p.id) {
           this.destroyWs();
           this.project = null;

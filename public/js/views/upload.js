@@ -1,77 +1,60 @@
-// Hochladen: erst einmal anmelden (Cookie), dann Videos direkt nach R2.
-import { api, ApiError, currentRole, el, formatBytes, getName, login, logout, setName } from "./api.js";
-import { registerServiceWorker } from "./pwa.js";
-import { mountThemeButton } from "./theme-button.js";
-
-mountThemeButton(document.getElementById("theme"));
-registerServiceWorker();
+// Hochladen: angemeldet (Gruppen- oder Trainer-Code) direkt nach R2.
+// Ein laufender Upload geht weiter, während man in andere Bereiche wechselt.
+import { api, ApiError, el, formatBytes } from "../api.js";
+import { session } from "../session.js";
 
 const $ = (id) => document.getElementById(id);
-const ROLE_NAMES = { group: "Gruppen-Code", tagger: "Trainer-Code" };
+const ROLE_NAMES = { group: "mit Gruppen-Code", tagger: "als Trainer" };
+
+let busy = false;
+let wakeLock = null;
 
 // ---------------- Anmeldung ----------------
 
-function showSection(role) {
-  $("checking").hidden = true;
-  $("login").hidden = Boolean(role);
-  $("upload").hidden = !role;
-  if (role) $("signed-in-as").textContent = `Angemeldet mit ${ROLE_NAMES[role]}`;
+function showSection() {
+  const role = session.canUpload ? session.role : null;
+  $("up-checking").hidden = true;
+  $("up-login").hidden = Boolean(role);
+  $("up-main").hidden = !role;
+  if (role) $("up-signed-in").textContent = `Angemeldet ${ROLE_NAMES[role]}`;
 }
 
-$("login-form").addEventListener("submit", async (event) => {
+async function onLogin(event) {
   event.preventDefault();
-  const message = $("login-message");
+  const message = $("up-login-message");
   message.textContent = "";
   try {
-    showSection(await login($("code").value.trim()));
-    $("code").value = "";
+    await session.login($("up-code").value.trim()); // → sessionchange → showSection
+    $("up-code").value = "";
   } catch (err) {
-    message.textContent = err instanceof ApiError && err.status === 401
-      ? "Der Code stimmt nicht."
-      : `Server nicht erreichbar: ${err.message}`;
+    message.textContent = err.message;
     message.className = "message error";
   }
-});
-
-$("logout").addEventListener("click", async () => {
-  await logout().catch(() => {});
-  showSection(null);
-});
-
-try {
-  showSection(await currentRole());
-} catch {
-  showSection(null);
 }
 
-// ---------------- Formular ----------------
+// ---------------- Hochladen ----------------
 
-$("name").value = getName();
-$("date").value = new Date().toLocaleDateString("sv-SE"); // JJJJ-MM-TT in lokaler Zeit
-
-$("files").addEventListener("change", () => {
-  const files = [...$("files").files];
+function onFilesChanged() {
+  const files = [...$("up-files").files];
   const size = files.reduce((sum, f) => sum + f.size, 0);
-  $("dropzone").classList.toggle("has-files", files.length > 0);
-  $("drop-title").textContent = files.length
+  $("up-dropzone").classList.toggle("has-files", files.length > 0);
+  $("up-drop-title").textContent = files.length
     ? `${files.length} ${files.length === 1 ? "Video" : "Videos"} ausgewählt`
     : "Videos auswählen";
-  $("drop-sub").textContent = files.length ? `${formatBytes(size)} · tippen zum Ändern` : "Mehrere auf einmal gehen";
-});
-
-let busy = false;
-window.addEventListener("beforeunload", (event) => {
-  if (busy) event.preventDefault();
-});
+  $("up-drop-sub").textContent = files.length ? `${formatBytes(size)} · tippen zum Ändern` : "Mehrere auf einmal gehen";
+}
 
 // Bildschirm anlassen, solange hochgeladen wird (sonst bricht das iPhone ab)
-let wakeLock = null;
 async function keepAwake() {
   try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* nicht verfügbar */ }
 }
-document.addEventListener("visibilitychange", () => {
-  if (busy && document.visibilityState === "visible") keepAwake();
-});
+
+function setBusy(on) {
+  busy = on;
+  $("up-submit").disabled = on;
+  // Punkt am Reiter „Hochladen“, solange etwas läuft – auch aus anderen Bereichen sichtbar
+  document.querySelector('.bottom-nav [data-tab="upload"]')?.classList.toggle("busy", on);
+}
 
 function putFile(upload, file, onProgress) {
   return new Promise((resolve, reject) => {
@@ -89,7 +72,7 @@ function putFile(upload, file, onProgress) {
 }
 
 function titleFor(file, index, count) {
-  const title = $("title").value.trim();
+  const title = $("up-title").value.trim();
   if (!title) return file.name.replace(/\.[^.]+$/, "");
   return count > 1 ? `${title} (${index + 1}/${count})` : title;
 }
@@ -97,7 +80,7 @@ function titleFor(file, index, count) {
 async function uploadOne(file, index, count, meta) {
   const fill = el("span");
   const state = el("span", { class: "state" }, "wartet …");
-  $("uploads").append(
+  $("up-list").append(
     el("li", { class: "card upload-item" },
       el("span", { class: "name" }, `${file.name} · ${formatBytes(file.size)}`),
       el("div", { class: "bar" }, fill),
@@ -139,26 +122,25 @@ async function uploadOne(file, index, count, meta) {
   }
 }
 
-$("form").addEventListener("submit", async (event) => {
+async function onSubmit(event) {
   event.preventDefault();
   if (busy) return;
 
-  const files = [...$("files").files];
-  const name = $("name").value.trim();
-  const message = $("message");
+  const files = [...$("up-files").files];
+  const name = $("up-name").value.trim();
+  const message = $("up-message");
   message.textContent = "";
   message.className = "message";
-  setName(name);
+  session.setName(name);
 
   const meta = {
     uploaded_by: name,
-    recorded_at: $("date").value,
-    camera: $("camera").value.trim(),
-    no_choreo: $("noChoreo").checked,
+    recorded_at: $("up-date").value,
+    camera: $("up-camera").value.trim(),
+    no_choreo: $("up-no-choreo").checked,
   };
 
-  busy = true;
-  $("submit").disabled = true;
+  setBusy(true);
   await keepAwake();
 
   let ok = 0;
@@ -167,8 +149,7 @@ $("form").addEventListener("submit", async (event) => {
     if (await uploadOne(file, i, files.length, meta)) ok++;
   }
 
-  busy = false;
-  $("submit").disabled = false;
+  setBusy(false);
   await wakeLock?.release().catch(() => {});
   wakeLock = null;
 
@@ -178,7 +159,30 @@ $("form").addEventListener("submit", async (event) => {
     : `${ok} von ${files.length} hochgeladen – die fehlgeschlagenen bitte noch einmal auswählen.`;
   message.className = all ? "message ok" : "message error";
   if (all) {
-    $("files").value = "";
-    $("files").dispatchEvent(new Event("change"));
+    $("up-files").value = "";
+    onFilesChanged();
   }
-});
+}
+
+export const uploadView = {
+  mount() {
+    $("up-login-form").addEventListener("submit", onLogin);
+    $("up-files").addEventListener("change", onFilesChanged);
+    $("up-form").addEventListener("submit", onSubmit);
+    $("up-name").value = session.getName();
+    $("up-date").value = new Date().toLocaleDateString("sv-SE"); // JJJJ-MM-TT in lokaler Zeit
+
+    window.addEventListener("beforeunload", (event) => {
+      if (busy) event.preventDefault();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (busy && document.visibilityState === "visible") keepAwake();
+    });
+    window.addEventListener("sessionchange", showSection);
+    session.restore().then(showSection);
+  },
+  show() {
+    if (!$("up-name").value) $("up-name").value = session.getName();
+  },
+  hide() {},
+};

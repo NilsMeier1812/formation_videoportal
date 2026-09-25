@@ -1,7 +1,37 @@
 /* ============================================================================
-   Formation-App – gemeinsamer Rahmen: untere Navigation, Hell/Dunkel-Umschalter
-   Farben aus theme.css.
+   Formation-App – gemeinsamer Rahmen: Seite, Bereiche, untere Navigation,
+   Hell/Dunkel-Umschalter. Farben aus theme.css.
+
+   Die App ist eine Seite (siehe /js/router.js). Alle Bereiche liegen
+   übereinander über der Navigation; nur der aktive ist sichtbar. Die anderen
+   sind bloß unsichtbar (visibility), nicht entfernt – so behalten sie ihre
+   Maße: Welle und Raster des Planers müssen nach dem Zurückwechseln nicht neu
+   vermessen werden, und Listen behalten ihre Scroll-Position.
    ========================================================================== */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100dvh;            /* dynamische Viewport-Höhe (kritisch für iOS Safari) */
+  overflow: hidden;          /* verhindert Body-Scroll – gescrollt wird in den Bereichen */
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+.views { position: relative; flex: 1; min-height: 0; }
+.view { position: absolute; inset: 0; visibility: hidden; }
+.view.active { visibility: visible; }
+
+/* Planer: eine Spalte wie früher die ganze Seite */
+.view-choreo { display: flex; flex-direction: column; }
+
+/* Video-Bereiche: scrollen in sich */
+.vpage { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 /* ---------------- Untere Navigation ---------------- */
 .bottom-nav {
@@ -37,6 +67,13 @@
 .bottom-nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
 .bottom-nav a[aria-current="page"] .nav-icon { background: var(--accent-dim); color: var(--accent); }
 .bottom-nav a:active .nav-icon { background: var(--press); }
+/* Upload läuft (Punkt am Reiter, auch aus anderen Bereichen sichtbar) */
+.bottom-nav .nav-icon { position: relative; }
+.bottom-nav a.busy .nav-icon::after {
+  content: ""; position: absolute; top: 3px; right: 14px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--panel);
+}
 
 /* ---------------- Hell/Dunkel: Auswahl mit drei Knöpfen ---------------- */
 .theme-seg {
