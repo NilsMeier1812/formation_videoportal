@@ -1,0 +1,20 @@
+{
+  "name": "formation-videoportal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply formation-portal --local",
+    "db:migrate:remote": "wrangler d1 migrations apply formation-portal --remote"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "vitest": "~4.1.0",
+    "wrangler": "^4.140.0"
+  }
+}

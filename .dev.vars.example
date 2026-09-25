@@ -1,0 +1,14 @@
+# Kopieren nach .dev.vars (wird von Git ignoriert) und Werte eintragen.
+# Gilt nur für `npm run dev` (lokal). In Produktion: `npx wrangler secret put <NAME>`.
+
+GROUP_CODE=gruppe-lokal
+TAGGER_CODE=tagger-lokal
+
+# Lokal lädt der Browser über den Worker hoch statt per Presigned URL direkt nach R2,
+# und Videos werden über den Worker ausgeliefert (lokales R2 hat keinen S3-Endpunkt).
+DEV_MODE=1
+MEDIA_BASE_URL=/api/dev-media
+
+# Nur nötig, wenn du lokal gegen das echte R2 testen willst (dann DEV_MODE entfernen):
+# R2_ACCESS_KEY_ID=
+# R2_SECRET_ACCESS_KEY=

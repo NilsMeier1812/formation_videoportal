@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Video · Formation</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/video.js"></script>
+</head>
+<body>
+  <header>
+    <span class="brand">Formation</span>
+    <a href="/">Videos</a>
+    <a href="/upload">Hochladen</a>
+  </header>
+  <main>
+    <h1 id="title">Video</h1>
+    <p id="status" class="muted">Lade …</p>
+
+    <div id="player" class="player" hidden>
+      <video id="video" controls playsinline preload="metadata"></video>
+
+      <div class="controls" role="group" aria-label="Wiedergabe">
+        <button type="button" data-rate="0.25">0,25×</button>
+        <button type="button" data-rate="0.5">0,5×</button>
+        <button type="button" data-rate="0.75">0,75×</button>
+        <button type="button" data-rate="1" aria-pressed="true">1×</button>
+        <button type="button" id="mirror" aria-pressed="false">Spiegeln</button>
+      </div>
+
+      <p id="processing" class="muted" hidden>
+        Wird noch aufbereitet – bis dahin läuft die Originaldatei. iPhone-Videos spielen
+        auf manchen Geräten erst nach der Aufbereitung.
+      </p>
+
+      <dl id="facts" class="facts card"></dl>
+    </div>
+  </main>
+</body>
+</html>

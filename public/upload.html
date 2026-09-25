@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Hochladen · Formation</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/upload.js"></script>
+</head>
+<body>
+  <header>
+    <span class="brand">Formation</span>
+    <a href="/">Videos</a>
+    <a href="/upload" aria-current="page">Hochladen</a>
+  </header>
+  <main>
+    <h1>Videos hochladen</h1>
+
+    <form id="form" class="card">
+      <div class="row">
+        <label>Gruppen-Code
+          <input id="code" type="password" autocomplete="current-password" required>
+        </label>
+        <label>Dein Name
+          <input id="name" type="text" maxlength="50" autocomplete="given-name" required>
+        </label>
+      </div>
+
+      <div class="row">
+        <label>Aufgenommen am
+          <input id="date" type="date" required>
+        </label>
+        <label>Kamera / Perspektive
+          <input id="camera" type="text" maxlength="50" list="cameras" placeholder="z. B. vorne">
+          <datalist id="cameras">
+            <option value="vorne"><option value="hinten"><option value="links"><option value="rechts"><option value="oben">
+          </datalist>
+        </label>
+      </div>
+
+      <label>Titel <span class="hint">(optional – sonst der Dateiname)</span>
+        <input id="title" type="text" maxlength="200">
+      </label>
+
+      <label class="check">
+        <input id="noChoreo" type="checkbox">
+        Gehört zu keiner Choreo (z. B. Technik-Erklärung, fremder Auftritt)
+      </label>
+
+      <label>Videos
+        <input id="files" type="file" accept="video/*" multiple required>
+        <span class="hint">Mehrere Dateien auf einmal gehen. Während des Uploads Bildschirm anlassen und die Seite nicht verlassen.</span>
+      </label>
+
+      <button id="submit" class="primary" type="submit">Hochladen</button>
+      <p id="message" role="status"></p>
+    </form>
+
+    <ul id="uploads" class="uploads"></ul>
+  </main>
+</body>
+</html>

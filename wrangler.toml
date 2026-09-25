@@ -1,0 +1,35 @@
+name = "formation-portal"
+main = "src/index.js"
+compatibility_date = "2026-08-15"
+
+# Ausgeliefert wird nur über die eigene Domain, nicht über *.workers.dev
+workers_dev = false
+preview_urls = false
+routes = [{ pattern = "formation.nils-meier.de", custom_domain = true }]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# API-Pfade immer an den Worker, alles andere zuerst als statische Datei
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "formation-portal"
+database_id = "a339958c-c739-4cc2-807f-da7170bf082c"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "formation-videos"
+jurisdiction = "eu"
+
+[vars]
+R2_S3_ENDPOINT = "https://527266f78a5c7ffa288f4a9d2c49e842.eu.r2.cloudflarestorage.com"
+BUCKET_NAME = "formation-videos"
+MEDIA_BASE_URL = "https://media.formation.nils-meier.de"
+QUOTA_BYTES = "200000000000"     # 200 GB
+MAX_FILE_BYTES = "5000000000"    # 5 GB
+
+# Secrets (nicht hier eintragen, sondern `npx wrangler secret put <NAME>`):
+#   GROUP_CODE, TAGGER_CODE, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY

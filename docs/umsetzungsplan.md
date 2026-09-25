@@ -51,7 +51,7 @@ Bei 100–300 GB Videobibliothek landet ihr bei 1,35–4,35 $ im Monat. Traffic 
 | WhatsApp-Weiterleitung | 5–10 MB | ~40 MB |
 | Abspielfassung 720p (CRF 23) | 15–25 MB | ~100 MB |
 
-Ein Training mit vier Kameras in 4K sind schnell 8 GB Originale. Die 100–300 GB sind damit eher nach einer Saison erreicht als nach zweien. Stellschrauben: die Gruppe bittet, in 1080p zu filmen, und/oder Originale nach einer Frist löschen (offene Entscheidung 8). Die Abspielfassung ist das eigentliche Archiv.
+Ein Training mit vier Kameras in 4K sind schnell 8 GB Originale. Die 100–300 GB sind damit eher nach einer Saison erreicht als nach zweien. Stellschrauben: die Gruppe bittet, in 1080p zu filmen, und/oder Originale nach einer Frist löschen (offene Entscheidung 7). Die Abspielfassung ist das eigentliche Archiv.
 
 ### Bucket-Layout
 
@@ -302,38 +302,13 @@ Ein richtiges Backup (täglicher `wrangler d1 export` auf den Proxmox-Server, Ve
 
 ## Hosting: ein Worker mit Static Assets
 
-Frontend, API und Cron-Jobs laufen in **einem** Worker. Das Frontend wird als Static Assets mit ausgeliefert, `/api/*` geht an den Worker-Code.
+Frontend, API und Cron-Jobs laufen in **einem** Worker. Das Frontend (`public/`, reines HTML/CSS/JS ohne Build-Schritt) wird als Static Assets mit ausgeliefert, `/api/*` geht an den Worker-Code. Die maßgebliche Konfiguration ist `wrangler.toml` im Repo; die wichtigen Punkte:
 
-```toml
-name = "formation-portal"
-main = "src/worker.ts"
-compatibility_date = "2026-09-01"
-
-routes = [{ pattern = "formation.nils-meier.de", custom_domain = true }]
-
-[assets]
-directory = "./dist"
-not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]   # sonst liefert das SPA-Fallback index.html für API-Pfade
-
-[triggers]
-crons = ["0 * * * *", "0 19 * * *"]   # stündlich; täglich 21:00 MESZ (UTC!)
-
-[[d1_databases]]
-binding = "DB"
-database_name = "formation-portal"
-database_id = "..."
-
-[[r2_buckets]]
-binding = "BUCKET"
-bucket_name = "formation-videos"
-
-[vars]
-BUCKET_NAME = "formation-videos"
-QUOTA_BYTES = "200000000000"
-MAX_FILE_BYTES = "5000000000"
-NOTIFY_FILE_BYTES = "3000000000"
-```
+- `run_worker_first = ["/api/*"]` — API-Pfade immer an den Worker, alles andere zuerst als Datei.
+- Das R2-Binding braucht `jurisdiction = "eu"`, weil der Bucket in der EU-Jurisdiction liegt. Der S3-Endpunkt für Presigned URLs ist entsprechend `https://<account-id>.eu.r2.cloudflarestorage.com`.
+- `workers_dev = false`: ausgeliefert wird nur über `formation.nils-meier.de`.
+- Cron-Trigger kommen in Phase 3 dazu: `crons = ["0 * * * *", "0 19 * * *"]` (stündlich; täglich 21:00 MESZ — Cron läuft in UTC).
+- `noindex` kommt über `public/_headers` und `robots.txt`.
 
 ### Warum Worker und nicht Pages
 
@@ -428,7 +403,7 @@ const r2 = new AwsClient({
 });
 
 const url = new URL(
-  `https://${env.ACCOUNT_ID}.r2.cloudflarestorage.com/${env.BUCKET_NAME}/${key}`
+  `${env.R2_S3_ENDPOINT}/${env.BUCKET_NAME}/${key}` // https://<account-id>.eu.r2.cloudflarestorage.com
 );
 url.searchParams.set("X-Amz-Expires", "900"); // 15 Minuten
 
@@ -687,7 +662,7 @@ jobs:
       # neuere AWS-CLI-Versionen senden Prüfsummen, mit denen R2 nicht immer zurechtkommt
       AWS_REQUEST_CHECKSUM_CALCULATION: when_required
       AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-      R2: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2: https://${{ secrets.R2_ACCOUNT_ID }}.eu.r2.cloudflarestorage.com   # EU-Jurisdiction
       BUCKET: formation-videos
       API: https://formation.nils-meier.de/api/internal/processed
       CALLBACK_SECRET: ${{ secrets.CALLBACK_SECRET }}
@@ -964,6 +939,8 @@ Lokal entwickeln mit `wrangler dev` (lokale D1 und R2), Secrets dafür in `.dev.
 | Storage | Cloudflare R2 |
 | Datenbank | Cloudflare D1 |
 | API + Frontend + Cron | ein Cloudflare Worker mit Static Assets |
+| Frontend-Stack | reines HTML/CSS/JS ohne Framework und ohne Build-Schritt |
+| Standort | R2-Bucket in der EU-Jurisdiction |
 | Domain | `formation.nils-meier.de`, Videos über `media.` |
 | Video-Processing | GitHub Actions per `workflow_dispatch`, eine 720p-Abspielfassung pro Video, HDR-Erkennung |
 | Mehrere Choreos | ja |
@@ -991,13 +968,11 @@ Lokal entwickeln mit `wrangler dev` (lokale D1 und R2), Secrets dafür in `.dev.
 
 **5. Abschnitte pflegen** — wer legt sie an? Muss einmal pro Choreo passieren, bevor getaggt werden kann.
 
-**6. Frontend-Stack** — Vanilla + Vite reicht für den Umfang und hält den Tagging-Screen mit seiner Tastatursteuerung einfach. React oder Svelte, falls du dich damit wohler fühlst. Auf Workers Static Assets läuft beides.
+**6. Zugangsschutz fürs Ansehen** — A, B oder C, siehe **Zugangsschutz**. Muss vor der Weitergabe an die Gruppe stehen.
 
-**7. Zugangsschutz fürs Ansehen** — A, B oder C, siehe **Zugangsschutz**. Muss vor der Weitergabe an die Gruppe stehen.
+**7. Originale behalten?** — dauerhaft, oder per Lifecycle-Regel nach z. B. 180 Tagen löschen (die Abspielfassung bleibt)? Die Originale sind bei 4K der größte Kostenblock.
 
-**8. Originale behalten?** — dauerhaft, oder per Lifecycle-Regel nach z. B. 180 Tagen löschen (die Abspielfassung bleibt)? Die Originale sind bei 4K der größte Kostenblock.
-
-**9. Abschnitts-Vorschlag beim Upload?** — Der Engpass sind drei Tagger. Kompromiss: Hochladende dürfen optional einen Abschnitt aus der *festen* Liste wählen (keine Freitexte, also kein Wildwuchs). Das Video landet trotzdem in der Warteschlange, der Tagger bestätigt nur noch mit einem Klick.
+**8. Abschnitts-Vorschlag beim Upload?** — Der Engpass sind drei Tagger. Kompromiss: Hochladende dürfen optional einen Abschnitt aus der *festen* Liste wählen (keine Freitexte, also kein Wildwuchs). Das Video landet trotzdem in der Warteschlange, der Tagger bestätigt nur noch mit einem Klick.
 
 ### Weitere Hinweise
 
@@ -1037,7 +1012,7 @@ Ab hier ist das Portal nützlich — an die Gruppe geht es aber erst nach Phase 
 - Resend: Tagesmail, Sofortmail mit Löschen-Link über Bestätigungsseite.
 - Cron-Jobs: verwaiste Uploads, Processing-Retry, Reconcile (nur melden), Papierkorb leeren.
 - Quota-Anzeige, Rate-Limiting-Regel.
-- **Zugangsschutz umsetzen** (Entscheidung 7), `raw/` sperren.
+- **Zugangsschutz umsetzen** (Entscheidung 6), `raw/` sperren.
 
 **Danach geht das Portal an die Gruppe.**
 
