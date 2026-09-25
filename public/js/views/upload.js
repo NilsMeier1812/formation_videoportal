@@ -1,6 +1,11 @@
 // Hochladen: angemeldet (Gruppen- oder Trainer-Code) direkt nach R2.
 // Ein laufender Upload geht weiter, während man in andere Bereiche wechselt.
-import { api, ApiError, el, formatBytes } from "../api.js";
+// Mehr als die Datei braucht es nicht: Aufnahmezeit und Länge kommen aus den
+// Metadaten des Videos, ein Vorschaubild erzeugt der Browser; zugeordnet wird
+// von den Trainern (Reiter „Zuordnen“).
+import { api, ApiError, el, formatBytes, formatDateTime } from "../api.js";
+import { blobReader, readVideoMeta } from "../lib/mp4meta.js";
+import { makeThumbnail } from "../lib/thumbnail.js";
 import { session } from "../session.js";
 
 const $ = (id) => document.getElementById(id);
@@ -71,18 +76,38 @@ function putFile(upload, file, onProgress) {
   });
 }
 
-function titleFor(file, index, count) {
-  const title = $("up-title").value.trim();
-  if (!title) return file.name.replace(/\.[^.]+$/, "");
-  return count > 1 ? `${title} (${index + 1}/${count})` : title;
+/**
+ * Aufnahmezeit: aus den Metadaten; sonst das Dateidatum (auf Android meist die
+ * Aufnahmezeit, bei manchen Wegen aber der Zeitpunkt des Kopierens).
+ */
+async function recordingInfo(file) {
+  const meta = await readVideoMeta(blobReader(file), file.size);
+  if (meta.createdAt) return { recorded_at: meta.createdAt.toISOString(), recorded_source: "meta", duration_s: meta.duration };
+  const fromFile = file.lastModified ? new Date(file.lastModified) : null;
+  return fromFile && fromFile.getFullYear() >= 2000
+    ? { recorded_at: fromFile.toISOString(), recorded_source: "file", duration_s: meta.duration }
+    : { recorded_at: null, recorded_source: null, duration_s: meta.duration };
 }
 
-async function uploadOne(file, index, count, meta) {
+async function uploadThumb(id, thumb) {
+  const { blob } = await thumb;
+  if (!blob) return;
+  await fetch(`/api/videos/${id}/thumb`, {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: { "content-type": "image/jpeg" },
+    body: blob,
+  }).catch(() => {}); // ohne Bild geht es auch
+}
+
+async function uploadOne(file, meta) {
   const fill = el("span");
   const state = el("span", { class: "state" }, "wartet …");
+  const when = el("span", { class: "when" });
   $("up-list").append(
     el("li", { class: "card upload-item" },
       el("span", { class: "name" }, `${file.name} · ${formatBytes(file.size)}`),
+      when,
       el("div", { class: "bar" }, fill),
       state,
     ),
@@ -91,14 +116,21 @@ async function uploadOne(file, index, count, meta) {
 
   try {
     state.textContent = "startet …";
+    // Vorschaubild parallel zum Hochladen erzeugen (aus der lokalen Datei)
+    const thumb = makeThumbnail(file);
+    const info = await recordingInfo(file);
+    if (info.duration_s == null) info.duration_s = (await thumb).duration;
+    when.textContent = info.recorded_at
+      ? `aufgenommen ${formatDateTime(info.recorded_at)}${info.recorded_source === "file" ? " (Dateidatum)" : ""}`
+      : "Aufnahmezeit unbekannt";
     const { id, upload } = await api("/api/videos", {
       method: "POST",
       body: {
         ...meta,
+        ...info,
         filename: file.name,
         size: file.size,
         content_type: file.type,
-        title: titleFor(file, index, count),
       },
     });
 
@@ -109,6 +141,7 @@ async function uploadOne(file, index, count, meta) {
 
     state.textContent = "wird geprüft …";
     await api(`/api/videos/${id}/complete`, { method: "POST" });
+    await uploadThumb(id, thumb);
     progress(1);
     state.textContent = "fertig ✓";
     state.className = "state ok";
@@ -133,20 +166,15 @@ async function onSubmit(event) {
   message.className = "message";
   session.setName(name);
 
-  const meta = {
-    uploaded_by: name,
-    recorded_at: $("up-date").value,
-    camera: $("up-camera").value.trim(),
-    no_choreo: $("up-no-choreo").checked,
-  };
+  const meta = { uploaded_by: name };
 
   setBusy(true);
   await keepAwake();
 
   let ok = 0;
   // Nacheinander: schont die Verbindung in der Halle und hält die Reihenfolge.
-  for (const [i, file] of files.entries()) {
-    if (await uploadOne(file, i, files.length, meta)) ok++;
+  for (const file of files) {
+    if (await uploadOne(file, meta)) ok++;
   }
 
   setBusy(false);
@@ -170,7 +198,6 @@ export const uploadView = {
     $("up-files").addEventListener("change", onFilesChanged);
     $("up-form").addEventListener("submit", onSubmit);
     $("up-name").value = session.getName();
-    $("up-date").value = new Date().toLocaleDateString("sv-SE"); // JJJJ-MM-TT in lokaler Zeit
 
     window.addEventListener("beforeunload", (event) => {
       if (busy) event.preventDefault();

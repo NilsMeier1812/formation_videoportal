@@ -246,6 +246,7 @@
 .vpage .upload-item { display: grid; gap: 8px; }
 .vpage .upload-item .name { font-weight: 600; overflow-wrap: anywhere; }
 .vpage .upload-item .state { font-size: 13px; color: var(--muted); }
+.vpage .upload-item .when { font-size: 13px; color: var(--muted); }
 .vpage .upload-item .state.ok { color: var(--ok); }
 .vpage .upload-item .state.error { color: var(--danger); }
 .vpage .bar { height: 6px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }

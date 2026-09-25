@@ -50,10 +50,30 @@ export function icon(paths, size = 20) {
   return svg;
 }
 
+const two = (n) => String(n).padStart(2, "0");
+
+/** Datum (TT.MM.JJJJ). Zeitpunkte (mit „T“) in Ortszeit, reine Daten wie angegeben. */
 export function formatDate(iso) {
   if (!iso) return "";
+  if (iso.includes("T")) {
+    const d = new Date(iso);
+    return `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()}`;
+  }
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}.${m}.${y}`;
+}
+
+/** Uhrzeit (HH:MM:SS) in Ortszeit – leer bei reinen Daten. */
+export function formatTime(iso) {
+  if (!iso || !iso.includes("T")) return "";
+  const d = new Date(iso);
+  return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
+}
+
+/** Datum und Uhrzeit (ohne Sekunden), z. B. „25.09.2026, 12:31“. */
+export function formatDateTime(iso) {
+  const time = formatTime(iso).slice(0, 5);
+  return time ? `${formatDate(iso)}, ${time}` : formatDate(iso);
 }
 
 export function formatDuration(sec) {

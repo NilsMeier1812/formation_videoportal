@@ -364,34 +364,13 @@
             <input id="up-files" type="file" accept="video/*" multiple required>
           </label>
 
-          <div class="row">
-            <label class="field">Dein Name
-              <input id="up-name" type="text" maxlength="50" autocomplete="given-name" required>
-            </label>
-            <label class="field">Aufgenommen am
-              <input id="up-date" type="date" required>
-            </label>
-          </div>
-          <div class="row">
-            <label class="field">Kamera / Perspektive
-              <input id="up-camera" type="text" maxlength="50" list="up-cameras" placeholder="z. B. vorne">
-              <datalist id="up-cameras">
-                <option value="vorne"><option value="hinten"><option value="links"><option value="rechts"><option value="oben">
-              </datalist>
-            </label>
-            <label class="field">Titel
-              <input id="up-title" type="text" maxlength="200" placeholder="optional – sonst Dateiname">
-            </label>
-          </div>
-
-          <label class="switch">
-            <input id="up-no-choreo" type="checkbox">
-            <span class="track"></span>
-            Gehört zu keiner Choreo (z. B. Technik-Erklärung, fremder Auftritt)
+          <label class="field">Dein Name (optional)
+            <input id="up-name" type="text" maxlength="50" autocomplete="given-name" placeholder="damit man weiß, von wem es ist">
           </label>
 
           <button id="up-submit" class="primary block" type="submit">Hochladen</button>
-          <p class="muted" style="margin:0;font-size:13px">Während des Uploads Bildschirm anlassen und die App nicht schließen – in andere Bereiche wechseln geht.</p>
+          <p class="muted" style="margin:0;font-size:13px">Aufnahmezeit und Länge liest die App aus dem Video; zugeordnet wird von den Trainern.
+            Während des Uploads Bildschirm anlassen und die App nicht schließen – in andere Bereiche wechseln geht.</p>
           <p id="up-message" class="message" role="status"></p>
         </form>
 
