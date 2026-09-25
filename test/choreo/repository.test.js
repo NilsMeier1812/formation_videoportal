@@ -21,7 +21,8 @@ vi.mock("../../public/js/choreo/data/local.js", () => {
   };
 });
 
-const { createRepository } = await import("../../public/js/choreo/data/repository.js");
+const { createRepository, isRetryable } = await import("../../public/js/choreo/data/repository.js");
+const httpError = (status) => Object.assign(new Error(`HTTP ${status}`), { status });
 
 function fakeRemote(overrides = {}) {
   const calls = [];
@@ -122,6 +123,42 @@ describe("Schreiben", () => {
     await repo.remove("steps", { id: "z" });
     await vi.advanceTimersByTimeAsync(500);
     expect(remote.calls).toEqual([["remove", "steps", "z"]]);
+  });
+});
+
+describe("Dauerhaft abgelehnte Änderungen", () => {
+  it("unterscheidet vorübergehende von dauerhaften Fehlern", () => {
+    expect(isRetryable(new TypeError("Failed to fetch"))).toBe(true); // offline
+    expect(isRetryable(httpError(503))).toBe(true);
+    expect(isRetryable(httpError(401))).toBe(true); // erst anmelden, dann nachreichen
+    expect(isRetryable(httpError(409))).toBe(false);
+    expect(isRetryable(httpError(404))).toBe(false);
+  });
+
+  it("verwirft sie, statt sie in die Warteschlange zu legen", async () => {
+    const reject = async () => { throw httpError(409); };
+    const repo = createRepository(fakeRemote({ insert: reject, update: reject }));
+    const notices = [];
+    repo.onNotice((m) => notices.push(m));
+    await repo.insert("steps", { id: "x1" });
+    repo.patch("steps", { id: "x2" }, { foot: "L" });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(localCalls.filter((c) => c[0] === "enqueue")).toEqual([]);
+    expect(notices).toEqual([
+      "Eine Änderung wurde vom Server abgelehnt und verworfen",
+      "Eine Änderung wurde vom Server abgelehnt und verworfen",
+    ]);
+  });
+
+  it("überspringt sie beim Nachreichen, damit der Rest durchgeht", async () => {
+    const remote = fakeRemote({ upsert: async () => { throw httpError(409); } });
+    globalThis.__queue = [
+      { id: 1, op: "insert", table: "steps", key: "a", payload: { id: "a" } },
+      { id: 2, op: "delete", table: "steps", key: "b" },
+    ];
+    await createRepository(remote).processQueue();
+    expect(remote.calls).toEqual([["remove", "steps", "b"]]);
+    expect(localCalls.filter((c) => c[0] === "dequeue")).toEqual([["dequeue", 1], ["dequeue", 2]]);
   });
 });
 

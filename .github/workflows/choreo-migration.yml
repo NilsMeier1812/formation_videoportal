@@ -1,0 +1,83 @@
+name: Choreo-Daten übernehmen
+
+# Einmalige Übernahme der Choreo-Planer-Daten aus Supabase nach Cloudflare.
+# Start im Browser: Tab „Actions“ → „Choreo-Daten übernehmen“ → „Run workflow“.
+#   probelauf   liest Supabase, erzeugt SQL + Bericht, schreibt NICHTS nach Cloudflare
+#   uebernehmen schreibt Musik nach R2 und Daten nach D1 (wiederholbar)
+# Supabase wird in beiden Fällen nur gelesen.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Was soll passieren?"
+        type: choice
+        options: [probelauf, uebernehmen]
+        default: probelauf
+
+permissions:
+  contents: read
+
+concurrency:
+  group: choreo-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MODE: ${{ inputs.mode }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Supabase lesen, SQL und Bericht erzeugen
+        run: node scripts/migrate-from-supabase.mjs --out migration
+
+      - name: Bericht anzeigen
+        if: always()
+        run: cat migration/report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Ergebnis aufheben (SQL, Bericht, Musik)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: choreo-migration-${{ inputs.mode }}
+          path: migration/
+          retention-days: 30
+
+      - name: Musik nach R2
+        if: inputs.mode == 'uebernehmen'
+        run: |
+          node -e 'for (const a of require("./migration/audio.json")) console.log(a.file + " " + a.type)' |
+          while read -r file type; do
+            npx wrangler r2 object put "formation-videos/audio/$file" \
+              --file "migration/audio/$file" --content-type "$type" --jurisdiction eu --remote
+          done
+
+      - name: Daten nach D1
+        if: inputs.mode == 'uebernehmen'
+        run: npx wrangler d1 execute formation-portal --remote --file migration/migrate.sql --yes
+
+      - name: Kontrolle
+        if: inputs.mode == 'uebernehmen'
+        run: |
+          npx wrangler d1 execute formation-portal --remote --json --command "
+            SELECT 'projects' AS tabelle, COUNT(*) AS anzahl FROM projects
+            UNION ALL SELECT 'tempo_sections', COUNT(*) FROM tempo_sections
+            UNION ALL SELECT 'choreo_segments', COUNT(*) FROM choreo_segments
+            UNION ALL SELECT 'persons', COUNT(*) FROM persons
+            UNION ALL SELECT 'parts', COUNT(*) FROM parts
+            UNION ALL SELECT 'group_memberships', COUNT(*) FROM group_memberships
+            UNION ALL SELECT 'steps', COUNT(*) FROM steps" > counts.json
+          {
+            echo ""
+            echo "### Jetzt in Cloudflare (D1)"
+            node -e 'for (const r of require("./counts.json")[0].results) console.log(`- ${r.tabelle}: ${r.anzahl}`)'
+          } >> "$GITHUB_STEP_SUMMARY"

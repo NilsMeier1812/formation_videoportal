@@ -13,8 +13,6 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/css/choreo.css" />
-  <!-- Supabase nur bis zum Umzug der Daten nach Cloudflare (Schritt B) -->
-  <script src="/vendor/supabase.umd.js"></script>
   <script type="module" src="/js/choreo/main.js"></script>
 </head>
 <body x-data="choreo" x-cloak>
@@ -471,13 +469,13 @@
       <div class="modal">
         <header><h2>Editor anmelden <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></h2><button class="icon" @click="closeLogin()" aria-label="Schließen">✕</button></header>
         <div class="body">
-          <p class="hint">Bearbeiten ist nur mit dem gemeinsamen Editor-Passwort möglich. Ansehen &amp; Training geht für alle ohne Login.</p>
+          <p class="hint">Bearbeiten ist nur mit dem Trainer-Code möglich. Ansehen &amp; Training geht für alle ohne Login. Der Code wird ein Jahr lang gemerkt.</p>
           <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name"
                  @keydown.enter="doLogin()" style="margin-bottom:8px" />
           <div class="pw-row">
-            <input :type="showPw ? 'text' : 'password'" x-model="loginPassword" placeholder="Editor-Passwort"
+            <input :type="showPw ? 'text' : 'password'" x-model="loginPassword" placeholder="Trainer-Code"
                    autocomplete="current-password" @keydown.enter="doLogin()" />
-            <button type="button" class="icon" @click="showPw = !showPw" :aria-label="showPw ? 'Passwort verbergen' : 'Passwort anzeigen'">
+            <button type="button" class="icon" @click="showPw = !showPw" :aria-label="showPw ? 'Code verbergen' : 'Code anzeigen'">
               <svg x-show="!showPw" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg x-show="showPw" x-cloak viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
             </button>
@@ -491,18 +489,18 @@
     </div>
   </template>
 
-  <!-- ===== Projekt löschen: Passwort-Bestätigung ===== -->
+  <!-- ===== Projekt löschen: Bestätigung mit Trainer-Code ===== -->
   <template x-if="deleteTarget">
     <div>
       <div class="scrim" @click="cancelDeleteProject()"></div>
       <div class="modal">
         <header><h2>Projekt löschen</h2><button class="icon" @click="cancelDeleteProject()" aria-label="Schließen">✕</button></header>
         <div class="body">
-          <p class="hint">Projekt „<strong x-text="deleteTarget.title"></strong>" und alle Schritte, Gruppen &amp; Sprungmarken werden gelöscht. Zum Bestätigen bitte das <strong>Editor-Passwort</strong> eingeben.</p>
+          <p class="hint">Projekt „<strong x-text="deleteTarget.title"></strong>" und alle Schritte, Gruppen &amp; Sprungmarken werden gelöscht. Zum Bestätigen bitte den <strong>Trainer-Code</strong> eingeben.</p>
           <div class="pw-row">
-            <input :type="showDelPw ? 'text' : 'password'" x-model="deletePassword" placeholder="Editor-Passwort"
+            <input :type="showDelPw ? 'text' : 'password'" x-model="deletePassword" placeholder="Trainer-Code"
                    autocomplete="current-password" @keydown.enter="doDeleteProject()" />
-            <button type="button" class="icon" @click="showDelPw = !showDelPw" :aria-label="showDelPw ? 'Passwort verbergen' : 'Passwort anzeigen'">
+            <button type="button" class="icon" @click="showDelPw = !showDelPw" :aria-label="showDelPw ? 'Code verbergen' : 'Code anzeigen'">
               <svg x-show="!showDelPw" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg x-show="showDelPw" x-cloak viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
             </button>

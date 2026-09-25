@@ -14,7 +14,7 @@ export function projects() {
     uploadProgress: 0,
     uploadError: null,
 
-    // ---- Projekt löschen (mit Passwort-Bestätigung) ----
+    // ---- Projekt löschen (mit erneuter Code-Eingabe) ----
     deleteTarget: null,
     deletePassword: "",
     deleteError: "",
@@ -143,7 +143,7 @@ export function projects() {
 
     // ---- Duplizieren ----
     // Alle abhängigen Daten mit neuen IDs kopieren; die Audiodatei wird geteilt
-    // (gleiche audio_url). Beim Löschen eines Projekts bleibt der Storage unberührt.
+    // (gleiche audio_url). Beim Löschen eines Projekts bleibt die Musik in R2 liegen.
     async duplicateProject(p) {
       if (!this.isEditor) return;
       this.setStatus("Dupliziere Projekt…");
@@ -201,7 +201,7 @@ export function projects() {
       }
     },
 
-    // ---- Löschen: erst nach erneuter Passwort-Eingabe (Schutz vor Versehen) ----
+    // ---- Löschen: erst nach erneuter Eingabe des Trainer-Codes (Schutz vor Versehen) ----
     askDeleteProject(p) {
       if (!this.isEditor) return;
       this.deleteTarget = p;
@@ -218,12 +218,12 @@ export function projects() {
     async doDeleteProject() {
       const p = this.deleteTarget;
       if (!p || this.deleting) return;
-      if (!this.deletePassword) { this.deleteError = "Bitte Passwort eingeben."; return; }
+      if (!this.deletePassword) { this.deleteError = "Bitte Trainer-Code eingeben."; return; }
       this.deleting = true;
       this.deleteError = "";
       try {
         if (!(await remote.verifyPassword(this.deletePassword))) {
-          this.deleteError = "Passwort falsch.";
+          this.deleteError = "Code falsch.";
           this.deleting = false;
           return;
         }

@@ -5,8 +5,11 @@
 //             Änderung in der Warteschlange und wird später nachgereicht.
 //  Tippen:    Änderungen an Feldern werden gesammelt und verzögert gespeichert;
 //             beim Verlassen der Seite wird alles Offene sofort gesendet.
+//  Abgelehnt: Lehnt der Server eine Änderung dauerhaft ab (z. B. weil die Zeile
+//             inzwischen gelöscht wurde), wird sie verworfen statt ewig
+//             wiederholt – sonst blockierte sie die ganze Warteschlange.
 //
-// `remote` ist austauschbar (heute Supabase, später die eigene Worker-API).
+// `remote` ist austauschbar (siehe data/index.js).
 import { FIELD_DEBOUNCE_MS } from "../config.js";
 import { plain } from "../lib/util.js";
 import { local } from "./local.js";
@@ -14,6 +17,16 @@ import { local } from "./local.js";
 /** Tabellen mit Spalte updated_at – dort wird bei jeder Änderung gestempelt. */
 const STAMPED = new Set(["projects", "tempo_sections", "choreo_segments"]);
 const OFFLINE_SAVED = "Offline – gespeichert, wird synchronisiert";
+const REJECTED = "Eine Änderung wurde vom Server abgelehnt und verworfen";
+
+/**
+ * Lohnt es sich, später nochmal zu versuchen? Ja bei Netzfehlern (kein Status),
+ * Serverfehlern, fehlender Anmeldung und Überlast; nein bei anderen 4xx.
+ */
+export function isRetryable(err) {
+  const status = err?.status;
+  return !status || status >= 500 || [401, 403, 408, 429].includes(status);
+}
 
 export function createRepository(remote) {
   let notify = () => {};
@@ -23,12 +36,21 @@ export function createRepository(remote) {
   const stamp = (table, patch) =>
     STAMPED.has(table) ? { ...patch, updated_at: new Date().toISOString() } : patch;
 
+  /** Nach einem fehlgeschlagenen Schreiben: vormerken oder (dauerhaft abgelehnt) verwerfen. */
+  async function deferOrDrop(err, table, op, key, payload, message) {
+    if (!isRetryable(err)) {
+      notify(REJECTED);
+      return;
+    }
+    await local.enqueue(table, op, key, payload);
+    if (message) notify(message);
+  }
+
   async function sendPatch(table, id, patch, message) {
     try {
       await remote.update(table, id, patch);
-    } catch {
-      await local.enqueue(table, "update", id, patch);
-      notify(message);
+    } catch (err) {
+      await deferOrDrop(err, table, "update", id, patch, message);
     }
   }
 
@@ -71,9 +93,8 @@ export function createRepository(remote) {
       local.put(table, plain(row));
       try {
         await remote.insert(table, row);
-      } catch {
-        await local.enqueue(table, "insert", row.id, row);
-        notify(offlineMessage);
+      } catch (err) {
+        await deferOrDrop(err, table, "insert", row.id, row, offlineMessage);
       }
     },
 
@@ -82,9 +103,8 @@ export function createRepository(remote) {
       local.remove(table, row.id);
       try {
         await remote.remove(table, row.id);
-      } catch {
-        await local.enqueue(table, "delete", row.id, null);
-        if (offlineMessage) notify(offlineMessage);
+      } catch (err) {
+        await deferOrDrop(err, table, "delete", row.id, null, offlineMessage);
       }
     },
 
@@ -121,7 +141,7 @@ export function createRepository(remote) {
         const payload = stamp(entry.table, entry.patch);
         try {
           remote.updateKeepalive(entry.table, entry.id, payload)
-            .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); })
+            .then((res) => { if (!res.ok && isRetryable({ status: res.status })) throw new Error(`HTTP ${res.status}`); })
             .catch(() => local.enqueue(entry.table, "update", entry.id, payload));
         } catch {
           local.enqueue(entry.table, "update", entry.id, payload);
@@ -129,7 +149,10 @@ export function createRepository(remote) {
       }
     },
 
-    /** Warteschlange nachreichen; bricht beim ersten Fehler ab (später erneut). */
+    /**
+     * Warteschlange nachreichen, in Reihenfolge. Bei vorübergehenden Fehlern
+     * abbrechen (später erneut), dauerhaft abgelehnte Einträge verwerfen.
+     */
     async processQueue() {
       if (!navigator.onLine) return;
       const items = await local.queued();
@@ -140,8 +163,10 @@ export function createRepository(remote) {
           else if (item.op === "insert") await remote.upsert(item.table, item.payload);
           else if (item.op === "delete") await remote.remove(item.table, item.key);
           await local.dequeue(item.id);
-        } catch {
-          break;
+        } catch (err) {
+          if (isRetryable(err)) break;
+          await local.dequeue(item.id);
+          notify(REJECTED);
         }
       }
     },

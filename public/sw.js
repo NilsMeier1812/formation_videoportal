@@ -4,11 +4,11 @@
    - App-Dateien (HTML/CSS/JS/Bibliotheken): NETWORK-FIRST. Online kommt immer
      der neueste Stand, offline der zuletzt geladene.
    - /api/* wird nie zwischengespeichert – Daten kommen immer frisch.
-   - Andere Domains (Videos auf media.…, Supabase) laufen am Service Worker
-     vorbei. Die Musik des Planers liegt in IndexedDB, nicht hier.
+   - Andere Domains (Videos auf media.…) laufen am Service Worker vorbei.
+     Die Musik des Planers liegt in IndexedDB, nicht hier.
    ========================================================================== */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE = `formation-shell-${VERSION}`;
 
 // Grundausstattung, damit der Planer offline startet, auch wenn man ihn nach
@@ -22,7 +22,6 @@ const PRECACHE = [
   "/vendor/dexie.mjs",
   "/vendor/wavesurfer.esm.js",
   "/vendor/wavesurfer-regions.esm.js",
-  "/vendor/supabase.umd.js",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -50,7 +49,7 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // Videos, Supabase: direkt übers Netz
+  if (url.origin !== self.location.origin) return; // Videos: direkt übers Netz
   if (url.pathname.startsWith("/api/")) return; // Daten nie aus dem Cache
   event.respondWith(networkFirst(req));
 });
