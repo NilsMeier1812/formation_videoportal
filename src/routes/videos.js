@@ -2,6 +2,7 @@
 import { requireRole } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
 import { presignPut } from "../lib/presign.js";
+import { finishMultipart, MULTIPART_FROM, PART_SIZE, partCount, startMultipart } from "./multipart.js";
 import { dispatchProcessing } from "./processing.js";
 import {
   contentTypeFor,
@@ -105,14 +106,20 @@ export async function createVideo(request, env) {
 
   const id = crypto.randomUUID();
   const storageKey = `raw/${id}.${ext}`;
+  // Große Dateien in Teilen (siehe multipart.js), kleine in einem Stück
+  const uploadId = size >= MULTIPART_FROM ? await startMultipart(env, storageKey, contentType) : null;
   await env.DB.prepare(
     `INSERT INTO video (id, storage_key, content_type, recorded_at, recorded_source, duration_s,
-                        uploaded_by, size_bytes, file_state, tag_state, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'uploading', 'untagged', ?)`
+                        uploaded_by, size_bytes, multipart_upload_id, file_state, tag_state, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', 'untagged', ?)`
   )
-    .bind(id, storageKey, contentType, recordedAt, recordedSource, duration, uploadedBy, size,
+    .bind(id, storageKey, contentType, recordedAt, recordedSource, duration, uploadedBy, size, uploadId,
       new Date().toISOString())
     .run();
+
+  if (uploadId) {
+    return json({ id, upload: { multipart: true, part_size: PART_SIZE, parts: partCount(size) } }, 201);
+  }
 
   // Lokal relativ: `wrangler dev` schreibt den Host auf die Produktionsdomain um.
   const url =
@@ -134,6 +141,17 @@ export async function completeVideo(request, env, id) {
   if (!row) throw new HttpError(404, "Video nicht gefunden");
   if (row.file_state === "ready") return json(await loadVideo(env, id)); // doppelt gemeldet
   if (row.file_state !== "uploading") throw new HttpError(409, "Video ist nicht im Upload");
+
+  if (row.multipart_upload_id) {
+    const { parts } = await readJson(request);
+    try {
+      await finishMultipart(env, row.storage_key, row.multipart_upload_id, parts, partCount(row.size_bytes));
+    } catch (err) {
+      if (err instanceof HttpError) throw err;
+      throw new HttpError(409, "Teile ließen sich nicht zusammensetzen – bitte erneut hochladen");
+    }
+    await env.DB.prepare("UPDATE video SET multipart_upload_id = NULL WHERE id = ?").bind(id).run();
+  }
 
   const obj = await env.BUCKET.head(row.storage_key);
   if (!obj) throw new HttpError(409, "Datei ist nicht angekommen");

@@ -1,10 +1,13 @@
 // Hochladen: angemeldet (Gruppen- oder Trainer-Code) direkt nach R2.
 // Ein laufender Upload geht weiter, während man in andere Bereiche wechselt.
+// Große Videos gehen in Teilen (lib/multipart-upload.js): Abbrüche kosten nur einen
+// Teil, und nach erneuter Auswahl derselben Datei geht es an der Stelle weiter.
 // Mehr als die Datei braucht es nicht: Aufnahmezeit und Länge kommen aus den
 // Metadaten des Videos, ein Vorschaubild erzeugt der Browser; zugeordnet wird
 // von den Trainern (Reiter „Zuordnen“).
 import { api, ApiError, el, formatBytes, formatDateTime } from "../api.js";
 import { blobReader, readVideoMeta } from "../lib/mp4meta.js";
+import { dropResume, loadResume, saveResume, uploadInParts } from "../lib/multipart-upload.js";
 import { makeThumbnail } from "../lib/thumbnail.js";
 import { session } from "../session.js";
 
@@ -115,24 +118,58 @@ async function uploadOne(file, meta) {
     when.textContent = info.recorded_at
       ? `aufgenommen ${formatDateTime(info.recorded_at)}${info.recorded_source === "file" ? " (Dateidatum)" : ""}`
       : "Aufnahmezeit unbekannt";
-    const { id, upload } = await api("/api/videos", {
-      method: "POST",
-      body: {
-        ...meta,
-        ...info,
-        filename: file.name,
-        size: file.size,
-        content_type: file.type,
-      },
-    });
-
-    await putFile(upload, file, (p) => {
+    const onProgress = (p) => {
       progress(p);
       state.textContent = `${Math.round(p * 100)} %`;
+    };
+    const create = () => api("/api/videos", {
+      method: "POST",
+      body: { ...meta, ...info, filename: file.name, size: file.size, content_type: file.type },
     });
 
+    let resume = loadResume(file);
+    let id;
+    let parts = null;
+    if (resume) {
+      state.textContent = "setzt fort …";
+      id = resume.id;
+    } else {
+      const created = await create();
+      id = created.id;
+      if (created.upload.multipart) {
+        resume = { id, partSize: created.upload.part_size, total: created.upload.parts, parts: {}, at: Date.now() };
+        saveResume(file, resume);
+      } else {
+        await putFile(created.upload, file, onProgress);
+      }
+    }
+
+    if (resume) {
+      const run = (entry) => uploadInParts({
+        id: entry.id, file, partSize: entry.partSize, total: entry.total, parts: entry.parts,
+        onProgress,
+        onSaved: (p) => saveResume(file, { ...entry, parts: p }),
+        onRetry: () => { state.textContent = "Verbindung weg – versuche es gleich wieder …"; },
+      });
+      try {
+        parts = await run(resume);
+      } catch (err) {
+        // Der Server kennt den Upload nicht mehr (nach 24 h aufgeräumt) → einmal von vorn
+        if (!(err instanceof ApiError && err.status === 404)) {
+          throw new Error(`abgebrochen (${err.message}) – dieselbe Datei später noch einmal auswählen, dann geht es an der Stelle weiter`);
+        }
+        dropResume(file);
+        const created = await create();
+        id = created.id;
+        resume = { id, partSize: created.upload.part_size, total: created.upload.parts, parts: {}, at: Date.now() };
+        saveResume(file, resume);
+        parts = await run(resume);
+      }
+    }
+
     state.textContent = "wird geprüft …";
-    await api(`/api/videos/${id}/complete`, { method: "POST" });
+    await api(`/api/videos/${id}/complete`, { method: "POST", body: parts ? { parts } : undefined });
+    dropResume(file);
     await uploadThumb(id, thumb);
     progress(1);
     state.textContent = "fertig ✓";

@@ -2,6 +2,7 @@ import { runScheduled } from "./cron.js";
 import { requireRole } from "./lib/auth.js";
 import { HttpError, errorResponse, json } from "./lib/http.js";
 import { devUpload } from "./routes/dev.js";
+import * as multipart from "./routes/multipart.js";
 import * as choreo from "./routes/choreo.js";
 import * as library from "./routes/library.js";
 import { getMedia } from "./routes/media.js";
@@ -24,6 +25,7 @@ const routes = [
   ["GET", new RegExp(`^/api/videos/${ID}$`), videos.getVideo],
   ["DELETE", new RegExp(`^/api/videos/${ID}$`), videos.trashVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],
+  ["POST", new RegExp(`^/api/videos/${ID}/parts$`), multipart.partUrls],
   ["PUT", new RegExp(`^/api/videos/${ID}/thumb$`), videos.putThumb],
   ["POST", new RegExp(`^/api/videos/${ID}/restore$`), videos.restoreVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/reprocess$`), processing.reprocessVideo],
@@ -68,6 +70,7 @@ routes.push(["GET", /^\/media\/(.+)$/, getMedia]);
 
 const devRoutes = [
   ["PUT", new RegExp(`^/api/dev-upload/${ID}$`), devUpload],
+  ["PUT", new RegExp(`^/api/dev-upload/${ID}/part/(\\d+)$`), multipart.devUploadPart],
 ];
 
 // Ohne Anmeldung erreichbar: nur die Anmeldung selbst, die Rückmeldung der Umwandlung

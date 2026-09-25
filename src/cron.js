@@ -6,6 +6,7 @@
 //               Originale 7 Tage nach erfolgreicher Umwandlung löschen
 //
 // Alles ist wiederholbar: Läuft ein Job doppelt oder bricht ab, macht der nächste weiter.
+import { abortUpload } from "./routes/multipart.js";
 import { dispatchProcessing, MAX_ATTEMPTS } from "./routes/processing.js";
 import { TRASH_DAYS } from "./routes/videos.js";
 
@@ -24,10 +25,11 @@ const hoursAgo = (h, now) => new Date(now - h * 3600 * 1000).toISOString();
 /** Abgebrochene Uploads: Datei (falls halb angekommen) und Datensatz entfernen. */
 export async function cleanupUploads(env, now = Date.now()) {
   const { results } = await env.DB.prepare(
-    `SELECT id, storage_key FROM video
+    `SELECT id, storage_key, multipart_upload_id FROM video
       WHERE file_state = 'uploading' AND created_at < ? LIMIT ?`
   ).bind(hoursAgo(UPLOAD_TIMEOUT_H, now), BATCH).all();
   for (const v of results) {
+    if (v.multipart_upload_id) await abortUpload(env, v.storage_key, v.multipart_upload_id);
     await env.BUCKET.delete(v.storage_key);
     await env.DB.prepare("DELETE FROM video WHERE id = ? AND file_state = 'uploading'").bind(v.id).run();
   }
