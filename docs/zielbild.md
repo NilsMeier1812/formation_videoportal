@@ -15,7 +15,7 @@ formation.nils-meier.de            EIN Worker, EINE Seite (Bereiche werden nur u
  ├─ /api/*          API             (D1 für Daten, R2 für Dateien)
  └─ /sw.js          eine PWA        (offline: App-Dateien + lokaler Datenspiegel)
 
-media.formation.nils-meier.de      R2 – Videos (und ab Schritt B die Musik)
+/media/*                           Videos und Bilder aus R2 – nur mit Anmeldung, über den Worker
 ```
 
 ## Grundsätze

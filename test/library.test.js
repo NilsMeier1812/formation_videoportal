@@ -47,7 +47,7 @@ async function setup() {
 
 describe("Bibliothek", () => {
   it("startet mit den vier Tags", async () => {
-    const lib = await data(await call("/api/library", { headers: {} }));
+    const lib = await data(await call("/api/library", { headers: GROUP }));
     expect(lib.tags.map((t) => t.name)).toEqual(["Auftritt", "Vortanzen", "Erklärung", "Üben"]);
   });
 
@@ -93,7 +93,7 @@ describe("Bibliothek", () => {
 
   it("zeigt private Audios nur Trainern", async () => {
     const geheim = await project("geheim", { is_private: true });
-    const gast = await data(await call("/api/library", { headers: {} }));
+    const gast = await data(await call("/api/library", { headers: GROUP }));
     expect(gast.audios.map((a) => a.id)).not.toContain(geheim);
     expect((await data(await call("/api/library"))).audios.map((a) => a.id)).toContain(geheim);
   });
@@ -231,7 +231,7 @@ describe("Papierkorb und Vorschaubild", () => {
     expect((await put(new Uint8Array([1, 2, 3]))).status).toBe(415);
     const res = await put(jpeg);
     expect(res.status).toBe(200);
-    expect((await res.json()).thumb_url).toBe(`https://media.formation.nils-meier.de/thumb/${V1}.jpg`);
+    expect((await res.json()).thumb_url).toBe(`/media/thumb/${V1}.jpg`);
     expect(await env.BUCKET.head(`thumb/${V1}.jpg`)).not.toBeNull();
     expect((await put(jpeg)).status).toBe(409);
     expect((await data(await call(`/api/videos/${V1}`))).thumb_url).toContain(`thumb/${V1}.jpg`);

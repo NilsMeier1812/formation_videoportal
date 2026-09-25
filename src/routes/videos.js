@@ -337,3 +337,44 @@ export async function trashVideo(request, env, id) {
   if (!row) throw new HttpError(404, "Video nicht gefunden");
   return new Response(null, { status: 204 });
 }
+
+// ---------------- Papierkorb und Speicher (Trainer) ----------------
+
+export const TRASH_DAYS = 30; // danach löscht der tägliche Aufräum-Job endgültig
+
+// GET /api/videos/trash – was im Papierkorb liegt, zuletzt gelöschtes zuerst
+export async function listTrash(request, env) {
+  await requireRole(request, env, "tagger");
+  const { results } = await env.DB.prepare(
+    `${SELECT_VIDEO} WHERE v.deleted_at IS NOT NULL ORDER BY v.deleted_at DESC LIMIT 500`
+  ).all();
+  return json({
+    days: TRASH_DAYS,
+    videos: results.map((row) => ({ ...publicVideo(env, row), deleted_at: row.deleted_at })),
+  });
+}
+
+// POST /api/videos/:id/restore – aus dem Papierkorb zurückholen
+export async function restoreVideo(request, env, id) {
+  await requireRole(request, env, "tagger");
+  const row = await env.DB.prepare(
+    `UPDATE video SET file_state = 'ready', deleted_at = NULL
+      WHERE id = ? AND deleted_at IS NOT NULL RETURNING id`
+  ).bind(id).first();
+  if (!row) throw new HttpError(404, "Nicht im Papierkorb");
+  return json(await loadVideo(env, id));
+}
+
+// GET /api/storage – belegter Speicher (Originale + Abspielfassungen) und Anzahlen
+export async function storageInfo(request, env) {
+  await requireRole(request, env, "tagger");
+  const row = await env.DB.prepare(
+    `SELECT COALESCE(SUM(size_bytes + COALESCE(play_size_bytes, 0)), 0) AS used,
+            COALESCE(SUM(CASE WHEN deleted_at IS NOT NULL THEN size_bytes + COALESCE(play_size_bytes, 0) END), 0) AS trash_bytes,
+            COUNT(CASE WHEN file_state = 'ready' THEN 1 END) AS videos,
+            COUNT(CASE WHEN deleted_at IS NOT NULL THEN 1 END) AS trashed,
+            COUNT(CASE WHEN file_state = 'ready' AND tag_state = 'untagged' THEN 1 END) AS untagged
+       FROM video WHERE file_state != 'missing'`
+  ).first();
+  return json({ ...row, quota: Number(env.QUOTA_BYTES), max_file: Number(env.MAX_FILE_BYTES) });
+}

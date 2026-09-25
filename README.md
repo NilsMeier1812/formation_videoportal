@@ -38,8 +38,9 @@ Alte Adressen (geteilte Links, installierte App) funktionieren weiter und werden
 (gilt für die ganze App), neue Choreo anlegen (Trainer), Hell/Dunkel.
 
 **Anmeldung** (`/api/session`): einmal Code eingeben → HttpOnly-Cookie für ein Jahr; gilt für die ganze App.
-- ohne Anmeldung: ansehen und Training
-- **Gruppen-Code** (Secret `GROUP_CODE`): zusätzlich Videos hochladen
+Die App ist **privat**: Ohne Code gibt es nur den Anmeldebildschirm, und jede Anfrage außer der Anmeldung
+braucht mindestens den Gruppen-Code. Höchstens 10 Anmeldeversuche pro Minute und IP.
+- **Gruppen-Code** (Secret `GROUP_CODE`): ansehen, Training, Videos hochladen
 - **Trainer-Code** (Secret `TAGGER_CODE`): zusätzlich Choreos bearbeiten – im Planer erscheint dann oben
   rechts **Bearbeiten** (setzt die Bearbeitungssperre, „Fertig“ gibt sie wieder frei)
 
@@ -69,6 +70,15 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   zeigen“ und für Trainer „Zuordnung bearbeiten“.
 - API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
   `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.
+
+**Videos und Bilder** liefert der Worker unter `/media/<key>` aus (mit Range für das Springen im Video) –
+nur für Angemeldete. Der Bucket selbst ist nicht öffentlich erreichbar.
+
+**Papierkorb und Speicher** (Zuordnen → Mehr): gelöschte Videos 30 Tage zurückholbar, Anzeige des belegten
+Speichers (Deckel `QUOTA_BYTES` = 200 GB, einzelne Datei höchstens `MAX_FILE_BYTES` = 5 GB).
+
+**Zeitgesteuert** (`src/cron.js`, Cloudflare Cron Triggers in `wrangler.toml`): stündlich abgebrochene Uploads
+aufräumen (älter als 24 h), täglich den Papierkorb nach 30 Tagen endgültig leeren.
 
 **Rahmen:** gleiche Kopfzeile in allen Bereichen (☰ oben links, `.appbar` in `shell.css`), untere Navigation
 (Choreo · Videos · Hochladen, für Trainer · Zuordnen), Hell/Dunkel wählbar (im Menü).

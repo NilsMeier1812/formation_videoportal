@@ -12,7 +12,7 @@ export default defineConfig(async () => {
           bindings: {
             TEST_MIGRATIONS: migrations,
             DEV_MODE: "0",
-            MEDIA_BASE_URL: "https://media.formation.nils-meier.de",
+            MEDIA_BASE_URL: "/media",
             GROUP_CODE: "gruppe-test",
             TAGGER_CODE: "tagger-test",
             R2_ACCESS_KEY_ID: "test-key-id",

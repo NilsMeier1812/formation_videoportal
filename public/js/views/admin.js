@@ -6,7 +6,7 @@ import { api, el, formatDuration, formatTime, icon } from "../api.js";
 import { library } from "../library.js";
 import { router } from "../router.js";
 import { session } from "../session.js";
-import { renderChoreos, renderTags } from "./admin-library.js";
+import { renderChoreos, renderMore } from "./admin-library.js";
 
 const $ = (id) => document.getElementById(id);
 const VIDEO = '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>';
@@ -162,10 +162,10 @@ function render() {
   const videoPane = pane === "inbox" || pane === "all";
   $("ad-videos").hidden = !videoPane;
   $("ad-choreos").hidden = pane !== "choreos";
-  $("ad-tags").hidden = pane !== "tags";
+  $("ad-more").hidden = pane !== "more";
   if (videoPane) renderList();
   if (pane === "choreos") renderChoreos($("ad-choreos"), load);
-  if (pane === "tags") renderTags($("ad-tags"), load);
+  if (pane === "more") renderMore($("ad-more"), load);
 
   $("ad-bar").hidden = !videoPane || !selected.size;
   $("ad-selected").textContent = `${selected.size} ausgewählt`;

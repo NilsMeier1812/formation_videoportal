@@ -15,26 +15,13 @@ let busy = false;
 let wakeLock = null;
 
 // ---------------- Anmeldung ----------------
+// Angemeldet ist man immer (sonst zeigt die App den Anmeldebildschirm).
 
 function showSection() {
-  const role = session.canUpload ? session.role : null;
-  $("up-checking").hidden = true;
-  $("up-login").hidden = Boolean(role);
+  const role = session.role;
+  $("up-checking").hidden = Boolean(role);
   $("up-main").hidden = !role;
   if (role) $("up-signed-in").textContent = `Angemeldet ${ROLE_NAMES[role]}`;
-}
-
-async function onLogin(event) {
-  event.preventDefault();
-  const message = $("up-login-message");
-  message.textContent = "";
-  try {
-    await session.login($("up-code").value.trim()); // → sessionchange → showSection
-    $("up-code").value = "";
-  } catch (err) {
-    message.textContent = err.message;
-    message.className = "message error";
-  }
 }
 
 // ---------------- Hochladen ----------------
@@ -199,7 +186,6 @@ async function onSubmit(event) {
 
 export const uploadView = {
   mount() {
-    $("up-login-form").addEventListener("submit", onLogin);
     $("up-files").addEventListener("change", onFilesChanged);
     $("up-form").addEventListener("submit", onSubmit);
     $("up-name").value = session.getName();
