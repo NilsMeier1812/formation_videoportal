@@ -2,8 +2,9 @@ import { requireRole } from "./lib/auth.js";
 import { HttpError, errorResponse, json } from "./lib/http.js";
 import { devMedia, devUpload } from "./routes/dev.js";
 import * as choreo from "./routes/choreo.js";
+import * as library from "./routes/library.js";
 import * as session from "./routes/session.js";
-import { completeVideo, createVideo, getVideo, listVideos } from "./routes/videos.js";
+import * as videos from "./routes/videos.js";
 
 const ID = "([0-9a-f-]{36})";
 const KEY = "([A-Za-z0-9_-]{1,64})"; // IDs im Planer (aus Supabase übernommen oder im Browser erzeugt)
@@ -12,10 +13,26 @@ const TABLE = "([a-z_]+)";
 // [Methode, Muster, Handler(request, env, ...Gruppen aus dem Muster)]
 const routes = [
   ["GET", /^\/api\/auth$/, async (req, env) => json({ role: await requireRole(req, env, "group") })],
-  ["GET", /^\/api\/videos$/, listVideos],
-  ["POST", /^\/api\/videos$/, createVideo],
-  ["GET", new RegExp(`^/api/videos/${ID}$`), getVideo],
-  ["POST", new RegExp(`^/api/videos/${ID}/complete$`), completeVideo],
+  ["GET", /^\/api\/videos$/, videos.listVideos],
+  ["POST", /^\/api\/videos$/, videos.createVideo],
+  ["POST", /^\/api\/videos\/assign$/, videos.assignVideos],
+  ["GET", new RegExp(`^/api/videos/${ID}$`), videos.getVideo],
+  ["DELETE", new RegExp(`^/api/videos/${ID}$`), videos.trashVideo],
+  ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],
+  ["PUT", new RegExp(`^/api/videos/${ID}/thumb$`), videos.putThumb],
+
+  // Choreos, Tänze, Audios, Tags
+  ["GET", /^\/api\/library$/, library.getLibrary],
+  ["POST", /^\/api\/choreos$/, library.createChoreo],
+  ["PATCH", new RegExp(`^/api/choreos/${KEY}$`), library.updateChoreo],
+  ["DELETE", new RegExp(`^/api/choreos/${KEY}$`), library.deleteChoreo],
+  ["POST", new RegExp(`^/api/choreos/${KEY}/dances$`), library.createDance],
+  ["PATCH", new RegExp(`^/api/dances/${KEY}$`), library.updateDance],
+  ["DELETE", new RegExp(`^/api/dances/${KEY}$`), library.deleteDance],
+  ["PUT", new RegExp(`^/api/audios/${KEY}$`), library.assignAudio],
+  ["POST", /^\/api\/tags$/, library.createTag],
+  ["PATCH", new RegExp(`^/api/tags/${KEY}$`), library.updateTag],
+  ["DELETE", new RegExp(`^/api/tags/${KEY}$`), library.deleteTag],
 
   // Anmelden (Cookie, ein Jahr)
   ["POST", /^\/api\/session$/, session.login],

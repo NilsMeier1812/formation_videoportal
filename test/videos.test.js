@@ -22,9 +22,9 @@ function newVideo(overrides = {}, options = {}) {
       filename: "Kreis links.MOV",
       size: 1000,
       content_type: "video/quicktime",
-      title: "Kreis links",
-      recorded_at: "2026-09-24",
-      camera: "vorne",
+      recorded_at: "2026-09-24T12:31:02+02:00",
+      recorded_source: "meta",
+      duration_s: 30.5,
       uploaded_by: "Nils",
       ...overrides,
     },
@@ -74,7 +74,22 @@ describe("POST /api/videos", () => {
       storage_key: `raw/${id}.mov`,
       size_bytes: 1000,
       uploaded_by: "Nils",
+      recorded_at: "2026-09-24T10:31:02.000Z", // nach UTC umgerechnet
+      recorded_source: "meta",
+      duration_s: 30.5,
+      title: null,
     });
+  });
+
+  it("braucht außer der Datei nichts", async () => {
+    const res = await call("/api/videos", {
+      method: "POST",
+      headers: GROUP,
+      body: { filename: "clip.mp4", size: 10, content_type: "video/mp4" },
+    });
+    expect(res.status).toBe(201);
+    const row = await videoRow((await res.json()).id);
+    expect(row).toMatchObject({ recorded_at: null, recorded_source: null, uploaded_by: null, tag_state: "untagged" });
   });
 
   it("übernimmt nie den Dateinamen in den Key", async () => {
@@ -87,9 +102,9 @@ describe("POST /api/videos", () => {
     expect((await res.json()).upload.headers["content-type"]).toBe("video/mp4");
   });
 
-  it("markiert Videos ohne Choreo als no_tagging", async () => {
+  it("landet immer im Eingang der Admins", async () => {
     const { id } = await (await newVideo({ no_choreo: true })).json();
-    expect((await videoRow(id)).tag_state).toBe("no_tagging");
+    expect((await videoRow(id)).tag_state).toBe("untagged");
   });
 
   it("lehnt Nicht-Videos ab", async () => {
@@ -105,8 +120,17 @@ describe("POST /api/videos", () => {
     expect((await newVideo({ size: -5 })).status).toBe(400);
   });
 
-  it("lehnt ein falsches Datumsformat ab", async () => {
+  it("lehnt eine unsinnige Aufnahmezeit ab", async () => {
     expect((await newVideo({ recorded_at: "24.09.2026" })).status).toBe(400);
+    expect((await newVideo({ recorded_at: "1904-01-01T00:00:00Z" })).status).toBe(400); // leere Metadaten
+    expect((await newVideo({ duration_s: -1 })).status).toBe(400);
+  });
+
+  it("nimmt auch nur ein Datum oder eine Zeit ohne Sekunden", async () => {
+    const a = await (await newVideo({ recorded_at: "2026-09-24" })).json();
+    expect((await videoRow(a.id)).recorded_at).toBe("2026-09-24");
+    const b = await (await newVideo({ recorded_at: "2026-09-24T12:31Z", recorded_source: "quatsch" })).json();
+    expect(await videoRow(b.id)).toMatchObject({ recorded_at: "2026-09-24T12:31:00.000Z", recorded_source: null });
   });
 
   it("hält die Quota ein", async () => {
