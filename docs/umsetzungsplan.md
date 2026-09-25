@@ -1,5 +1,10 @@
 # Formation-Videoportal — Umsetzungsplan (Cloudflare-Stack)
 
+> **Hinweis (25.09.2026):** Das Videoportal wird Teil der Formation-App, siehe [`zielbild.md`](zielbild.md).
+> Choreos und Abschnitte werden nicht im Portal verwaltet, sondern kommen aus dem Choreo-Planer
+> (Projekte → Choreos, Sprungmarken → Abschnitte, Musik → Referenz für den Musik-Offset).
+> Die Verwaltungs-Endpunkte für Choreos/Abschnitte weiter unten entfallen deshalb; Phase 2 wird zu Schritt D im Zielbild.
+
 Stand: 25.09.2026 · @Nils · überarbeitete Fassung (Review eingearbeitet, Änderungen am Ende)
 
 ## Überblick

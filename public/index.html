@@ -5,12 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Videos · Formation</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/css/app.css">
   <script type="module" src="/js/list.js"></script>
 </head>
 <body>
   <header>
     <span class="brand">Formation</span>
+    <a href="/choreo/">Choreo</a>
     <a href="/" aria-current="page">Videos</a>
     <a href="/upload">Hochladen</a>
   </header>
@@ -19,5 +23,9 @@
     <p id="status" class="muted">Lade …</p>
     <ul id="videos" class="grid"></ul>
   </main>
+  <script type="module">
+    import { registerServiceWorker } from "/js/pwa.js";
+    registerServiceWorker();
+  </script>
 </body>
 </html>
