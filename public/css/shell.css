@@ -33,6 +33,48 @@ html, body {
 /* Video-Bereiche: scrollen in sich */
 .vpage { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
+/* ---------------- Kopfzeile (in allen Bereichen gleich) ---------------- */
+.appbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: calc(var(--bar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 8px 0 4px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.appbar-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: 700 16px/1.25 var(--font);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Menü (☰) und Zurück – überall derselbe Knopf an derselben Stelle.
+   „.appbar .menu-btn“ statt nur „.menu-btn“: stärker als die allgemeinen Knopf-Regeln
+   von Planer (button) und Video-Bereichen (.vpage button). */
+.appbar .menu-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.appbar .menu-btn:active { background: var(--press); }
+.appbar .menu-btn svg { display: block; width: 22px; height: 22px; }
+
 /* ---------------- Untere Navigation ---------------- */
 .bottom-nav {
   flex-shrink: 0;

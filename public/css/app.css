@@ -10,33 +10,8 @@
 
 .vpage { font: 15px/1.45 var(--font); }
 
-/* ---------------- Kopfzeile ---------------- */
-.vpage .app-bar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 56px;
-  padding: 8px 8px 8px 16px;
-  padding-top: max(8px, env(safe-area-inset-top));
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.vpage .app-bar h1 {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.vpage .app-bar .back + h1 { font-size: 18px; }
+/* ---------------- Kopfzeile: Grundform in shell.css (.appbar) ---------------- */
+.vpage .appbar { position: sticky; top: 0; z-index: 20; }
 
 .vpage .icon-btn {
   flex-shrink: 0;
@@ -59,7 +34,7 @@
 .vpage main {
   max-width: 960px;
   margin: 0 auto;
-  padding: 4px 16px 24px;
+  padding: 12px 16px 24px;
 }
 .vpage main.narrow { max-width: 640px; }
 
@@ -146,7 +121,7 @@
 /* ---------------- Videothek ---------------- */
 .vpage .search {
   position: sticky;
-  top: 56px;
+  top: calc(var(--bar-h) + env(safe-area-inset-top));
   z-index: 10;
   padding: 4px 0 12px;
   background: var(--bg);
@@ -376,6 +351,10 @@
 }
 .vpage .main-toggle.on { background: var(--badge-lock-bg); border-color: transparent; color: var(--badge-lock-text); }
 .vpage .main-toggle svg { display: block; }
+.vpage .lib-audio-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.vpage .small-btn { min-height: 34px; padding: 6px 10px; gap: 6px; font-size: 13px; font-weight: 600; }
+.vpage .small-btn svg { display: block; }
+.vpage .lib-free span { flex: 1; min-width: 0; }
 .vpage .lib-free { justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--border); }
 .vpage .lib-free:first-of-type { border-top: none; }
 .vpage .lib-free select { width: auto; max-width: 55%; }

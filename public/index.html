@@ -33,11 +33,9 @@
 
     <!-- ===== Audio-Bereich (oberes Drittel) ===== -->
     <section id="audio-section">
-      <div class="topbar">
-        <button class="icon ticon" @click="menuOpen = true" aria-label="Menü">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        </button>
-        <div class="title" role="button" tabindex="0" @click="menuOpen = true" @keydown.enter="menuOpen = true" aria-label="Choreo wählen">
+      <div class="topbar appbar">
+        <button class="menu-btn" type="button" @click="menuOpen = true" aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div class="title appbar-title" role="button" tabindex="0" @click="menuOpen = true" @keydown.enter="menuOpen = true" aria-label="Choreo wählen">
           <span x-text="project ? project.title : 'Kein Projekt'"></span>
           <template x-if="activeTempo">
             <span class="meta" x-text="` · ${activeTempo.bpm} BPM · ${activeTempo.time_signature}`"></span>
@@ -45,9 +43,6 @@
           <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </div>
         <span x-show="!online" class="badge offline">offline</span>
-        <button class="icon ticon" x-show="project && isEditor" @click="openSettings()" aria-label="Projekt-Einstellungen">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
         <!-- Bearbeiten: nur für Trainer (Anmeldung im Menü); setzt die Bearbeitungssperre -->
         <button class="edit-toggle" x-show="project && isEditor" x-cloak
                 :class="{ active: currentMode === 'editor' }" :aria-pressed="String(currentMode === 'editor')"
@@ -109,7 +104,7 @@
       <div class="tabbar">
         <button :class="{ active: bottomTab === 'steps' }" @click="setTab('steps')">Schritte &amp; Gruppen</button>
         <button :class="{ active: bottomTab === 'notes' }" @click="setTab('notes')">Sprungmarken</button>
-        <button x-show="!pick" :class="{ active: bottomTab === 'videos' }" @click="openVideosTab()">Videos<span class="tab-count" x-show="videosHere.length" x-cloak x-text="videosHere.length"></span></button>
+        <button x-show="!pick" :class="{ active: bottomTab === 'videos' }" @click="openVideosTab()"><span class="tab-label">Videos<span class="tab-count" x-show="videosHere.length" x-cloak x-text="videosHere.length"></span></span></button>
         <button x-show="pick" x-cloak :class="{ active: bottomTab === 'pick' }" @click="setTab('pick')">Stelle wählen</button>
       </div>
 
@@ -366,9 +361,9 @@
 
   <!-- ============================ Videothek ============================ -->
   <section class="view vpage" data-view="videos" x-ignore>
-    <header class="app-bar">
-      <button class="icon-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-      <h1>Videos</h1>
+    <header class="appbar">
+      <button class="menu-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1 class="appbar-title">Videos</h1>
     </header>
     <main>
       <div class="search">
@@ -389,11 +384,11 @@
 
   <!-- ============================ Player ============================ -->
   <section class="view vpage" data-view="player" x-ignore>
-    <header class="app-bar">
-      <button class="icon-btn back" id="pl-back" type="button" aria-label="Zurück">
+    <header class="appbar">
+      <button class="menu-btn back" id="pl-back" type="button" aria-label="Zurück">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
       </button>
-      <h1 id="pl-title">Video</h1>
+      <h1 class="appbar-title" id="pl-title">Video</h1>
     </header>
     <main class="narrow">
       <p id="pl-status" class="muted">Lade …</p>
@@ -423,9 +418,9 @@
 
   <!-- ============================ Hochladen ============================ -->
   <section class="view vpage" data-view="upload" x-ignore>
-    <header class="app-bar">
-      <button class="icon-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-      <h1>Hochladen</h1>
+    <header class="appbar">
+      <button class="menu-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1 class="appbar-title">Hochladen</h1>
     </header>
     <main class="narrow">
       <p id="up-checking" class="muted">Einen Moment …</p>
@@ -470,9 +465,9 @@
 
   <!-- ============================ Zuordnen (nur Trainer) ============================ -->
   <section class="view vpage" data-view="admin" x-ignore>
-    <header class="app-bar">
-      <button class="icon-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-      <h1>Zuordnen</h1>
+    <header class="appbar">
+      <button class="menu-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1 class="appbar-title">Zuordnen</h1>
     </header>
     <main>
       <section id="ad-denied" class="card login-card" hidden>
@@ -504,9 +499,9 @@
 
     <!-- Zuordnen einer Auswahl: liegt über der Liste -->
     <div id="ad-editor" class="sheet" hidden>
-      <header class="app-bar">
-        <button class="icon-btn back" type="button" id="ed-close" aria-label="Zurück"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-        <h1 id="ed-title">Zuordnen</h1>
+      <header class="appbar">
+        <button class="menu-btn back" type="button" id="ed-close" aria-label="Zurück"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <h1 class="appbar-title" id="ed-title">Zuordnen</h1>
       </header>
       <main class="narrow" id="ed-body"></main>
     </div>

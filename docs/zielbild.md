@@ -88,7 +88,8 @@ Choreo ── genau eine Hauptaudio (choreos.main_project_id)
 - Farben für Hell und Dunkel stehen in `public/css/theme.css`. Die dunklen Werte sind exakt die des alten
   Planers; auch Welle, Taktraster und Spuren lesen ihre Farben dort (`--wave-*`, `--grid-*`, `--lane-*`).
 - `public/js/theme.js` setzt das Thema vor dem ersten Zeichnen (kein Aufblitzen) und merkt sich die Wahl.
-- `public/css/shell.css`: Seite, Bereiche, untere Navigation, Hell/Dunkel-Auswahl.
+- `public/css/shell.css`: Seite, Bereiche, Kopfzeile (`.appbar`, `.menu-btn` – überall gleich), untere Navigation,
+  Hell/Dunkel-Auswahl.
 - `public/css/app.css` gilt nur in den Video-Bereichen (`.vpage`), damit nichts in den Planer durchschlägt.
 
 ## Aufbau des Planers (`public/js/choreo/`)

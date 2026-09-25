@@ -62,24 +62,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .lane-h { top: 3px; }
 .lane-d { top: 33.33%; margin-top: 3px; }
 
-.topbar {
-  height: 44px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--border);
-}
-.topbar .title {
-  flex: 1;
-  min-width: 0;
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* Kopfzeile: Grundform aus shell.css (.appbar), hier nur das Planer-Eigene */
 .topbar .meta { font-size: 11px; color: var(--muted); font-weight: 400; }
 /* Titel öffnet das Menü (Choreo wählen) */
 .topbar .title { cursor: pointer; }
@@ -101,6 +84,9 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   position: relative;
   padding: 0;
 }
+/* PC: ziehen verschiebt die Welle (siehe setupDragScroll) */
+@media (hover: hover) and (pointer: fine) { #waveform { cursor: grab; } }
+#waveform.dragging, #waveform.dragging * { cursor: grabbing !important; user-select: none; }
 /* eigenes Beat-Grid liegt als Overlay über dem Waveform (klick-durchlässig) */
 .grid-canvas {
   position: absolute; inset: 0;
@@ -159,8 +145,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 }
 .play-btn svg { display: block; }
 
-/* Topbar-Icons (Burger/Zahnrad) etwas kompakter */
-.ticon { width: 34px; height: 34px; }
 
 /* Anzeige-Umschalter (1 2 3 / Punkte / L u S) */
 .disp-toggle { display: flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; flex-shrink: 0; }
@@ -190,20 +174,27 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 }
 .tabbar {
   flex-shrink: 0;
-  display: flex;
+  /* feste Anteile: die Reiter springen nicht, wenn sich Beschriftung oder Zahl ändern */
+  display: grid;
+  grid-template-columns: 1.45fr 1.1fr 0.85fr;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
 .tabbar button {
-  /* drei Reiter: Breite nach Inhalt verteilen, damit nichts umbricht */
-  flex: 1 1 auto; white-space: nowrap; border: none; border-radius: 0; background: transparent;
-  padding: 10px 6px; font-size: 13px; color: var(--muted);
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border: none; border-radius: 0; background: transparent;
+  padding: 10px 4px; font-size: 13px; color: var(--muted);
   border-bottom: 2px solid transparent;
 }
+/* Zahl am Reiter „Videos“: liegt über der Beschriftung, nimmt keinen Platz weg */
+.tabbar .tab-label { position: relative; }
 .tabbar .tab-count {
-  display: inline-block; min-width: 18px; margin-left: 5px; padding: 0 5px; border-radius: 9px;
-  background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; line-height: 18px;
+  position: absolute; left: calc(100% + 3px); top: -7px;
+  min-width: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
 }
+.tabbar button:has(.tab-count) { overflow: visible; }
 .tabbar button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
 .tab-content {
   flex-grow: 1;

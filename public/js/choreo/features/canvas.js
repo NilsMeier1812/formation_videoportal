@@ -83,6 +83,50 @@ export function canvas() {
       }
     },
 
+    /**
+     * PC: gedrückt halten und ziehen = Welle nach links/rechts schieben; kurz klicken =
+     * an die Stelle springen (wie bisher). Nur für die Maus – am Handy wischt man ohnehin.
+     * Sprungmarken (im Editor ziehbar) bleiben davon unberührt.
+     */
+    setupDragScroll(container) {
+      if (rt.dragScrollReady) return; // der Container bleibt, auch wenn die Welle neu entsteht
+      rt.dragScrollReady = true;
+      const DRAG_PX = 5; // erst ab dieser Strecke gilt es als Ziehen, sonst als Klick
+      let start = null;
+      let dragged = false;
+      let swallowClick = false;
+      const onMarker = (e) => e.composedPath().some((n) => /\b(region|marker)\b/.test(n.getAttribute?.("part") || ""));
+
+      container.addEventListener("pointerdown", (e) => {
+        if (e.pointerType !== "mouse" || e.button !== 0 || !rt.ws || onMarker(e)) return;
+        start = { x: e.clientX, scroll: rt.ws.getScroll() };
+        dragged = false;
+      });
+      window.addEventListener("pointermove", (e) => {
+        if (!start || !rt.ws) return;
+        const dx = e.clientX - start.x;
+        if (!dragged && Math.abs(dx) < DRAG_PX) return;
+        if (!dragged) { dragged = true; container.classList.add("dragging"); }
+        rt.ws.setScroll(Math.max(0, start.scroll - dx));
+      });
+      window.addEventListener("pointerup", () => {
+        if (!start) return;
+        start = null;
+        container.classList.remove("dragging");
+        if (dragged) {
+          swallowClick = true; // der Klick nach dem Loslassen soll nicht springen
+          setTimeout(() => { swallowClick = false; }, 300);
+        }
+      });
+      // Einfangphase: kommt vor dem Klick-Handler der Welle (im Shadow DOM)
+      container.addEventListener("click", (e) => {
+        if (!swallowClick) return;
+        swallowClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+      }, true);
+    },
+
     removeOverlays() {
       if (rt.drawRaf) { cancelAnimationFrame(rt.drawRaf); rt.drawRaf = 0; }
       rt.pxPerSec = 0;

@@ -3,6 +3,7 @@ import { AUDIO_EXTENSIONS } from "../config.js";
 import { local, remote, repo } from "../data/index.js";
 import { formatBytes, uuid } from "../lib/util.js";
 import { rt } from "../runtime.js";
+import { router } from "/js/router.js";
 
 const emptyForm = () => ({ title: "", bpm: 120, time_signature: "4/4", file: null });
 
@@ -73,13 +74,30 @@ export function projects() {
       await this.loadAudio(p);
     },
 
-    // ---- Einstellungen ----
+    // ---- Einstellungen („Projekt & Takt“) ----
+    // Aufgerufen aus dem Bereich „Zuordnen → Choreos“. Das Einstellen des Takts braucht
+    // Welle und Raster, deshalb öffnet sich dafür der Planer; „Fertig“ führt zurück.
     openSettings() {
       if (!this.project) return;
       if (!this.isEditor) { this.openLogin(); return; }
       this.settingsOpen = true;
     },
-    closeSettings() { this.settingsOpen = false; },
+    async openSettingsFor(projectId) {
+      const p = this.projects.find((x) => x.id === projectId);
+      if (!p) { this.setStatus("Audio nicht gefunden"); return; }
+      this.pendingProject = null;
+      if (this.project?.id !== projectId) await this.openProject(p);
+      rt.settingsFromAdmin = true;
+      this.openSettings();
+    },
+    closeSettings() {
+      this.settingsOpen = false;
+      if (rt.settingsFromAdmin) {
+        rt.settingsFromAdmin = false;
+        if (this.isPlaying) rt.ws?.pause();
+        router.back("/zuordnen");
+      }
+    },
 
     patchProject(changes) {
       if (!this.project) return;

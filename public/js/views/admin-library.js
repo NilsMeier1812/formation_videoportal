@@ -2,8 +2,10 @@
 // Jede Änderung geht sofort an den Server; danach wird neu geladen (reload).
 import { api, el, icon } from "../api.js";
 import { library } from "../library.js";
+import { router } from "../router.js";
 
 const TRASH = '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>';
+const GEAR = '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>';
 const CROSS = '<path d="M18 6 6 18M6 6l12 12"/>';
 const STAR = '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>';
 
@@ -51,6 +53,17 @@ function addForm(placeholder, button, onAdd) {
   return form;
 }
 
+/** „Projekt & Takt“: öffnet den Planer mit den Einstellungen dieser Audio (Takt braucht die Welle). */
+function settingsButton(audio) {
+  return el("button", {
+    type: "button", class: "small-btn",
+    onclick: () => {
+      window.dispatchEvent(new CustomEvent("open-project-settings", { detail: { projectId: audio.id } }));
+      router.navigate("/");
+    },
+  }, icon(GEAR, 16), "Projekt & Takt");
+}
+
 function audioRow(choreo, audio, reload) {
   const isMain = choreo.main_project_id === audio.id;
   const dances = new Set(audio.dance_ids);
@@ -65,10 +78,13 @@ function audioRow(choreo, audio, reload) {
       el("span", { class: "lib-audio-title" }, audio.title + (audio.is_private ? " (privat)" : "")),
       deleteButton("Aus der Choreo nehmen", () => change(reload, `/api/audios/${audio.id}`, "PUT", { choreo_id: null }), CROSS),
     ),
-    choreo.dances.length ? el("div", { class: "chips" }, ...choreo.dances.map((d) => el("button", {
-      type: "button", class: "chip-toggle", "aria-pressed": String(dances.has(d.id)),
-      onclick: () => { dances.has(d.id) ? dances.delete(d.id) : dances.add(d.id); setDances(dances); },
-    }, d.name))) : null,
+    el("div", { class: "lib-audio-foot" },
+      choreo.dances.length ? el("div", { class: "chips" }, ...choreo.dances.map((d) => el("button", {
+        type: "button", class: "chip-toggle", "aria-pressed": String(dances.has(d.id)),
+        onclick: () => { dances.has(d.id) ? dances.delete(d.id) : dances.add(d.id); setDances(dances); },
+      }, d.name))) : el("span"),
+      settingsButton(audio),
+    ),
   );
 }
 
@@ -129,7 +145,7 @@ export function renderChoreos(container, reload) {
           const choreo = library.choreo(select.value);
           if (choreo) change(reload, `/api/audios/${a.id}`, "PUT", { choreo_id: choreo.id, dance_ids: choreo.dances.map((d) => d.id) });
         });
-        return el("div", { class: "lib-free" }, el("span", {}, a.title + (a.is_private ? " (privat)" : "")), select);
+        return el("div", { class: "lib-free" }, el("span", {}, a.title + (a.is_private ? " (privat)" : "")), settingsButton(a), select);
       }),
     ) : null,
   ].filter(Boolean));

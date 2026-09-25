@@ -31,7 +31,7 @@ export function core() {
     toast: "",
     _toastTimer: null,
     bottomTab: "steps", // 'steps' | 'notes' | 'videos' | 'pick' (Stelle wählen, Admin)
-    stepDisplay: "dots", // 'dots' | 'letters' | 'numbers'
+    stepDisplay: "numbers", // 'numbers' (Standard) | 'dots' | 'letters'
     showMarkers: true, // Sprungmarken in der Welle zeigen
     themeMode: window.formationTheme?.mode || "system", // 'system' | 'light' | 'dark'
 
