@@ -3,6 +3,7 @@ import { requireRole } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
 import { presignPut } from "../lib/presign.js";
 import { finishMultipart, MULTIPART_FROM, PART_SIZE, partCount, startMultipart } from "./multipart.js";
+import { notifyLargeUpload } from "../mails.js";
 import { dispatchProcessing } from "./processing.js";
 import {
   contentTypeFor,
@@ -183,6 +184,8 @@ export async function completeVideo(request, env, id) {
 
   // Umwandlung anstoßen; klappt das nicht, holt der stündliche Cron es nach
   await dispatchProcessing(env, { id, storage_key: row.storage_key });
+  // Ab 1 GB bekommt der Admin sofort eine Mail
+  await notifyLargeUpload(env, { id, size_bytes: obj.size, uploaded_by: row.uploaded_by });
   return json(await loadVideo(env, id));
 }
 

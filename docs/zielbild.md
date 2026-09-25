@@ -39,6 +39,7 @@ formation.nils-meier.de            EIN Worker, EINE Seite (Bereiche werden nur u
 | **C** | Ein Login-Modell für alles: Codes (Gruppe, Trainer) statt Supabase-Passwort, als Cookie für ein Jahr gemerkt | **erledigt** |
 | **E** | Einheitliches Aussehen: Hell/Dunkel wählbar (Automatisch/Hell/Dunkel), untere Navigation Choreo · Videos · Hochladen, Video-Seiten neu | **erledigt** |
 | **F** | Eine Seite statt einzelner Seiten (kein Neuladen beim Wechsel), gemeinsames Menü mit Anmeldung und Choreo-Wahl, „Bearbeiten“ nur für Trainer | **erledigt** |
+| **G** | Alltagstauglich: App privat (Anmeldebildschirm, Medien über den Worker), Papierkorb, Umwandlung 1080p (GitHub Actions), Upload in Teilen, E-Mails, Cron-Aufräumen – Einrichtung: `docs/einrichtung.md` | **erledigt** |
 | **D** | Videos ↔ Choreo: Choreos/Tänze/Audios/Tags, Hochladen ohne Angaben, Zuordnen (Admin), Tab „Videos“ im Planer, Filter in der Videothek | **erledigt** |
 
 Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter, wo er nicht durch Schritt D ersetzt ist

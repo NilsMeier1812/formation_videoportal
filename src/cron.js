@@ -4,8 +4,10 @@
 //               Umwandlung anstoßen/wiederholen (höchstens 3 Versuche)
 //   täglich     Papierkorb: Videos, die länger als 30 Tage dort liegen, endgültig löschen;
 //               Originale 7 Tage nach erfolgreicher Umwandlung löschen
+//   wöchentlich Übersicht per Mail an den Admin (montags)
 //
 // Alles ist wiederholbar: Läuft ein Job doppelt oder bricht ab, macht der nächste weiter.
+import { sendWeeklySummary } from "./mails.js";
 import { abortUpload } from "./routes/multipart.js";
 import { dispatchProcessing, MAX_ATTEMPTS } from "./routes/processing.js";
 import { TRASH_DAYS } from "./routes/videos.js";
@@ -13,6 +15,7 @@ import { TRASH_DAYS } from "./routes/videos.js";
 export const CRON = {
   hourly: "17 * * * *",
   daily: "33 3 * * *",
+  weekly: "7 6 * * 1", // montags 06:07 UTC (08:07 im Sommer)
 };
 
 const UPLOAD_TIMEOUT_H = 24;
@@ -95,6 +98,7 @@ export async function runScheduled(cron, env, now = Date.now()) {
     done.trash = await purgeTrash(env, now);
     done.originals = await deleteOriginals(env, now);
   }
+  if (cron === CRON.weekly) done.mail = await sendWeeklySummary(env, now);
   console.log("cron", cron, JSON.stringify(done));
   return done;
 }

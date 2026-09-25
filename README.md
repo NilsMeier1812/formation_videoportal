@@ -77,8 +77,23 @@ nur für Angemeldete. Der Bucket selbst ist nicht öffentlich erreichbar.
 **Papierkorb und Speicher** (Zuordnen → Mehr): gelöschte Videos 30 Tage zurückholbar, Anzeige des belegten
 Speichers (Deckel `QUOTA_BYTES` = 200 GB, einzelne Datei höchstens `MAX_FILE_BYTES` = 5 GB).
 
-**Zeitgesteuert** (`src/cron.js`, Cloudflare Cron Triggers in `wrangler.toml`): stündlich abgebrochene Uploads
-aufräumen (älter als 24 h), täglich den Papierkorb nach 30 Tagen endgültig leeren.
+**Umwandlung** (`.github/workflows/process-video.yml`, `scripts/process-video.sh`): nach jedem Upload stößt der
+Worker einen GitHub-Actions-Lauf an. Schon passende Videos (H.264, 8 Bit, SDR, ≤ 1080p) werden nur umverpackt,
+alles andere in 1080p H.264 umgewandelt (HDR → SDR, ohne GPS/Metadaten). Rückmeldung an
+`/api/internal/processed` (Secret `CALLBACK_SECRET`). Originale werden 7 Tage danach gelöscht.
+
+**Upload in Teilen** (`src/routes/multipart.js`, `public/js/lib/multipart-upload.js`): Videos ab 32 MB in
+10-MiB-Teilen direkt nach R2, drei gleichzeitig, jeder Teil mit Wiederholung. Nach einem Abbruch dieselbe Datei
+noch einmal auswählen → es geht an der Stelle weiter.
+
+**E-Mails** (`src/mails.js`, Resend): an `MAIL_TO` bei jedem Upload ab 1 GB und montags eine Wochenübersicht.
+
+**Zeitgesteuert** (`src/cron.js`, Cloudflare Cron Triggers in `wrangler.toml`):
+- stündlich: abgebrochene Uploads aufräumen (älter als 24 h), Umwandlung anstoßen/wiederholen (max. 3 Versuche)
+- täglich: Papierkorb nach 30 Tagen endgültig leeren, Originale 7 Tage nach der Umwandlung löschen
+- montags: Wochenübersicht per Mail
+
+**Einrichtung** von Schutz, Umwandlung, Upload in Teilen und E-Mails: [`docs/einrichtung.md`](docs/einrichtung.md).
 
 **Rahmen:** gleiche Kopfzeile in allen Bereichen (☰ oben links, `.appbar` in `shell.css`), untere Navigation
 (Choreo · Videos · Hochladen, für Trainer · Zuordnen), Hell/Dunkel wählbar (im Menü).
@@ -132,9 +147,10 @@ ist also ein Deploy.
 4. **Secrets des Workers** – nach dem ersten erfolgreichen Deploy im Cloudflare-Dashboard →
    *Workers & Pages* → `formation-portal` → *Settings* → *Variables and Secrets* → *Add*,
    jeweils Typ **Secret**:
-   - `GROUP_CODE` – Code zum Hochladen
-   - `TAGGER_CODE` – Trainer-Code: Choreos bearbeiten (und später taggen)
+   - `GROUP_CODE` – Gruppen-Code: App öffnen, ansehen, hochladen
+   - `TAGGER_CODE` – Trainer-Code: zusätzlich bearbeiten und zuordnen
    - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` – aus dem R2-API-Token
+   - `GH_TOKEN`, `CALLBACK_SECRET`, `RESEND_API_KEY`, `MAIL_TO` – siehe [`docs/einrichtung.md`](docs/einrichtung.md)
 
    Die Secrets bleiben bei späteren Deploys erhalten.
 
