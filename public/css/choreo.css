@@ -1,16 +1,5 @@
-/* ===== Choreo-Planer PWA – Layout ===== */
-:root {
-  --bg: #121212;
-  --panel: #1e1e1e;
-  --panel-2: #242424;
-  --border: #333;
-  --accent: #6c8cff;
-  --accent-dim: rgba(108, 140, 255, 0.25);
-  --text: #ffffff;
-  --muted: #9a9a9a;
-  --danger: #ff5a5a;
-  --ok: #3ecf8e;
-}
+/* ===== Choreo-Planer – Layout ===== */
+/* Farben: siehe theme.css (Hell/Dunkel) */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -23,7 +12,7 @@ html, body {
   flex-direction: column;
   background-color: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
@@ -41,10 +30,10 @@ button {
   cursor: pointer;
   transition: background .15s, border-color .15s, opacity .15s;
 }
-button:active { background: #2e2e2e; }
+button:active { background: var(--press); }
 button:disabled { opacity: .45; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #0b1020; font-weight: 600; }
-button.danger { color: var(--danger); border-color: #5a2b2b; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+button.danger { color: var(--danger); border-color: var(--danger-border); }
 button.icon { width: 40px; height: 40px; padding: 0; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; }
 
 input, select, textarea {
@@ -85,7 +74,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .lane-label { position: absolute; left: 5px; font-size: 12px; font-weight: 600; color: var(--muted); pointer-events: none; z-index: 2; }
 .lane-h { top: 3px; }
 .lane-d { top: 33.33%; margin-top: 3px; }
-.lane-n { top: 66.66%; margin-top: 3px; }
 
 .topbar {
   height: 44px;
@@ -109,7 +97,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 
 .mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .mode-toggle button { border: none; border-radius: 0; padding: 6px 12px; font-size: 12px; background: transparent; }
-.mode-toggle button.active { background: var(--accent); color: #0b1020; font-weight: 600; }
+.mode-toggle button.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 
 #waveform {
   flex-grow: 1;
@@ -127,7 +115,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 /* Playhead als leichtes DOM-Element (nur GPU-transform -> immer flüssig) */
 .playhead {
   position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
-  background: rgba(255,255,255,0.95);
+  background: var(--playhead);
   pointer-events: none; z-index: 6; display: none;
   will-change: transform; transform: translateX(-10px);
 }
@@ -135,7 +123,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 8px;
-  background: rgba(18,18,18,.7);
+  background: var(--overlay);
   font-size: 13px; color: var(--muted);
   z-index: 5;
 }
@@ -169,7 +157,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .icon svg { display: block; }
 .play-btn {
   width: 44px; height: 44px; border-radius: 50%;
-  background: var(--accent); border-color: var(--accent); color: #0b1020;
+  background: var(--accent); border-color: var(--accent); color: var(--on-accent);
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0; padding: 0;
 }
@@ -185,7 +173,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   height: 34px; padding: 0 8px; font-size: 12px; color: var(--muted);
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
 }
-.disp-toggle button.active { background: var(--accent); color: #0b1020; font-weight: 700; }
+.disp-toggle button.active { background: var(--accent); color: var(--on-accent); font-weight: 700; }
 .disp-toggle .dd { display: inline-block; border-radius: 50%; background: currentColor; }
 .disp-toggle .dd.s { width: 4px; height: 4px; }
 .disp-toggle .dd.m { width: 6px; height: 6px; }
@@ -195,25 +183,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .segment .ts.barback { background: var(--panel-2); color: var(--muted); }
 
 /* sichtbare Scrollbar im Wavesurfer-Scrollcontainer (Fallback/PC) */
-#waveform ::part(scroll) { scrollbar-width: thin; scrollbar-color: #555 transparent; }
-
-/* ===== Raster-Offset-Leiste (Editor) ===== */
-#grid-bar {
-  height: 46px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-#grid-bar .gb-label { color: var(--muted); font-size: 12px; }
-#grid-bar .gb-val { font-variant-numeric: tabular-nums; min-width: 52px; text-align: center; }
-#grid-bar .icon { width: 34px; height: 34px; }
-#grid-bar .spacer { flex: 1; }
-#grid-bar button:not(.icon) { padding: 6px 10px; font-size: 13px; }
+#waveform ::part(scroll) { scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
 
 /* ===== Unterer Bereich: Tabs (untere zwei Drittel) ===== */
 #bottom-section {
@@ -268,21 +238,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .grp-chip.g7 { border-color: #ff9a5a; background: rgba(255,154,90,.16); }
 .grp-chip.g8 { border-color: #9aa0b0; background: rgba(154,160,176,.16); }
 
-/* Schritt-Liste (Editor) */
-.step-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.step-row .ts {
-  font-variant-numeric: tabular-nums; font-size: 12px;
-  background: var(--accent-dim); color: var(--accent);
-  border: none; padding: 5px 9px; border-radius: 8px;
-}
-.foot-chip { width: 32px; height: 32px; padding: 0; border-radius: 8px; font-weight: 700; font-size: 13px; border: 1px solid var(--border); flex-shrink: 0; }
-.foot-chip.foot-l { color: #6c8cff; border-color: #3a4a8a; background: rgba(108,140,255,.14); }
-.foot-chip.foot-r { color: #ff5a5a; border-color: #5a2b2b; background: rgba(255,90,90,.14); }
-.step-val { min-width: 22px; text-align: center; font-weight: 700; color: var(--muted); }
-.role-tag { width: 22px; text-align: center; font-weight: 700; font-size: 12px; border-radius: 6px; padding: 3px 0; flex-shrink: 0; }
-.role-tag.role-l { color: #cfd8ff; background: rgba(108,140,255,.18); }
-.role-tag.role-f { color: #ffd6e6; background: rgba(255,122,182,.18); }
-.step-row .icon { margin-left: auto; }
 .notes-head { display: flex; align-items: center; gap: 8px; margin: 2px 4px 10px; }
 .notes-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; flex: 1; }
 .empty { color: var(--muted); text-align: center; padding: 40px 16px; font-size: 14px; }
@@ -298,7 +253,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 }
 .segment.active {
   border-left-color: var(--accent);
-  background: #1b2030;
+  background: var(--accent-surface);
   box-shadow: 0 0 0 1px var(--accent-dim);
 }
 .segment .row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
@@ -323,7 +278,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   background: transparent; border-color: transparent; padding-left: 2px;
 }
 /* Beschreibung im Training: lesbar, ohne Rahmen, voller Text sichtbar */
-.segment textarea[readonly] { color: #d8d8d8; background: transparent; border-color: transparent; }
+.segment textarea[readonly] { color: var(--text-soft); background: transparent; border-color: transparent; }
 
 /* aktiver Marker-Toggle in der Leiste */
 #controls-bar .icon.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
@@ -334,7 +289,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   font-size: 12px; padding: 3px 9px; border-radius: 999px;
   background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
 }
-.grp-step.now { background: var(--accent); color: #0b1020; font-weight: 700; border-color: var(--accent); }
+.grp-step.now { background: var(--accent); color: var(--on-accent); font-weight: 700; border-color: var(--accent); }
 
 /* Legende (Schritte-Tab) */
 .legend {
@@ -349,12 +304,12 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   background: var(--accent-dim); color: var(--accent); font-weight: 700; font-size: 11px;
 }
 .lg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.lg-dim { color: #6b7180; }
+.lg-dim { color: var(--muted-2); }
 
 /* ===== Off-Canvas Menü & Modals ===== */
 .scrim {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,.55);
+  background: var(--scrim);
   z-index: 40;
   backdrop-filter: blur(2px);
 }
@@ -368,7 +323,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   transform: translateX(0);
   transition: transform .25s ease;
 }
-.drawer.closed { transform: translateX(-100%); }
 .drawer header, .modal header {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 14px;
@@ -376,11 +330,13 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 }
 .drawer header h2, .modal header h2 { font-size: 16px; margin: 0; flex: 1; }
 .drawer .body { flex: 1; overflow-y: auto; padding: 14px; }
+.drawer-theme { flex-shrink: 0; padding: 0 14px 12px; border-top: 1px solid var(--border); }
+.drawer-theme .section-title { margin-top: 12px; }
 .drawer-foot {
   flex-shrink: 0;
   padding: 6px 12px;
   font-size: 10px;
-  color: #666;
+  color: var(--muted-2);
   border-top: 1px solid var(--border);
 }
 
@@ -392,7 +348,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   margin-bottom: 8px;
   cursor: pointer;
 }
-.project-item.active { border-color: var(--accent); background: #1b2030; }
+.project-item.active { border-color: var(--accent); background: var(--accent-surface); }
 .project-item .pi-main { flex: 1; min-width: 0; }
 .project-item .pi-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .project-item .pi-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -411,7 +367,11 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 4px 8px; }
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
-.field .two { display: flex; gap: 10px; }
+/* Zwei Felder nebeneinander (Start/Ende). Früher „.field .two“ – griff nie, weil beide
+   Klassen am selben Element stehen; dadurch war der Knopf „auf Abspielposition“ zerquetscht. */
+.field.two { display: flex; gap: 10px; }
+.calib-row input:not(.calib-val) { flex: 1; min-width: 0; }
+.calib-row input:not(.calib-val) + .icon { flex: 0 0 40px; }
 
 .filedrop {
   border: 1px dashed var(--border); border-radius: 12px;
@@ -459,22 +419,13 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 
 /* ===== Status-Toast & Badges ===== */
 #toast {
-  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
-  background: #2b2b2b; border: 1px solid var(--border);
+  /* über der unteren Navigation */
+  position: fixed; left: 50%; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px); transform: translateX(-50%);
+  background: var(--toast-bg); color: var(--toast-text); border: 1px solid var(--border);
   padding: 10px 16px; border-radius: 999px; font-size: 13px;
   z-index: 80; max-width: 90vw; text-align: center;
-  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  box-shadow: var(--shadow);
 }
 .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; }
-.badge.lock { background: #4a3a1a; color: #ffcf6a; }
-.badge.offline { background: #4a2020; color: #ff9a9a; }
-.dot-offline { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; }
-
-/* ===== Formation-App: Wechsel zu den anderen Bereichen (im Menü) ===== */
-.app-nav { display: flex; gap: 6px; margin-bottom: 14px; }
-.app-nav a {
-  flex: 1; text-align: center; padding: 9px 6px; border-radius: 10px;
-  border: 1px solid var(--border); background: var(--panel-2);
-  color: var(--text); text-decoration: none; font-size: 14px;
-}
-.app-nav a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #0b1020; font-weight: 600; }
+.badge.lock { background: var(--badge-lock-bg); color: var(--badge-lock-text); }
+.badge.offline { background: var(--badge-offline-bg); color: var(--badge-offline-text); }

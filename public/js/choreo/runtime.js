@@ -9,6 +9,8 @@ export const rt = {
   webAudioFailed: false, // WebAudio klappte nicht → Fallback auf <audio>
   currentObjectUrl: null,
 
+  palette: null, // Farben aus theme.css, siehe canvas.refreshPalette()
+
   // Canvas-Overlays über der Welle
   gridCanvas: null,
   gridCtx: null,

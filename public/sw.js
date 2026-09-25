@@ -8,14 +8,17 @@
      Die Musik des Planers liegt in IndexedDB, nicht hier.
    ========================================================================== */
 
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = `formation-shell-${VERSION}`;
 
 // Grundausstattung, damit der Planer offline startet, auch wenn man ihn nach
 // der Installation noch nicht geöffnet hat. Alles Weitere landet beim ersten Laden im Cache.
 const PRECACHE = [
   "/choreo/",
+  "/css/theme.css",
+  "/css/shell.css",
   "/css/choreo.css",
+  "/js/theme.js",
   "/js/pwa.js",
   "/js/choreo/main.js",
   "/vendor/alpine.esm.js",

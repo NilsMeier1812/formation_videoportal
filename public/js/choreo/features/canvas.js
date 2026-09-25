@@ -6,6 +6,30 @@ import { rt } from "../runtime.js";
 
 const LANE_ROLES = ["herren", "damen", "note"];
 
+/** Farben der Zeichenflächen aus theme.css (Hell/Dunkel). */
+function readPalette() {
+  const css = getComputedStyle(document.documentElement);
+  const v = (name) => css.getPropertyValue(name).trim();
+  return {
+    wave: v("--wave"),
+    waveProgress: v("--wave-progress"),
+    marker: v("--marker"),
+    gridBar: v("--grid-bar"),
+    gridBeat: v("--grid-beat"),
+    gridNumber: v("--grid-number"),
+    laneGrid: v("--lane-grid"),
+    laneDivider: v("--lane-divider"),
+    laneHint: v("--lane-hint"),
+    note: v("--note"),
+    noteText: v("--note-text"),
+    partLine: v("--part-line"),
+    partMark: v("--part-mark"),
+    footLeft: v("--foot-left"),
+    footRight: v("--foot-right"),
+    footNone: v("--foot-none"),
+  };
+}
+
 function createCanvas(className, parent) {
   const canvas = document.createElement("canvas");
   canvas.className = className;
@@ -23,9 +47,23 @@ function fitToDevicePixels(canvas, ctx) {
 
 export function canvas() {
   return {
+    // ---------------- Farben ----------------
+    refreshPalette() {
+      rt.palette = readPalette();
+      return rt.palette;
+    },
+    /** Nach Wechsel Hell/Dunkel: Welle, Marker und Overlays neu einfärben. */
+    onThemeChange() {
+      const palette = this.refreshPalette();
+      rt.ws?.setOptions({ waveColor: palette.wave, progressColor: palette.waveProgress });
+      this.renderRegions();
+      this.scheduleDraw();
+    },
+
     // ---------------- Aufbau ----------------
     setupOverlays(waveContainer) {
       this.removeOverlays();
+      if (!rt.palette) this.refreshPalette();
       rt.gridCanvas = createCanvas("grid-canvas", waveContainer);
       rt.gridCtx = rt.gridCanvas.getContext("2d");
 
@@ -153,13 +191,13 @@ export function canvas() {
           if (!isBar && !showBeats) return;
           const x = Math.round((t - startT) * pxPerSec) + 0.5;
           ctx.beginPath();
-          ctx.strokeStyle = isBar ? "rgba(195,204,255,0.85)" : "rgba(150,160,180,0.30)";
+          ctx.strokeStyle = isBar ? rt.palette.gridBar : rt.palette.gridBeat;
           ctx.lineWidth = isBar ? 2 : 1;
           ctx.moveTo(x, isBar ? 0 : h * 0.5);
           ctx.lineTo(x, h);
           ctx.stroke();
           if (isBar && showNumbers) {
-            ctx.fillStyle = "rgba(195,204,255,0.9)";
+            ctx.fillStyle = rt.palette.gridNumber;
             ctx.fillText(String(Math.floor(k / bpb) + 1), x + 3, 2);
           }
         });
@@ -167,7 +205,9 @@ export function canvas() {
     },
 
     // ---------------- Schritt-Spuren ----------------
-    footColor(foot) { return foot === "R" ? "#ff5a5a" : foot === "L" ? "#6c8cff" : "#cccccc"; },
+    footColor(foot) {
+      return foot === "R" ? rt.palette.footRight : foot === "L" ? rt.palette.footLeft : rt.palette.footNone;
+    },
 
     drawLanes(vp = this.viewport()) {
       const ctx = rt.laneCtx;
@@ -185,7 +225,7 @@ export function canvas() {
       if (!this.isEditingSteps && !this.myPersonNumber) { this.drawLanePlaceholder(w, laneH); return; }
 
       // schwache Taktlinien zur Ausrichtung mit der Welle
-      ctx.strokeStyle = "rgba(150,160,180,0.18)";
+      ctx.strokeStyle = rt.palette.laneGrid;
       ctx.lineWidth = 1;
       for (const tempo of this.sortedTempo) {
         if (barLengthPx(tempo, pxPerSec) < 10) continue;
@@ -205,7 +245,7 @@ export function canvas() {
 
     drawLaneDividers(w, laneH) {
       const ctx = rt.laneCtx;
-      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.strokeStyle = rt.palette.laneDivider;
       ctx.lineWidth = 1;
       for (let i = 1; i < 3; i++) {
         ctx.beginPath(); ctx.moveTo(0, laneH * i + 0.5); ctx.lineTo(w, laneH * i + 0.5); ctx.stroke();
@@ -216,7 +256,7 @@ export function canvas() {
       const ctx = rt.laneCtx;
       this.drawLaneDividers(w, laneH);
       ctx.save();
-      ctx.fillStyle = "rgba(180,190,210,0.45)";
+      ctx.fillStyle = rt.palette.laneHint;
       ctx.font = "13px -apple-system, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
@@ -277,9 +317,9 @@ export function canvas() {
         if (!pos || pos.t < startT - pos.spb || pos.t > endT + pos.spb) continue;
         const x = (pos.t - startT) * pxPerSec;
         ctx.globalAlpha = dim ? 0.3 : 1;
-        ctx.fillStyle = "#ffcf6a";
+        ctx.fillStyle = rt.palette.note;
         ctx.beginPath(); ctx.arc(x, cy, 4, 0, 7); ctx.fill();
-        if (showText && step.value) { ctx.fillStyle = "#e8e8e8"; ctx.fillText(step.value, x + 7, cy); }
+        if (showText && step.value) { ctx.fillStyle = rt.palette.noteText; ctx.fillText(step.value, x + 7, cy); }
       }
       ctx.globalAlpha = 1;
 
@@ -291,11 +331,11 @@ export function canvas() {
         const x0 = (Math.max(start, startT) - startT) * pxPerSec;
         const x1 = (Math.min(end, endT) - startT) * pxPerSec;
         if (x1 > x0) {
-          ctx.strokeStyle = "rgba(138,180,255,0.4)";
+          ctx.strokeStyle = rt.palette.partLine;
           ctx.lineWidth = 2;
           ctx.beginPath(); ctx.moveTo(x0, bottom - 1); ctx.lineTo(x1, bottom - 1); ctx.stroke();
         }
-        ctx.fillStyle = "#8ab4ff";
+        ctx.fillStyle = rt.palette.partMark;
         const bounds = part.end_sec != null ? [start, end] : [start];
         for (const bt of bounds) {
           if (bt < startT - 0.001 || bt > endT + 0.001) continue;

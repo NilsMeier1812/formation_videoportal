@@ -1,4 +1,10 @@
-import { api, el, formatBytes, formatDate } from "./api.js";
+// Player: ein Video mit Tempo und Spiegeln.
+import { api, el, formatBytes, formatDate, formatDuration } from "./api.js";
+import { registerServiceWorker } from "./pwa.js";
+import { mountThemeButton } from "./theme-button.js";
+
+mountThemeButton(document.getElementById("theme"));
+registerServiceWorker();
 
 const $ = (id) => document.getElementById(id);
 const video = $("video");
@@ -9,6 +15,7 @@ function showFacts(v) {
     ["Aufgenommen", formatDate(v.recorded_at)],
     ["Kamera", v.camera],
     ["Hochgeladen von", v.uploaded_by],
+    ["Länge", formatDuration(v.duration_s)],
     ["Größe", formatBytes(v.size_bytes)],
   ].filter(([, value]) => value);
   $("facts").append(...facts.flatMap(([k, value]) => [el("dt", {}, k), el("dd", {}, value)]));
