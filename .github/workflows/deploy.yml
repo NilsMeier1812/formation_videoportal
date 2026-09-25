@@ -1,0 +1,45 @@
+name: Tests und Deploy
+
+on:
+  push:            # Tests bei jedem Push, auf jedem Branch
+  pull_request:
+  workflow_dispatch: # "Run workflow"-Knopf im Actions-Tab
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    # Deployt wird nur main – und nur, wenn die Tests grün sind.
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Datenbank-Migrationen anwenden
+        run: npx wrangler d1 migrations apply formation-portal --remote
+      - name: Worker deployen
+        run: npx wrangler deploy

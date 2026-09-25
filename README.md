@@ -39,33 +39,51 @@ Lokal gibt es kein echtes R2 mit S3-Endpunkt. Im Dev-Modus (`DEV_MODE=1` in `.de
 Upload deshalb über den Worker (`/api/dev-upload/…`) und die Videos kommen über `/api/dev-media/…`.
 In Produktion sind diese Routen abgeschaltet.
 
-## Erstes Deployment (Schritt 3)
+## Deployment
 
-Einmalig, von deinem Rechner aus im Projektordner:
+Alles läuft über den Browser: GitHub Actions (`.github/workflows/deploy.yml`) testet jeden Push und
+deployt `main` nach Cloudflare – erst die D1-Migrationen, dann den Worker. Ein Merge nach `main`
+ist also ein Deploy.
+
+### Einmalig einrichten
+
+1. **Cloudflare-API-Token** – Cloudflare-Dashboard → Profil (oben rechts) → *API Tokens* →
+   *Create Token* → Vorlage **Edit Cloudflare Workers** → *Use template*.
+   - Unter *Permissions* eine Zeile ergänzen: **Account · D1 · Edit**.
+   - *Account Resources*: dein Account. *Zone Resources*: *Specific zone* → `nils-meier.de`.
+   - *Continue to summary* → *Create Token* → Token kopieren (wird nur einmal angezeigt).
+2. **Token bei GitHub hinterlegen** – Repo → *Settings* → *Secrets and variables* → *Actions* →
+   *New repository secret*: Name `CLOUDFLARE_API_TOKEN`, Wert = der Token.
+3. **Branch `main` anlegen** – Repo → *Branches* (bzw. Branch-Auswahl oben links) → *New branch*:
+   Name `main`, Quelle `claude/sleepy-hamilton-7guj78`. Danach unter *Settings* → *General* →
+   *Default branch* auf `main` umstellen. Das Anlegen von `main` löst das erste Deployment aus
+   (Tab *Actions*).
+4. **Secrets des Workers** – nach dem ersten erfolgreichen Deploy im Cloudflare-Dashboard →
+   *Workers & Pages* → `formation-portal` → *Settings* → *Variables and Secrets* → *Add*,
+   jeweils Typ **Secret**:
+   - `GROUP_CODE` – Code zum Hochladen
+   - `TAGGER_CODE` – Code für Tagger (ab Phase 2 gebraucht)
+   - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` – aus dem R2-API-Token
+
+   Die Secrets bleiben bei späteren Deploys erhalten.
+
+Danach unter https://formation.nils-meier.de/upload ein Video hochladen – zuerst vom PC-Browser.
+Klappt der Upload nicht („Verbindung abgebrochen“), ist fast immer CORS am Bucket der Grund:
+F12 → Reiter *Konsole* zeigt dann einen roten CORS-Fehler.
+
+### Später: Änderungen
+
+Neue Arbeit kommt als Pull Request. Die Tests laufen automatisch; *Merge* im Browser deployt.
+
+### Alternativ vom eigenen Rechner
 
 ```bash
-npm install
+npm ci
 npx wrangler login
-
-# 1. Schema in die echte D1
 npm run db:migrate:remote
-
-# 2. Secrets setzen – wrangler fragt jeweils verdeckt nach dem Wert
-npx wrangler secret put GROUP_CODE            # Code zum Hochladen
-npx wrangler secret put TAGGER_CODE           # Code für Tagger (ab Phase 2 gebraucht)
-npx wrangler secret put R2_ACCESS_KEY_ID      # aus dem R2-API-Token
-npx wrangler secret put R2_SECRET_ACCESS_KEY  # aus dem R2-API-Token
-
-# 3. Deployen – legt auch die Domain formation.nils-meier.de an
+npx wrangler secret put GROUP_CODE   # usw.
 npm run deploy
 ```
-
-Falls `secret put` meldet, dass es den Worker noch nicht gibt: erst `npm run deploy`, dann die
-Secrets setzen, dann noch einmal deployen.
-
-Danach unter https://formation.nils-meier.de/upload ein Video hochladen. Klappt der Upload nicht
-(„Verbindung abgebrochen“), ist fast immer CORS am Bucket der Grund – die Browser-Konsole zeigt dann
-einen CORS-Fehler.
 
 ## iPhone-Test
 

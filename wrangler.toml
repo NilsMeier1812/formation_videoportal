@@ -1,6 +1,7 @@
 name = "formation-portal"
 main = "src/index.js"
 compatibility_date = "2026-08-15"
+account_id = "527266f78a5c7ffa288f4a9d2c49e842"
 
 # Ausgeliefert wird nur über die eigene Domain, nicht über *.workers.dev
 workers_dev = false
