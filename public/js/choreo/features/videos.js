@@ -27,8 +27,9 @@ export function videos() {
     pick: null, // { projectId, start, end, videos: [{ id, url, poster, label }], preview }
 
     initVideos() {
-      library.load().catch(() => {}); // offline: Menü ohne Gruppen, Planer wie bisher
+      if (this.role) library.load().catch(() => {}); // offline: Menü ohne Gruppen, Planer wie bisher
       window.addEventListener("librarychange", () => { this.libraryData = library.data; });
+      window.addEventListener("sessionchange", (e) => { if (e.detail.role) library.load(true).catch(() => {}); });
       window.addEventListener("pick-range", (e) => this.startPick(e.detail));
       window.addEventListener("show-in-choreo", (e) => this.showInChoreo(e.detail));
       window.addEventListener("open-project-settings", (e) => this.openSettingsFor(e.detail.projectId));

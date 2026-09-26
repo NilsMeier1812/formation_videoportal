@@ -2,6 +2,9 @@
 import { requireRole } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
 import { presignPut } from "../lib/presign.js";
+import { finishMultipart, MULTIPART_FROM, PART_SIZE, partCount, startMultipart } from "./multipart.js";
+import { notifyLargeUpload } from "../mails.js";
+import { dispatchProcessing } from "./processing.js";
 import {
   contentTypeFor,
   extensionFor,
@@ -46,6 +49,7 @@ function publicVideo(env, row) {
     playback_url: mediaUrl(env, row.play_key ?? row.storage_key),
     thumb_url: mediaUrl(env, row.thumb_key),
     is_processed: Boolean(row.play_key),
+    processing: row.processing, // pending | done | failed
   };
 }
 
@@ -56,10 +60,13 @@ const SELECT_VIDEO = `
          (SELECT json_group_array(tag_id) FROM video_tags WHERE video_id = v.id) AS tag_ids
     FROM video v`;
 
+/** Belegte Bytes eines Videos: Original (bis es gelöscht ist) + Abspielfassung. */
+const BYTES = "CASE WHEN raw_deleted_at IS NULL THEN size_bytes ELSE 0 END + COALESCE(play_size_bytes, 0)";
+
 /** Belegter Speicher; `excludeId` nimmt ein Video aus der Summe (für die Nachprüfung in /complete). */
 async function usedBytes(env, excludeId = "") {
   const row = await env.DB.prepare(
-    `SELECT COALESCE(SUM(size_bytes + COALESCE(play_size_bytes, 0)), 0) AS used
+    `SELECT COALESCE(SUM(${BYTES}), 0) AS used
        FROM video
       WHERE file_state != 'missing' AND id != ?`
   )
@@ -100,14 +107,20 @@ export async function createVideo(request, env) {
 
   const id = crypto.randomUUID();
   const storageKey = `raw/${id}.${ext}`;
+  // Große Dateien in Teilen (siehe multipart.js), kleine in einem Stück
+  const uploadId = size >= MULTIPART_FROM ? await startMultipart(env, storageKey, contentType) : null;
   await env.DB.prepare(
     `INSERT INTO video (id, storage_key, content_type, recorded_at, recorded_source, duration_s,
-                        uploaded_by, size_bytes, file_state, tag_state, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'uploading', 'untagged', ?)`
+                        uploaded_by, size_bytes, multipart_upload_id, file_state, tag_state, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', 'untagged', ?)`
   )
-    .bind(id, storageKey, contentType, recordedAt, recordedSource, duration, uploadedBy, size,
+    .bind(id, storageKey, contentType, recordedAt, recordedSource, duration, uploadedBy, size, uploadId,
       new Date().toISOString())
     .run();
+
+  if (uploadId) {
+    return json({ id, upload: { multipart: true, part_size: PART_SIZE, parts: partCount(size) } }, 201);
+  }
 
   // Lokal relativ: `wrangler dev` schreibt den Host auf die Produktionsdomain um.
   const url =
@@ -129,6 +142,17 @@ export async function completeVideo(request, env, id) {
   if (!row) throw new HttpError(404, "Video nicht gefunden");
   if (row.file_state === "ready") return json(await loadVideo(env, id)); // doppelt gemeldet
   if (row.file_state !== "uploading") throw new HttpError(409, "Video ist nicht im Upload");
+
+  if (row.multipart_upload_id) {
+    const { parts } = await readJson(request);
+    try {
+      await finishMultipart(env, row.storage_key, row.multipart_upload_id, parts, partCount(row.size_bytes));
+    } catch (err) {
+      if (err instanceof HttpError) throw err;
+      throw new HttpError(409, "Teile ließen sich nicht zusammensetzen – bitte erneut hochladen");
+    }
+    await env.DB.prepare("UPDATE video SET multipart_upload_id = NULL WHERE id = ?").bind(id).run();
+  }
 
   const obj = await env.BUCKET.head(row.storage_key);
   if (!obj) throw new HttpError(409, "Datei ist nicht angekommen");
@@ -158,6 +182,10 @@ export async function completeVideo(request, env, id) {
     .first();
   if (!updated) throw new HttpError(409, "Video wurde parallel verändert");
 
+  // Umwandlung anstoßen; klappt das nicht, holt der stündliche Cron es nach
+  await dispatchProcessing(env, { id, storage_key: row.storage_key });
+  // Ab 1 GB bekommt der Admin sofort eine Mail
+  await notifyLargeUpload(env, { id, size_bytes: obj.size, uploaded_by: row.uploaded_by });
   return json(await loadVideo(env, id));
 }
 
@@ -336,4 +364,46 @@ export async function trashVideo(request, env, id) {
   ).bind(new Date().toISOString(), id).first();
   if (!row) throw new HttpError(404, "Video nicht gefunden");
   return new Response(null, { status: 204 });
+}
+
+// ---------------- Papierkorb und Speicher (Trainer) ----------------
+
+export const TRASH_DAYS = 30; // danach löscht der tägliche Aufräum-Job endgültig
+
+// GET /api/videos/trash – was im Papierkorb liegt, zuletzt gelöschtes zuerst
+export async function listTrash(request, env) {
+  await requireRole(request, env, "tagger");
+  const { results } = await env.DB.prepare(
+    `${SELECT_VIDEO} WHERE v.deleted_at IS NOT NULL ORDER BY v.deleted_at DESC LIMIT 500`
+  ).all();
+  return json({
+    days: TRASH_DAYS,
+    videos: results.map((row) => ({ ...publicVideo(env, row), deleted_at: row.deleted_at })),
+  });
+}
+
+// POST /api/videos/:id/restore – aus dem Papierkorb zurückholen
+export async function restoreVideo(request, env, id) {
+  await requireRole(request, env, "tagger");
+  const row = await env.DB.prepare(
+    `UPDATE video SET file_state = 'ready', deleted_at = NULL
+      WHERE id = ? AND deleted_at IS NOT NULL RETURNING id`
+  ).bind(id).first();
+  if (!row) throw new HttpError(404, "Nicht im Papierkorb");
+  return json(await loadVideo(env, id));
+}
+
+// GET /api/storage – belegter Speicher (Originale + Abspielfassungen) und Anzahlen
+export async function storageInfo(request, env) {
+  await requireRole(request, env, "tagger");
+  const row = await env.DB.prepare(
+    `SELECT COALESCE(SUM(${BYTES}), 0) AS used,
+            COALESCE(SUM(CASE WHEN deleted_at IS NOT NULL THEN ${BYTES} END), 0) AS trash_bytes,
+            COUNT(CASE WHEN processing = 'failed' AND file_state = 'ready' THEN 1 END) AS failed,
+            COUNT(CASE WHEN file_state = 'ready' THEN 1 END) AS videos,
+            COUNT(CASE WHEN deleted_at IS NOT NULL THEN 1 END) AS trashed,
+            COUNT(CASE WHEN file_state = 'ready' AND tag_state = 'untagged' THEN 1 END) AS untagged
+       FROM video WHERE file_state != 'missing'`
+  ).first();
+  return json({ ...row, quota: Number(env.QUOTA_BYTES), max_file: Number(env.MAX_FILE_BYTES) });
 }

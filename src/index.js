@@ -1,8 +1,12 @@
+import { runScheduled } from "./cron.js";
 import { requireRole } from "./lib/auth.js";
 import { HttpError, errorResponse, json } from "./lib/http.js";
-import { devMedia, devUpload } from "./routes/dev.js";
+import { devUpload } from "./routes/dev.js";
+import * as multipart from "./routes/multipart.js";
 import * as choreo from "./routes/choreo.js";
 import * as library from "./routes/library.js";
+import { getMedia } from "./routes/media.js";
+import * as processing from "./routes/processing.js";
 import * as session from "./routes/session.js";
 import * as videos from "./routes/videos.js";
 
@@ -16,10 +20,17 @@ const routes = [
   ["GET", /^\/api\/videos$/, videos.listVideos],
   ["POST", /^\/api\/videos$/, videos.createVideo],
   ["POST", /^\/api\/videos\/assign$/, videos.assignVideos],
+  ["GET", /^\/api\/videos\/trash$/, videos.listTrash],
+  ["GET", /^\/api\/storage$/, videos.storageInfo],
   ["GET", new RegExp(`^/api/videos/${ID}$`), videos.getVideo],
   ["DELETE", new RegExp(`^/api/videos/${ID}$`), videos.trashVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],
+  ["POST", new RegExp(`^/api/videos/${ID}/parts$`), multipart.partUrls],
   ["PUT", new RegExp(`^/api/videos/${ID}/thumb$`), videos.putThumb],
+  ["POST", new RegExp(`^/api/videos/${ID}/restore$`), videos.restoreVideo],
+  ["POST", new RegExp(`^/api/videos/${ID}/reprocess$`), processing.reprocessVideo],
+  // Rückmeldung der Umwandlung (GitHub Actions) – eigenes Geheimnis statt Login
+  ["POST", /^\/api\/internal\/processed$/, processing.processedCallback],
 
   // Choreos, Tänze, Audios, Tags
   ["GET", /^\/api\/library$/, library.getLibrary],
@@ -54,10 +65,19 @@ const routes = [
   ["DELETE", new RegExp(`^/api/choreo/${TABLE}/${KEY}$`), choreo.deleteRow],
 ];
 
+// Videos und Bilder (nur für Angemeldete, siehe routes/media.js)
+routes.push(["GET", /^\/media\/(.+)$/, getMedia]);
+
 const devRoutes = [
   ["PUT", new RegExp(`^/api/dev-upload/${ID}$`), devUpload],
-  ["GET", /^\/api\/dev-media\/(.+)$/, devMedia],
+  ["PUT", new RegExp(`^/api/dev-upload/${ID}/part/(\\d+)$`), multipart.devUploadPart],
 ];
+
+// Ohne Anmeldung erreichbar: nur die Anmeldung selbst, die Rückmeldung der Umwandlung
+// (prüft CALLBACK_SECRET) und lokal der Upload-Ersatz (Schutz wie bei der Presigned URL:
+// die unbekannte Video-ID).
+// Alles andere braucht mindestens den Nutzer-Code – die App ist privat.
+const PUBLIC = [/^\/api\/session$/, /^\/api\/dev-upload\//, /^\/api\/internal\/processed$/];
 
 async function handle(request, env) {
   const { pathname } = new URL(request.url);
@@ -69,6 +89,7 @@ async function handle(request, env) {
     if (!match) continue;
     pathMatched = true;
     if (method === request.method || (method === "GET" && request.method === "HEAD")) {
+      if (!PUBLIC.some((p) => p.test(pathname))) await requireRole(request, env, "group");
       return handler(request, env, ...match.slice(1).map(decodeURIComponent));
     }
   }
@@ -84,5 +105,10 @@ export default {
       console.error(err);
       return errorResponse(500, "Interner Fehler");
     }
+  },
+
+  // Zeitgesteuerte Aufgaben (Aufräumen, später Umwandlung und E-Mails), siehe cron.js
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runScheduled(event.cron, env));
   },
 };

@@ -4,7 +4,7 @@ import { audioFileName, buildMigration, reportMarkdown, sqlValue } from "../scri
 import worker from "../src/index.js";
 
 const SB = "https://qgklrvagzfvqbbpgpfdl.supabase.co/storage/v1/object/public/audio-tracks";
-const call = (path, headers = {}) => worker.fetch(new Request(`https://formation.nils-meier.de${path}`, { headers }), env);
+const call = (path, headers = { "x-portal-code": "gruppe-test" }) => worker.fetch(new Request(`https://formation.nils-meier.de${path}`, { headers }), env);
 
 // So sehen die Zeilen aus, wie die Supabase-REST-Schnittstelle sie liefert
 const supabase = {

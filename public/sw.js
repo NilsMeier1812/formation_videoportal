@@ -7,11 +7,11 @@
      dieselbe index.html. Sie liegt einmal unter "/" im Cache und startet
      offline für jede Adresse.
    - /api/* wird nie zwischengespeichert – Daten kommen immer frisch.
-   - Andere Domains (Videos auf media.…) laufen am Service Worker vorbei.
+   - /media/* (Videos, Bilder) läuft am Service Worker vorbei.
      Die Musik des Planers liegt in IndexedDB, nicht hier.
    ========================================================================== */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const CACHE = `formation-shell-${VERSION}`;
 
 // Grundausstattung, damit der Planer offline startet, auch wenn man ihn nach
@@ -61,6 +61,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Videos: direkt übers Netz
   if (url.pathname.startsWith("/api/")) return; // Daten nie aus dem Cache
+  if (url.pathname.startsWith("/media/")) return; // Videos/Bilder: groß und nur mit Anmeldung
   // Seitenaufrufe: immer die eine App-Seite, gemerkt unter "/"
   event.respondWith(networkFirst(req, req.mode === "navigate" ? "/" : req));
 });

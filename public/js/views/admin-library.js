@@ -151,9 +151,10 @@ export function renderChoreos(container, reload) {
   ].filter(Boolean));
 }
 
-export function renderTags(container, reload) {
-  container.replaceChildren(el("div", { class: "card" },
-    el("p", { class: "muted small first" }, "Tags beschreiben die Art des Videos. Ein Video kann mehrere haben."),
+function tagsCard(reload) {
+  return el("div", { class: "card" },
+    el("div", { class: "section-title first" }, "Tags"),
+    el("p", { class: "muted small" }, "Tags beschreiben die Art des Videos. Ein Video kann mehrere haben."),
     ...library.data.tags.map((t) => el("div", { class: "lib-row" },
       nameInput(t.name, (name) => change(reload, `/api/tags/${t.id}`, "PATCH", { name }), { maxlength: 40, "aria-label": "Tag" }),
       deleteButton("Tag löschen", () => {
@@ -161,5 +162,57 @@ export function renderTags(container, reload) {
       }),
     )),
     addForm("Neuer Tag", "Hinzufügen", (name) => change(reload, "/api/tags", "POST", { name })),
-  ));
+  );
+}
+
+const GB = 1e9;
+const gb = (bytes) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 1 : 0).replace(".", ",")} GB`;
+
+function storageCard(info) {
+  const share = Math.min(1, info.used / info.quota);
+  return el("div", { class: "card" },
+    el("div", { class: "section-title first" }, "Speicher"),
+    el("div", { class: "meter", role: "meter", "aria-valuemin": 0, "aria-valuemax": info.quota, "aria-valuenow": info.used },
+      el("span", { style: `width:${(share * 100).toFixed(1)}%`, class: share > 0.9 ? "full" : "" })),
+    el("p", { class: "muted small" },
+      `${gb(info.used)} von ${gb(info.quota)} belegt · ${info.videos} ${info.videos === 1 ? "Video" : "Videos"}` +
+      (info.trashed ? ` · Papierkorb ${info.trashed} (${gb(info.trash_bytes)})` : "") +
+      ` · einzelne Datei höchstens ${gb(info.max_file)}`),
+    info.failed ? el("p", { class: "error small" }, `${info.failed} ${info.failed === 1 ? "Video" : "Videos"}: Umwandlung fehlgeschlagen (im Video „Neu umwandeln“)`) : null,
+    el("p", { class: "muted small" }, "Nach der Umwandlung (1080p) bleiben die Originale noch 7 Tage, dann werden sie gelöscht."),
+  );
+}
+
+function trashCard(trash, reload) {
+  const daysLeft = (v) => Math.max(0, trash.days - Math.floor((Date.now() - Date.parse(v.deleted_at)) / 86400000));
+  return el("div", { class: "card" },
+    el("div", { class: "section-title first" }, `Papierkorb (${trash.videos.length})`),
+    trash.videos.length
+      ? el("p", { class: "muted small" }, `Gelöschte Videos bleiben ${trash.days} Tage hier und lassen sich zurückholen; danach werden sie endgültig gelöscht.`)
+      : el("p", { class: "muted small" }, "Leer."),
+    ...trash.videos.map((v) => el("div", { class: "trash-row" },
+      el("span", { class: "trash-thumb" }, v.thumb_url ? el("img", { src: v.thumb_url, alt: "", loading: "lazy" }) : null),
+      el("span", { class: "trash-main" },
+        el("span", { class: "trash-title" }, library.videoTitle(v)),
+        el("span", { class: "muted small" }, `noch ${daysLeft(v)} Tage`)),
+      el("button", {
+        type: "button", class: "small-btn",
+        onclick: () => change(reload, `/api/videos/${v.id}/restore`, "POST").then(() => {
+          window.dispatchEvent(new Event("videos-changed"));
+        }),
+      }, "Zurückholen"),
+    )),
+  );
+}
+
+/** Reiter „Mehr“: Speicher, Papierkorb, Tags. */
+export async function renderMore(container, reload) {
+  let info = null;
+  let trash = { days: 30, videos: [] };
+  try {
+    [info, trash] = await Promise.all([api("/api/storage"), api("/api/videos/trash")]);
+  } catch (err) {
+    toast(err.message);
+  }
+  container.replaceChildren(...[info && storageCard(info), trashCard(trash, reload), tagsCard(reload)].filter(Boolean));
 }

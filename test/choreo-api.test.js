@@ -6,7 +6,7 @@ const BASE = "https://formation.nils-meier.de";
 const TRAINER = { "x-portal-code": "tagger-test" };
 const GROUP = { "x-portal-code": "gruppe-test" };
 
-function call(path, { method = "GET", headers = {}, body, raw } = {}) {
+function call(path, { method = "GET", headers = GROUP, body, raw } = {}) {
   const init = { method, headers: { ...headers } };
   if (raw !== undefined) init.body = raw;
   else if (body !== undefined) {

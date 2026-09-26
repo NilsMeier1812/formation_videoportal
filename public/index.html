@@ -405,10 +405,7 @@
           </div>
         </div>
 
-        <p id="pl-processing" class="notice" hidden>
-          Wird noch aufbereitet – bis dahin läuft die Originaldatei. iPhone-Videos spielen
-          auf manchen Geräten erst nach der Aufbereitung.
-        </p>
+        <p id="pl-processing" class="notice" hidden></p>
 
         <div id="pl-assign" class="pl-assign"></div>
         <dl id="pl-facts" class="facts card"></dl>
@@ -424,18 +421,6 @@
     </header>
     <main class="narrow">
       <p id="up-checking" class="muted">Einen Moment …</p>
-
-      <section id="up-login" class="card login-card" hidden>
-        <p>Zum Hochladen einmal anmelden – mit dem <strong>Gruppen-Code</strong> (oder dem Trainer-Code).
-          Die Anmeldung gilt für die ganze App und wird ein Jahr lang gemerkt.</p>
-        <form id="up-login-form" class="fields">
-          <label class="field">Code
-            <input id="up-code" type="password" autocomplete="current-password" required>
-          </label>
-          <button class="primary block" type="submit">Weiter</button>
-          <p id="up-login-message" class="message" role="status"></p>
-        </form>
-      </section>
 
       <section id="up-main" hidden>
         <p class="signed-in" id="up-signed-in">Angemeldet</p>
@@ -479,7 +464,7 @@
           <button type="button" data-pane="inbox" aria-pressed="true">Eingang <span class="count" id="ad-count"></span></button>
           <button type="button" data-pane="all" aria-pressed="false">Alle</button>
           <button type="button" data-pane="choreos" aria-pressed="false">Choreos</button>
-          <button type="button" data-pane="tags" aria-pressed="false">Tags</button>
+          <button type="button" data-pane="more" aria-pressed="false">Mehr</button>
         </div>
 
         <div id="ad-videos">
@@ -487,7 +472,7 @@
           <div id="ad-list"></div>
         </div>
         <div id="ad-choreos" hidden></div>
-        <div id="ad-tags" hidden></div>
+        <div id="ad-more" class="more" hidden></div>
       </div>
 
       <div id="ad-bar" class="select-bar" hidden>
@@ -553,6 +538,7 @@
             <button x-show="role" @click="logout()">Abmelden</button>
             <button x-show="!role" class="primary" @click="openLogin()">Anmelden</button>
           </div>
+          <button x-show="role === 'group'" class="acc-switch" @click="openLogin()">Mit Trainer-Code anmelden</button>
 
           <div class="section-title">Choreos</div>
           <template x-for="g in projectGroups" :key="g.key">
@@ -749,6 +735,31 @@
     </div>
   </template>
 
+  <!-- ===== Anmeldebildschirm: die App ist privat (ohne Code nur dieser Bildschirm) ===== -->
+  <template x-if="authChecked && !role">
+    <div class="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+      <form class="gate-card" @submit.prevent="doLogin()">
+        <img src="/icons/icon-192.png" alt="" class="gate-logo" width="72" height="72">
+        <h1 id="gate-title">Formation</h1>
+        <p class="hint">Die App ist nur für die Gruppe. Bitte einmal den <strong>Gruppen-Code</strong> eingeben –
+          das Handy merkt ihn sich ein Jahr lang. Trainer nehmen ihren Trainer-Code.</p>
+        <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name" />
+        <div class="pw-row">
+          <input :type="showPw ? 'text' : 'password'" x-model="loginPassword" placeholder="Code"
+                 autocomplete="current-password" required />
+          <button type="button" class="icon" @click="showPw = !showPw" :aria-label="showPw ? 'Code verbergen' : 'Code anzeigen'">
+              <svg x-show="!showPw" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg x-show="showPw" x-cloak viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
+            </button>
+        </div>
+        <div x-show="loginError" class="gate-error" x-text="loginError"></div>
+        <button type="submit" class="primary" :disabled="!loginPassword || loggingIn"
+                x-text="loggingIn ? 'Anmelden…' : 'Anmelden'"></button>
+        <p class="hint" x-show="!online">Offline – zum ersten Anmelden braucht es Internet.</p>
+      </form>
+    </div>
+  </template>
+
   <!-- ===== Anmelden (Gruppen- oder Trainer-Code) ===== -->
   <template x-if="loginOpen">
     <div>
@@ -756,7 +767,7 @@
       <div class="modal">
         <header><h2>Anmelden</h2><button class="icon" @click="closeLogin()" aria-label="Schließen">✕</button></header>
         <div class="body">
-          <p class="hint">Mit dem <strong>Gruppen-Code</strong> kannst du Videos hochladen, mit dem <strong>Trainer-Code</strong> zusätzlich Choreos bearbeiten. Ansehen &amp; Training gehen ohne Anmeldung. Die Anmeldung wird ein Jahr lang gemerkt.</p>
+          <p class="hint">Mit dem <strong>Gruppen-Code</strong> siehst du alles und kannst Videos hochladen, mit dem <strong>Trainer-Code</strong> zusätzlich bearbeiten und zuordnen. Die Anmeldung wird ein Jahr lang gemerkt.</p>
           <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name"
                  @keydown.enter="doLogin()" style="margin-bottom:8px" />
           <div class="pw-row">

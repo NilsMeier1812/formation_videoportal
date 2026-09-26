@@ -5,7 +5,7 @@ import worker from "../src/index.js";
 const BASE = "https://formation.nils-meier.de";
 const GROUP = { "x-portal-code": "gruppe-test" };
 
-function call(path, { method = "GET", headers = {}, body, envOverrides = {} } = {}) {
+function call(path, { method = "GET", headers = GROUP, body, envOverrides = {} } = {}) {
   const init = { method, headers: { ...headers } };
   if (body !== undefined) {
     init.body = typeof body === "string" ? body : JSON.stringify(body);
@@ -38,7 +38,7 @@ async function videoRow(id) {
 
 describe("Codes", () => {
   it("lehnt Upload ohne Code ab", async () => {
-    const res = await call("/api/videos", { method: "POST", body: { size: 1 } });
+    const res = await call("/api/videos", { method: "POST", headers: {}, body: { size: 1 } });
     expect(res.status).toBe(401);
   });
 
@@ -154,7 +154,7 @@ describe("POST /api/videos/:id/complete", () => {
 
   it("verlangt den Gruppen-Code", async () => {
     const { id } = await started();
-    expect((await call(`/api/videos/${id}/complete`, { method: "POST" })).status).toBe(401);
+    expect((await call(`/api/videos/${id}/complete`, { method: "POST", headers: {} })).status).toBe(401);
   });
 
   it("meldet 409, wenn die Datei nicht angekommen ist", async () => {
@@ -225,7 +225,7 @@ describe("Lesen", () => {
     await call(`/api/videos/${id}/complete`, { method: "POST", headers: GROUP });
 
     const video = await (await call(`/api/videos/${id}`)).json();
-    expect(video.playback_url).toBe(`https://media.formation.nils-meier.de/${key}`);
+    expect(video.playback_url).toBe(`/media/${key}`);
     expect(video.is_processed).toBe(false);
     expect(video).not.toHaveProperty("storage_key");
     expect(video).not.toHaveProperty("processing_attempts");
@@ -243,7 +243,7 @@ describe("Lokale Entwicklungsrouten", () => {
     expect(res.status).toBe(404);
   });
 
-  it("laden hoch und liefern mit Range aus", async () => {
+  it("laden lokal über den Worker hoch", async () => {
     const dev = { DEV_MODE: "1" };
     const { id, upload } = await (await newVideo({}, { envOverrides: dev })).json();
     const put = await worker.fetch(
@@ -251,14 +251,54 @@ describe("Lokale Entwicklungsrouten", () => {
       { ...env, ...dev }
     );
     expect(put.status).toBe(200);
+    expect(await (await env.BUCKET.get((await videoRow(id)).storage_key)).text()).toBe("0123456789");
+  });
+});
 
-    const key = (await videoRow(id)).storage_key;
-    const res = await call(`/api/dev-media/${key}`, {
-      headers: { range: "bytes=2-5" },
-      envOverrides: dev,
-    });
-    expect(res.status).toBe(206);
-    expect(res.headers.get("content-range")).toBe("bytes 2-5/10");
-    expect(await res.text()).toBe("2345");
+describe("Zugangsschutz", () => {
+  it("lässt ohne Anmeldung nur die Anmeldung zu", async () => {
+    for (const path of ["/api/videos", "/api/library", "/api/choreo/projects", "/api/choreo/audio/x.mp3"]) {
+      expect((await call(path, { headers: {} })).status, path).toBe(401);
+    }
+    expect((await call("/api/session", { headers: {} })).status).toBe(200);
+  });
+
+  it("liefert Medien nur Angemeldeten – mit Range und ETag", async () => {
+    await env.BUCKET.put("play/abc.mp4", "0123456789", { httpMetadata: { contentType: "video/mp4" } });
+    expect((await call("/media/play/abc.mp4", { headers: {} })).status).toBe(401);
+
+    const full = await call("/media/play/abc.mp4");
+    expect(full.status).toBe(200);
+    expect(full.headers.get("content-type")).toBe("video/mp4");
+    expect(full.headers.get("cache-control")).toBe("private, max-age=86400");
+    expect(await full.text()).toBe("0123456789");
+
+    const part = await call("/media/play/abc.mp4", { headers: { ...GROUP, range: "bytes=2-5" } });
+    expect(part.status).toBe(206);
+    expect(part.headers.get("content-range")).toBe("bytes 2-5/10");
+    expect(await part.text()).toBe("2345");
+
+    const again = await call("/media/play/abc.mp4", { headers: { ...GROUP, "if-none-match": full.headers.get("etag") } });
+    expect(again.status).toBe(304);
+  });
+
+  it("gibt nur Videos, Abspielfassungen und Bilder heraus", async () => {
+    await env.BUCKET.put("audio/lied.mp3", "x");
+    expect((await call("/media/audio/lied.mp3")).status).toBe(404);
+    expect((await call("/media/play/../audio/lied.mp3")).status).toBe(404);
+    expect((await call("/media/play/fehlt.mp4")).status).toBe(404);
+  });
+
+  it("bremst das Raten von Codes", async () => {
+    let calls = 0;
+    const limiter = { limit: async () => ({ success: ++calls <= 2 }) };
+    const login = () => worker.fetch(new Request(`${BASE}/api/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.7" },
+      body: JSON.stringify({ code: "falsch" }),
+    }), { ...env, LOGIN_LIMIT: limiter });
+    expect((await login()).status).toBe(401);
+    expect((await login()).status).toBe(401);
+    expect((await login()).status).toBe(429);
   });
 });

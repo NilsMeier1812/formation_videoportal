@@ -4,6 +4,12 @@ import { HttpError, json, readJson } from "../lib/http.js";
 
 // POST /api/session { code } → { role } + Cookie
 export async function login(request, env) {
+  // Höchstens 10 Versuche pro Minute und IP (lokal und ohne IP: keine Grenze)
+  const ip = request.headers.get("cf-connecting-ip");
+  if (ip && env.LOGIN_LIMIT && env.DEV_MODE !== "1") {
+    const { success } = await env.LOGIN_LIMIT.limit({ key: ip });
+    if (!success) throw new HttpError(429, "Zu viele Versuche – bitte eine Minute warten");
+  }
   const { code } = await readJson(request);
   const role = await roleForCode(String(code ?? "").trim(), env);
   if (!role) throw new HttpError(401, "Code ist falsch");

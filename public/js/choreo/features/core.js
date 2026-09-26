@@ -171,6 +171,7 @@ export function core() {
         }
       });
 
+      await this.waitForLogin(); // ohne Anmeldung zeigt die App nur den Anmeldebildschirm
       await this.loadProjects();
       if (this.online) repo.processQueue();
 

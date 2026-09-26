@@ -6,7 +6,7 @@ import { api, el, formatDuration, formatTime, icon } from "../api.js";
 import { library } from "../library.js";
 import { router } from "../router.js";
 import { session } from "../session.js";
-import { renderChoreos, renderTags } from "./admin-library.js";
+import { renderChoreos, renderMore } from "./admin-library.js";
 
 const $ = (id) => document.getElementById(id);
 const VIDEO = '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>';
@@ -98,7 +98,8 @@ function item(v) {
   });
   const source = { file: "Dateidatum", manual: "von Hand" }[v.recorded_source];
   const when = hasTime(v) ? formatTime(v.recorded_at) : v.recorded_at ? "Uhrzeit unbekannt" : "Aufnahmezeit unbekannt";
-  const sub = [v.uploaded_by, source].filter(Boolean).join(" · ");
+  const conversion = { pending: "wird umgewandelt", failed: "Umwandlung fehlgeschlagen" }[v.processing];
+  const sub = [v.uploaded_by, source, conversion].filter(Boolean).join(" · ");
   return el("label", { class: `ad-item${selected.has(v.id) ? " selected" : ""}` },
     checkbox,
     el("a", { class: "ad-thumb", href: `/videos/${encodeURIComponent(v.id)}`, "aria-label": "Ansehen" },
@@ -162,10 +163,10 @@ function render() {
   const videoPane = pane === "inbox" || pane === "all";
   $("ad-videos").hidden = !videoPane;
   $("ad-choreos").hidden = pane !== "choreos";
-  $("ad-tags").hidden = pane !== "tags";
+  $("ad-more").hidden = pane !== "more";
   if (videoPane) renderList();
   if (pane === "choreos") renderChoreos($("ad-choreos"), load);
-  if (pane === "tags") renderTags($("ad-tags"), load);
+  if (pane === "more") renderMore($("ad-more"), load);
 
   $("ad-bar").hidden = !videoPane || !selected.size;
   $("ad-selected").textContent = `${selected.size} ausgewählt`;

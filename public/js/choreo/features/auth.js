@@ -5,14 +5,15 @@ import { session } from "/js/session.js";
 
 const ROLE_LABELS = { tagger: "Trainer", group: "Gruppe" };
 const ROLE_HINTS = {
-  tagger: "Choreos bearbeiten und Videos hochladen",
-  group: "Videos hochladen",
+  tagger: "Alles, auch bearbeiten und zuordnen",
+  group: "Ansehen, Training und Videos hochladen",
 };
 
 export function auth() {
   return {
     role: null, // null | 'group' | 'tagger'
     isEditor: false, // darf bearbeiten (Trainer-Code)
+    authChecked: false, // erst danach entscheidet sich, ob der Anmeldebildschirm kommt
     loginOpen: false,
     loginPassword: "",
     loginName: "",
@@ -25,12 +26,26 @@ export function auth() {
       if (!label) return "Nicht angemeldet";
       return this.userName ? `${label} · ${this.userName}` : label;
     },
-    get roleHint() { return ROLE_HINTS[this.role] || "Ansehen und Training gehen ohne Anmeldung"; },
+    get roleHint() { return ROLE_HINTS[this.role] || ""; },
 
     async initAuth() {
       this.applyRole(await session.restore());
+      this.authChecked = true;
       // Anmeldung kann sich auch in einem anderen Bereich ändern (z. B. beim Hochladen)
       window.addEventListener("sessionchange", (e) => this.applyRole(e.detail.role));
+    },
+
+    /** Die App ist privat: Daten gibt es erst nach der Anmeldung (Anmeldebildschirm). */
+    waitForLogin() {
+      if (this.role) return Promise.resolve();
+      return new Promise((resolve) => {
+        const onChange = (e) => {
+          if (!e.detail.role) return;
+          window.removeEventListener("sessionchange", onChange);
+          resolve();
+        };
+        window.addEventListener("sessionchange", onChange);
+      });
     },
 
     applyRole(role) {
@@ -58,10 +73,12 @@ export function auth() {
       this.loggingIn = true;
       this.loginError = "";
       try {
+        // Name ist optional; leer = Anzeige „wer bearbeitet“ bleibt leer.
+        // Vor dem Anmelden merken – die anderen Bereiche lesen ihn beim Ereignis „sessionchange“.
+        const name = (this.loginName || "").trim();
+        if (name || !session.getName()) session.setName(name);
         const role = await session.login(code);
-        // Name ist optional; leer = Anzeige „wer bearbeitet“ bleibt leer
-        this.userName = (this.loginName || "").trim();
-        session.setName(this.userName);
+        this.userName = session.getName();
         this.loginPassword = "";
         this.loginName = "";
         this.loginOpen = false;
@@ -79,8 +96,8 @@ export function auth() {
     async logout() {
       // Erst die Sperre freigeben – dafür braucht es die Anmeldung noch
       if (this.currentMode === "editor") await this.exitEditor();
+      this.menuOpen = false; // danach kommt der Anmeldebildschirm
       await session.logout();
-      this.setStatus("Abgemeldet – nur noch Ansehen und Training");
     },
   };
 }

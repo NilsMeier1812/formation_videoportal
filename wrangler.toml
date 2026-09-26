@@ -11,8 +11,8 @@ routes = [{ pattern = "formation.nils-meier.de", custom_domain = true }]
 [assets]
 directory = "./public"
 binding = "ASSETS"
-# API-Pfade immer an den Worker, alles andere zuerst als statische Datei
-run_worker_first = ["/api/*"]
+# API und Medien immer an den Worker, alles andere zuerst als statische Datei
+run_worker_first = ["/api/*", "/media/*"]
 # Die App ist eine Seite: /videos, /upload … (alles ohne eigene Datei) liefert index.html
 not_found_handling = "single-page-application"
 
@@ -30,9 +30,28 @@ jurisdiction = "eu"
 [vars]
 R2_S3_ENDPOINT = "https://527266f78a5c7ffa288f4a9d2c49e842.eu.r2.cloudflarestorage.com"
 BUCKET_NAME = "formation-videos"
-MEDIA_BASE_URL = "https://media.formation.nils-meier.de"
+MEDIA_BASE_URL = "/media"            # Videos/Bilder über den Worker (nur für Angemeldete)
 QUOTA_BYTES = "200000000000"     # 200 GB
 MAX_FILE_BYTES = "5000000000"    # 5 GB
+GH_REPO = "NilsMeier1812/formation_videoportal"  # Umwandlung: .github/workflows/process-video.yml
+APP_URL = "https://formation.nils-meier.de"        # für Links in Mails
+MAIL_FROM = "Formation <formation@nils-meier.de>"  # Absender (Domain muss bei Resend verifiziert sein)
+NOTIFY_FILE_BYTES = "1000000000"                   # Sofortmail ab 1 GB
+
+# Zeitgesteuerte Aufgaben (src/cron.js), Zeiten in UTC:
+#   stündlich: abgebrochene Uploads aufräumen, Umwandlung wiederholen
+#   täglich 03:33: Papierkorb nach 30 Tagen leeren, Originale 7 Tage nach der Umwandlung löschen
+#   montags 06:07: Wochenübersicht per Mail
+[triggers]
+crons = ["17 * * * *", "33 3 * * *", "7 6 * * 1"]
+
+# Schutz gegen Code-Raten: höchstens 10 Anmeldeversuche pro Minute und IP
+[[ratelimits]]
+name = "LOGIN_LIMIT"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
 
 # Secrets (nicht hier eintragen, sondern `npx wrangler secret put <NAME>`):
-#   GROUP_CODE, TAGGER_CODE, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+#   GROUP_CODE, TAGGER_CODE, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+#   GH_TOKEN (Umwandlung anstoßen), CALLBACK_SECRET (Rückmeldung der Umwandlung),
+#   RESEND_API_KEY, MAIL_TO (Empfänger der Admin-Mails)
