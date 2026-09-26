@@ -438,11 +438,15 @@
           </label>
 
           <button id="up-submit" class="primary block" type="submit">Hochladen</button>
-          <p class="muted" style="margin:0;font-size:13px">Aufnahmezeit und Länge liest die App aus dem Video; zugeordnet wird von den Trainern.
-            Während des Uploads Bildschirm anlassen und die App nicht schließen – in andere Bereiche wechseln geht.</p>
+          <p class="muted" style="margin:0;font-size:13px">Aufnahmezeit und Länge liest die App aus dem Video; zugeordnet wird von den Trainern.</p>
           <p id="up-message" class="message" role="status"></p>
         </form>
 
+        <p id="up-stay" class="stay-hint" role="status" hidden>
+          <strong>Bitte in der App bleiben.</strong> In eine andere App wechseln oder den Bildschirm sperren pausiert den Upload –
+          beim Zurückkommen geht es von selbst weiter. Innerhalb der Formation-App wechseln geht.
+        </p>
+        <div id="up-resume" class="card" hidden></div>
         <ul id="up-list" class="uploads"></ul>
       </section>
     </main>
