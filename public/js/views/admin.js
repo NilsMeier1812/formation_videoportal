@@ -10,6 +10,7 @@ import { renderChoreos, renderMore } from "./admin-library.js";
 
 const $ = (id) => document.getElementById(id);
 const VIDEO = '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>';
+const CROSS = '<path d="M18 6 6 18M6 6l12 12"/>';
 const SAME_TAKE_GAP_MS = 5000; // so dicht hintereinander = vermutlich dasselbe gefilmt
 
 let videos = [];
@@ -205,10 +206,42 @@ function openEditor(ids) {
     recorded_at: list.length === 1 ? list[0].recorded_at : null,
     preview: list[0].id,
   };
-  $("ed-title").textContent = list.length === 1 ? "Video zuordnen" : `${list.length} Videos zuordnen`;
+  updateEditorTitle();
   $("ad-editor").hidden = false;
   $("ad-editor").scrollTop = 0;
   buildEditor();
+}
+
+function updateEditorTitle() {
+  const n = editor.ids.length;
+  $("ed-title").textContent = n === 1 ? "Video zuordnen" : `${n} Videos zuordnen`;
+}
+
+/** Ein Video aus der offenen Auswahl nehmen – es bleibt, wo es ist, nur nicht mehr ausgewählt. */
+function dropFromEditor(id) {
+  selected.delete(id);
+  editor.ids = editor.ids.filter((x) => x !== id);
+  render();
+  if (!editor.ids.length) { closeEditor(); return; }
+  if (editor.preview === id) editor.preview = editor.ids[0];
+  if (editor.ids.length === 1) editor.recorded_at = videos.find((v) => v.id === editor.ids[0])?.recorded_at ?? null;
+  updateEditorTitle();
+  buildEditor();
+}
+
+/** Nur das gerade gezeigte Video in den Papierkorb (die übrigen bleiben ausgewählt). */
+async function trashOne(id) {
+  if (!confirm("Nur dieses Video in den Papierkorb legen?")) return;
+  try {
+    await api(`/api/videos/${id}`, { method: "DELETE" });
+  } catch (err) {
+    toast(`Löschen fehlgeschlagen: ${err.message}`);
+    return;
+  }
+  dropFromEditor(id);
+  window.dispatchEvent(new Event("videos-changed"));
+  toast("Im Papierkorb");
+  await load();
 }
 
 function closeEditor() {
@@ -226,22 +259,38 @@ function buildEditor() {
   const list = editorVideos();
   const player = el("video", { controls: true, playsinline: true, preload: "metadata", class: "ed-player" });
   const thumbs = el("div", { class: "ed-thumbs" });
+  const current = el("div", { class: "ed-current" });
   const form = el("div", { class: "fields" });
   const showPreview = (id) => {
     editor.preview = id;
     const v = videos.find((x) => x.id === id);
     player.src = v.playback_url;
     if (v.thumb_url) player.poster = v.thumb_url; else player.removeAttribute("poster");
-    for (const t of thumbs.children) t.setAttribute("aria-pressed", String(t.dataset.id === id));
+    for (const t of thumbs.querySelectorAll(".ed-thumb")) t.setAttribute("aria-pressed", String(t.dataset.id === id));
+    if (list.length > 1) {
+      const n = list.findIndex((x) => x.id === id) + 1;
+      current.replaceChildren(
+        el("span", { class: "muted small" }, `Video ${n} von ${list.length}`),
+        el("button", { type: "button", class: "small-btn", onclick: () => dropFromEditor(id) }, icon(CROSS, 16), "Abwählen"),
+        el("button", { type: "button", class: "small-btn danger", onclick: () => trashOne(id) }, "In den Papierkorb"),
+      );
+    }
   };
   if (list.length > 1) {
-    thumbs.append(...list.map((v) => el("button", {
-      type: "button", class: "ed-thumb", "data-id": v.id, onclick: () => showPreview(v.id),
-      "aria-label": `Video ${formatTime(v.recorded_at) || ""}`,
-    }, v.thumb_url ? el("img", { src: v.thumb_url, alt: "" }) : icon(VIDEO, 18),
-       el("span", {}, formatTime(v.recorded_at).slice(0, 5) || "?"))));
+    // Jedes Bildchen: antippen = ansehen, × = aus der Auswahl nehmen
+    thumbs.append(...list.map((v) => el("div", { class: "ed-thumb-wrap" },
+      el("button", {
+        type: "button", class: "ed-thumb", "data-id": v.id, onclick: () => showPreview(v.id),
+        "aria-label": `Video ${formatTime(v.recorded_at) || ""} ansehen`,
+      }, v.thumb_url ? el("img", { src: v.thumb_url, alt: "" }) : icon(VIDEO, 18),
+         el("span", {}, formatTime(v.recorded_at).slice(0, 5) || "?")),
+      el("button", {
+        type: "button", class: "ed-drop", title: "Abwählen", "aria-label": `Video ${formatTime(v.recorded_at) || ""} abwählen`,
+        onclick: () => dropFromEditor(v.id),
+      }, icon(CROSS, 14)),
+    )));
   }
-  $("ed-body").replaceChildren(player, thumbs, form);
+  $("ed-body").replaceChildren(player, thumbs, current, form);
   editor.form = form;
   showPreview(editor.preview);
   renderForm(form);

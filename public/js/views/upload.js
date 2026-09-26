@@ -1,5 +1,7 @@
 // Hochladen: angemeldet (Gruppen- oder Trainer-Code) direkt nach R2.
-// Ein laufender Upload geht weiter, während man in andere Bereiche wechselt.
+// Ein laufender Upload geht weiter, während man in andere Bereiche wechselt. Im
+// Hintergrund (andere App) pausiert er und läuft beim Zurückkommen von selbst weiter;
+// hängt etwas, gibt es „Erneut versuchen“ – mit derselben Datei, ohne neu auszuwählen.
 // Große Videos gehen in Teilen (lib/multipart-upload.js): Abbrüche kosten nur einen
 // Teil, und nach erneuter Auswahl derselben Datei geht es an der Stelle weiter.
 // Mehr als die Datei braucht es nicht: Aufnahmezeit und Länge kommen aus den
@@ -7,14 +9,17 @@
 // von den Trainern (Reiter „Zuordnen“).
 import { api, ApiError, el, formatBytes, formatDateTime } from "../api.js";
 import { blobReader, readVideoMeta } from "../lib/mp4meta.js";
-import { dropResume, loadResume, saveResume, uploadInParts } from "../lib/multipart-upload.js";
+import {
+  dropResume, dropResumeKey, fingerprint, loadResume, pendingResumes, saveResume,
+  sendBlob, uploadControl, uploadInParts, withRetries,
+} from "../lib/multipart-upload.js";
 import { makeThumbnail } from "../lib/thumbnail.js";
 import { session } from "../session.js";
 
 const $ = (id) => document.getElementById(id);
 const ROLE_NAMES = { group: "mit Gruppen-Code", tagger: "als Trainer" };
 
-let busy = false;
+let active = 0; // laufende Uploads (auch einzeln wiederholte)
 let wakeLock = null;
 
 // ---------------- Anmeldung ----------------
@@ -37,6 +42,7 @@ function onFilesChanged() {
     ? `${files.length} ${files.length === 1 ? "Video" : "Videos"} ausgewählt`
     : "Videos auswählen";
   $("up-drop-sub").textContent = files.length ? `${formatBytes(size)} · tippen zum Ändern` : "Mehrere auf einmal gehen";
+  renderResumes();
 }
 
 // Bildschirm anlassen, solange hochgeladen wird (sonst bricht das iPhone ab)
@@ -44,26 +50,41 @@ async function keepAwake() {
   try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* nicht verfügbar */ }
 }
 
-function setBusy(on) {
-  busy = on;
-  $("up-submit").disabled = on;
+/** Zählt laufende Uploads; beim ersten an, beim letzten aus (Knopf, Punkt am Reiter, Hinweis, Bildschirm). */
+async function setBusy(on) {
+  active = Math.max(0, active + (on ? 1 : -1));
+  const busy = active > 0;
+  $("up-submit").disabled = busy;
+  $("up-stay").hidden = !busy;
   // Punkt am Reiter „Hochladen“, solange etwas läuft – auch aus anderen Bereichen sichtbar
-  document.querySelector('.bottom-nav [data-tab="upload"]')?.classList.toggle("busy", on);
+  document.querySelector('.bottom-nav [data-tab="upload"]')?.classList.toggle("busy", busy);
+  if (on && active === 1) await keepAwake();
+  if (!busy) {
+    await wakeLock?.release().catch(() => {});
+    wakeLock = null;
+    renderResumes();
+  }
 }
 
-function putFile(upload, file, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(upload.method, upload.url);
-    for (const [name, value] of Object.entries(upload.headers)) xhr.setRequestHeader(name, value);
-    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
-    xhr.onload = () =>
-      xhr.status >= 200 && xhr.status < 300
-        ? resolve()
-        : reject(new Error(`Speicher antwortet mit ${xhr.status}`));
-    xhr.onerror = () => reject(new Error("Verbindung abgebrochen"));
-    xhr.send(file);
-  });
+/** Unterbrochene Uploads aus einem früheren Besuch: dieselbe Datei nochmal wählen. */
+function renderResumes() {
+  const box = $("up-resume");
+  const chosen = new Set([...$("up-files").files].map(fingerprint));
+  const list = active ? [] : pendingResumes().filter((r) => !chosen.has(r.key));
+  box.hidden = !list.length;
+  if (!list.length) return;
+  box.replaceChildren(
+    el("div", { class: "section-title first" }, "Nicht fertig hochgeladen"),
+    el("p", { class: "muted small" }, "Dieselbe Datei oben noch einmal auswählen und „Hochladen“ tippen – es geht an der Stelle weiter."),
+    ...list.map((r) => el("div", { class: "resume-row" },
+      el("span", { class: "resume-name" }, r.name),
+      el("span", { class: "muted small" }, `${Math.round(r.share * 100)} %`),
+      el("button", {
+        type: "button", class: "link", title: "Nicht mehr fortsetzen",
+        onclick: () => { dropResumeKey(r.key); renderResumes(); },
+      }, "verwerfen"),
+    )),
+  );
 }
 
 /** Manche Kameras schreiben Unsinn (1904, 1970, Zukunft) – das wäre schlimmer als nichts. */
@@ -95,98 +116,160 @@ async function uploadThumb(id, thumb) {
   }).catch(() => {}); // ohne Bild geht es auch
 }
 
-async function uploadOne(file, meta) {
+const STUCK_MS = 15000; // so lange ohne Fortschritt → Knopf „Erneut versuchen“ zeigen
+
+/** Eine Zeile in der Liste; `run()` lädt die Datei hoch (auch erneut, mit derselben Datei). */
+function uploadRow(file, meta) {
   const fill = el("span");
   const state = el("span", { class: "state" }, "wartet …");
   const when = el("span", { class: "when" });
+  const retry = el("button", { type: "button", class: "small-btn retry", hidden: true }, "Erneut versuchen");
   $("up-list").append(
     el("li", { class: "card upload-item" },
       el("span", { class: "name" }, `${file.name} · ${formatBytes(file.size)}`),
       when,
       el("div", { class: "bar" }, fill),
-      state,
+      el("div", { class: "upload-foot" }, state, retry),
     ),
   );
-  const progress = (p) => { fill.style.width = `${Math.round(p * 100)}%`; };
 
-  try {
-    state.textContent = "startet …";
+  let info = null;
+  let thumb = null;
+  let control = null;
+  let lastMove = Date.now();
+  let running = false;
+
+  const setState = (text, cls = "") => { state.textContent = text; state.className = `state ${cls}`.trim(); };
+  const progress = (p) => { fill.style.width = `${Math.round(p * 100)}%`; };
+  const onProgress = (p) => {
+    lastMove = Date.now();
+    retry.hidden = true;
+    progress(p);
+    setState(`${Math.round(p * 100)} %`);
+  };
+  const onRetry = () => {
+    retry.hidden = false;
+    setState(document.visibilityState === "visible"
+      ? "Verbindung weg – versuche es gleich wieder …"
+      : "pausiert – geht weiter, sobald die App wieder offen ist");
+  };
+  // Hängt es sichtbar (kein Fortschritt), darf man selbst anstoßen
+  const watch = setInterval(() => {
+    if (running && document.visibilityState === "visible" && Date.now() - lastMove > STUCK_MS) retry.hidden = false;
+  }, 3000);
+  document.addEventListener("visibilitychange", () => {
+    if (running && document.visibilityState === "visible") { lastMove = Date.now(); setState("geht weiter …"); }
+  });
+
+  retry.addEventListener("click", () => {
+    retry.hidden = true;
+    lastMove = Date.now();
+    if (running) { setState("neu gestartet …"); control.kick(); } else run();
+  });
+
+  const create = () => api("/api/videos", {
+    method: "POST",
+    body: { ...meta, ...info, filename: file.name, size: file.size, content_type: file.type },
+  });
+  const startParts = (created) => {
+    const entry = { id: created.id, partSize: created.upload.part_size, total: created.upload.parts, parts: {} };
+    saveResume(file, entry);
+    return entry;
+  };
+
+  async function upload() {
+    setState("startet …");
     // Vorschaubild parallel zum Hochladen erzeugen (aus der lokalen Datei)
-    const thumb = makeThumbnail(file);
-    const info = await recordingInfo(file);
-    if (info.duration_s == null) info.duration_s = (await thumb).duration;
+    thumb ??= makeThumbnail(file);
+    if (!info) {
+      info = await recordingInfo(file);
+      if (info.duration_s == null) info.duration_s = (await thumb).duration;
+    }
     when.textContent = info.recorded_at
       ? `aufgenommen ${formatDateTime(info.recorded_at)}${info.recorded_source === "file" ? " (Dateidatum)" : ""}`
       : "Aufnahmezeit unbekannt";
-    const onProgress = (p) => {
-      progress(p);
-      state.textContent = `${Math.round(p * 100)} %`;
-    };
-    const create = () => api("/api/videos", {
-      method: "POST",
-      body: { ...meta, ...info, filename: file.name, size: file.size, content_type: file.type },
-    });
 
     let resume = loadResume(file);
     let id;
     let parts = null;
     if (resume) {
-      state.textContent = "setzt fort …";
+      setState("setzt fort …");
       id = resume.id;
     } else {
       const created = await create();
       id = created.id;
       if (created.upload.multipart) {
-        resume = { id, partSize: created.upload.part_size, total: created.upload.parts, parts: {}, at: Date.now() };
-        saveResume(file, resume);
+        resume = startParts(created);
       } else {
-        await putFile(created.upload, file, onProgress);
+        // kleine Datei am Stück; die Adresse gilt 15 Minuten, danach von vorn
+        await withRetries(() => sendBlob({
+          method: created.upload.method, url: created.upload.url, headers: created.upload.headers,
+          body: file, control, onProgress: (loaded) => onProgress(loaded / file.size),
+        }), { control, onRetry, retries: 4 });
       }
     }
 
     if (resume) {
-      const run = (entry) => uploadInParts({
+      const partsOf = (entry) => uploadInParts({
         id: entry.id, file, partSize: entry.partSize, total: entry.total, parts: entry.parts,
-        onProgress,
+        onProgress, onRetry, control,
         onSaved: (p) => saveResume(file, { ...entry, parts: p }),
-        onRetry: () => { state.textContent = "Verbindung weg – versuche es gleich wieder …"; },
       });
       try {
-        parts = await run(resume);
+        parts = await partsOf(resume);
       } catch (err) {
         // Der Server kennt den Upload nicht mehr (nach 24 h aufgeräumt) → einmal von vorn
-        if (!(err instanceof ApiError && err.status === 404)) {
-          throw new Error(`abgebrochen (${err.message}) – dieselbe Datei später noch einmal auswählen, dann geht es an der Stelle weiter`);
-        }
+        if (!(err instanceof ApiError && err.status === 404)) throw err;
         dropResume(file);
         const created = await create();
         id = created.id;
-        resume = { id, partSize: created.upload.part_size, total: created.upload.parts, parts: {}, at: Date.now() };
-        saveResume(file, resume);
-        parts = await run(resume);
+        parts = await partsOf(startParts(created));
       }
     }
 
-    state.textContent = "wird geprüft …";
-    await api(`/api/videos/${id}/complete`, { method: "POST", body: parts ? { parts } : undefined });
+    setState("wird geprüft …");
+    await withRetries(async () => {
+      try {
+        await api(`/api/videos/${id}/complete`, { method: "POST", body: parts ? { parts } : undefined });
+      } catch (err) {
+        if (err.status) throw err; // echte Antwort des Servers
+        throw Object.assign(err, { retry: true }); // Netz weg → nochmal melden
+      }
+    }, { control, onRetry, retries: 4 });
     dropResume(file);
     await uploadThumb(id, thumb);
-    progress(1);
-    state.textContent = "fertig ✓";
-    state.className = "state ok";
-    return true;
-  } catch (err) {
-    state.textContent = err instanceof ApiError && err.status === 401
-      ? "Fehler: Anmeldung abgelaufen – bitte neu anmelden"
-      : `Fehler: ${err.message}`;
-    state.className = "state error";
-    return false;
   }
+
+  async function run() {
+    running = true;
+    control = uploadControl();
+    lastMove = Date.now();
+    await setBusy(true);
+    try {
+      await upload();
+      progress(1);
+      setState("fertig ✓", "ok");
+      clearInterval(watch);
+      return true;
+    } catch (err) {
+      const resumable = Boolean(loadResume(file));
+      setState(err instanceof ApiError && err.status === 401
+        ? "Fehler: Anmeldung abgelaufen – bitte neu anmelden"
+        : `Fehler: ${err.message}${resumable ? " – „Erneut versuchen“ macht an der Stelle weiter" : ""}`, "error");
+      retry.hidden = false;
+      return false;
+    } finally {
+      running = false;
+      await setBusy(false);
+    }
+  }
+
+  return run;
 }
 
 async function onSubmit(event) {
   event.preventDefault();
-  if (busy) return;
+  if (active) return;
 
   const files = [...$("up-files").files];
   const name = $("up-name").value.trim();
@@ -196,24 +279,20 @@ async function onSubmit(event) {
   session.setName(name);
 
   const meta = { uploaded_by: name };
+  const rows = files.map((file) => uploadRow(file, meta));
 
-  setBusy(true);
-  await keepAwake();
-
+  await setBusy(true); // über die ganze Reihe hinweg
   let ok = 0;
   // Nacheinander: schont die Verbindung in der Halle und hält die Reihenfolge.
-  for (const file of files) {
-    if (await uploadOne(file, meta)) ok++;
+  for (const run of rows) {
+    if (await run()) ok++;
   }
-
-  setBusy(false);
-  await wakeLock?.release().catch(() => {});
-  wakeLock = null;
+  await setBusy(false);
 
   const all = ok === files.length;
   message.textContent = all
     ? `${ok} ${ok === 1 ? "Video" : "Videos"} hochgeladen.`
-    : `${ok} von ${files.length} hochgeladen – die fehlgeschlagenen bitte noch einmal auswählen.`;
+    : `${ok} von ${files.length} hochgeladen – bei den anderen „Erneut versuchen“ tippen.`;
   message.className = all ? "message ok" : "message error";
   if (all) {
     $("up-files").value = "";
@@ -228,16 +307,17 @@ export const uploadView = {
     $("up-name").value = session.getName();
 
     window.addEventListener("beforeunload", (event) => {
-      if (busy) event.preventDefault();
+      if (active) event.preventDefault();
     });
     document.addEventListener("visibilitychange", () => {
-      if (busy && document.visibilityState === "visible") keepAwake();
+      if (active && document.visibilityState === "visible") keepAwake();
     });
     window.addEventListener("sessionchange", showSection);
     session.restore().then(showSection);
   },
   show() {
     if (!$("up-name").value) $("up-name").value = session.getName();
+    renderResumes();
   },
   hide() {},
 };
