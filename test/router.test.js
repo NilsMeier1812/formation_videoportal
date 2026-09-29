@@ -9,7 +9,7 @@ describe("Adresse → Bereich", () => {
     expect(at("/videos")).toEqual({ view: "videos", path: "/videos" });
     expect(at("/videos/")).toEqual({ view: "videos", path: "/videos" });
     expect(at("/upload")).toEqual({ view: "upload", path: "/upload" });
-    expect(at("/zuordnen")).toEqual({ view: "admin", path: "/zuordnen" });
+    expect(at("/verwalten")).toEqual({ view: "admin", path: "/verwalten" });
     expect(at("/videos/abc-123")).toEqual({ view: "player", id: "abc-123", path: "/videos/abc-123" });
   });
 
@@ -21,6 +21,7 @@ describe("Adresse → Bereich", () => {
     expect(at("/video?id=abc-123")).toEqual({ view: "player", id: "abc-123", path: "/videos/abc-123" });
     expect(at("/video.html?id=abc-123").path).toBe("/videos/abc-123");
     expect(at("/video")).toEqual({ view: "videos", path: "/videos" });
+    expect(at("/zuordnen")).toEqual({ view: "admin", path: "/verwalten" });
   });
 
   it("kodiert IDs sauber", () => {

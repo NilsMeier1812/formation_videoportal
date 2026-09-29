@@ -1,4 +1,4 @@
-// Zuordnen (nur Trainer): neue Videos im Eingang, nach Aufnahmezeit sortiert und
+// Verwalten (nur Trainer): neue Videos im Eingang, nach Aufnahmezeit sortiert und
 // zu „gleichzeitig gefilmt“ gruppiert. Eines oder mehrere auswählen → Choreo,
 // Tänze, Tags und die Stelle in der Musik (von–bis, gewählt im Planer) festlegen.
 // Außerdem: Choreos/Tänze/Audios und Tags verwalten (admin-library.js).
@@ -455,10 +455,17 @@ export const adminView = {
     $("ed-close").addEventListener("click", closeEditor);
 
     window.addEventListener("sessionchange", () => { render(); if (session.isTrainer) load(); });
+    // Audios angelegt/dupliziert/gelöscht (Dialoge des Planers) → Choreos neu zeichnen
+    window.addEventListener("librarychange", () => { if (pane === "choreos" && session.isTrainer) renderChoreos($("ad-choreos"), load); });
     window.addEventListener("range-picked", ({ detail }) => {
       if (!editor) return;
       editor.audio = { project_id: detail.projectId, start_s: detail.start, end_s: detail.end };
       editor.audio_choice = detail.projectId;
+      // Tänze aus den Abschnitten der Musik übernehmen (bleiben änderbar)
+      if (detail.danceIds) {
+        editor.dance_ids = new Set(detail.danceIds);
+        if (detail.danceIds.length) toast(`Tanz aus der Musik: ${detail.danceIds.map((id) => library.dance(id)?.name).filter(Boolean).join(" & ")}`);
+      }
       renderForm(editor.form);
     });
     // Aus dem Player: „Zuordnung bearbeiten“

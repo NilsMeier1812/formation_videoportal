@@ -30,7 +30,7 @@ scripts/             vendor.mjs, Übernahme aus Supabase (migrate-from-supabase.
 | `/videos` | Videothek | `/` |
 | `/videos/<id>` | Player | `/video?id=<id>` |
 | `/upload` | Hochladen | `/upload` |
-| `/zuordnen` | Zuordnen (nur Trainer) | – |
+| `/verwalten` | Verwalten (nur Trainer) | `/zuordnen` |
 
 Alte Adressen (geteilte Links, installierte App) funktionieren weiter und werden umgeschrieben.
 
@@ -52,29 +52,31 @@ API unter `/api/choreo/…`. Übernahme der alten Daten aus Supabase: siehe `doc
 ```
 Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
  ├─ Tänze    (z. B. Standard, Latein)
- ├─ Audios   (= Planer-Projekte; jede mit einem oder mehreren Tänzen)
+ ├─ Audios   (= Planer-Projekte; Abschnitte von–bis mit Tanz – oder keinem, z. B. Intro –, BPM, Taktart)
  └─ Videos   (je Video: eine Choreo, mehrere Tänze, mehrere Tags, Stelle von–bis in einer Audio)
 ```
 
 **Videos:**
 - **Hochladen:** nur Datei(en) und optional der Name. Aufnahmezeit und Länge liest der Browser aus den
   Metadaten (MP4/MOV; sonst Dateidatum), das Vorschaubild erzeugt er selbst. Neue Videos landen im Eingang.
-- **Zuordnen** (Reiter nur für Trainer, mit Zahl der neuen Videos): Eingang nach Tag und Uhrzeit, Videos mit
+- **Verwalten** (Reiter nur für Trainer, mit Zahl der neuen Videos): Eingang nach Tag und Uhrzeit, Videos mit
   überlappender Aufnahmezeit als „gleichzeitig gefilmt“ gruppiert. Eines oder mehrere wählen → Choreo, Tänze,
   Tags und die **Stelle in der Musik**: Der Planer öffnet sich mit „Stelle wählen“, das Video läuft mit,
-  Start und Ende werden auf die Position gesetzt. Außerdem Choreos (Tänze, Audios, Hauptaudio) und Tags verwalten,
-  Videos in den Papierkorb legen. **Projekt & Takt** einer Audio (Titel, privat, Tempo-Abschnitte) öffnet sich
+  Start und Ende werden auf die Position gesetzt; die **Tänze kommen dabei aus den Abschnitten** der Musik
+  (änderbar). Einzelne Videos lassen sich aus der Auswahl nehmen. Außerdem Choreos (Tänze, Hauptaudio) und
+  Tags verwalten, **Audios hochladen, duplizieren und löschen** (Löschen mit Trainer-Code), Videos in den
+  Papierkorb legen. **Tänze & Takt** einer Audio (Titel, privat, Abschnitte mit Tanz, BPM, Taktart) öffnet sich
   von hier aus im Planer, weil das Einstellen des Takts Welle und Raster braucht; „Fertig“ führt zurück.
 - **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
   erst im Player) und die **Videothek** mit Suche und Filtern (Choreo, Tanz, Tag). Im Player: „In der Musik
-  zeigen“ und für Trainer „Zuordnung bearbeiten“.
+  zeigen“ und für Trainer „Zuordnung bearbeiten“; Tempo 0,25–1×, ±1 s und ±1 Bild (am PC auch ← → , .).
 - API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
   `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.
 
 **Videos und Bilder** liefert der Worker unter `/media/<key>` aus (mit Range für das Springen im Video) –
 nur für Angemeldete. Der Bucket selbst ist nicht öffentlich erreichbar.
 
-**Papierkorb und Speicher** (Zuordnen → Mehr): gelöschte Videos 30 Tage zurückholbar, Anzeige des belegten
+**Papierkorb und Speicher** (Verwalten → Mehr): gelöschte Videos 30 Tage zurückholbar, Anzeige des belegten
 Speichers (Deckel `QUOTA_BYTES` = 200 GB, einzelne Datei höchstens `MAX_FILE_BYTES` = 5 GB).
 
 **Umwandlung** (`.github/workflows/process-video.yml`, `scripts/process-video.sh`): nach jedem Upload stößt der
@@ -96,7 +98,7 @@ noch einmal auswählen → es geht an der Stelle weiter.
 **Einrichtung** von Schutz, Umwandlung, Upload in Teilen und E-Mails: [`docs/einrichtung.md`](docs/einrichtung.md).
 
 **Rahmen:** gleiche Kopfzeile in allen Bereichen (☰ oben links, `.appbar` in `shell.css`), untere Navigation
-(Choreo · Videos · Hochladen, für Trainer · Zuordnen), Hell/Dunkel wählbar (im Menü).
+(Choreo · Videos · Hochladen, für Trainer · Verwalten), Hell/Dunkel wählbar (im Menü).
 
 **Planer-Bedienung am PC:** in der Welle kurz klicken = an die Stelle springen, gedrückt halten und ziehen =
 Welle verschieben. Schritt-Anzeige startet mit „123“.

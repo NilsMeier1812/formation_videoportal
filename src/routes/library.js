@@ -2,12 +2,13 @@
 //
 //   Choreo  ── genau eine Hauptaudio (main_project_id)
 //    ├─ Tänze
-//    └─ Audios (= Planer-Projekte), jede mit einem oder mehreren Tänzen
+//    └─ Audios (= Planer-Projekte). Welche Tänze wo in der Musik liegen, steht an den
+//       Tempo-Abschnitten (tempo_sections.dance_id, im Planer unter „Projekt & Takt“).
 //
 // Lesen: für alle (private Audios nur für Trainer). Ändern: nur mit Trainer-Code.
 import { hasRole, requireRole, roleFor } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
-import { idList, optionalText } from "../lib/validate.js";
+import { optionalText } from "../lib/validate.js";
 
 function requiredName(value, field, max = 80) {
   const name = optionalText(value, max, field);
@@ -40,8 +41,11 @@ export async function getLibrary(request, env) {
     env.DB.prepare(
       `SELECT id, title, choreo_id, is_private FROM projects ${trainer ? "" : "WHERE is_private = 0"} ORDER BY title`
     ),
-    env.DB.prepare("SELECT project_id, dance_id FROM project_dances"),
+    env.DB.prepare(
+      "SELECT project_id, dance_id, MIN(start_sec) AS first FROM tempo_sections WHERE dance_id IS NOT NULL GROUP BY project_id, dance_id ORDER BY first"
+    ),
   ]);
+  // Tänze einer Audio in der Reihenfolge, in der sie in der Musik vorkommen
   const dancesOf = (projectId) => links.results.filter((l) => l.project_id === projectId).map((l) => l.dance_id);
   return json({
     choreos: choreos.results.map((c) => ({ ...c, dances: dances.results.filter((d) => d.choreo_id === c.id) })),
@@ -133,9 +137,10 @@ export async function deleteDance(request, env, id) {
 // ---------------- Audios (Planer-Projekte) ----------------
 
 /**
- * PUT /api/audios/:id { choreo_id, dance_ids } – Audio einer Choreo zuordnen.
+ * PUT /api/audios/:id { choreo_id } – Audio einer Choreo zuordnen.
  * Hat die Choreo noch keine Hauptaudio, wird diese es. Wechselt die Audio die Choreo,
- * verliert die alte Choreo sie als Hauptaudio.
+ * verliert die alte Choreo sie als Hauptaudio, und die Abschnitte verlieren Tänze,
+ * die nicht zur neuen Choreo gehören.
  */
 export async function assignAudio(request, env, projectId) {
   await requireRole(request, env, "tagger");
@@ -145,18 +150,14 @@ export async function assignAudio(request, env, projectId) {
 
   const choreoId = body.choreo_id || null;
   if (choreoId && !(await exists(env, "choreos", choreoId))) throw new HttpError(400, "Choreo gibt es nicht");
-  const danceIds = choreoId ? idList(body.dance_ids ?? [], "Tänze") : [];
-  if (danceIds.length) {
-    const { results } = await env.DB.prepare(
-      `SELECT id FROM dances WHERE choreo_id = ? AND id IN (${danceIds.map(() => "?").join(", ")})`
-    ).bind(choreoId, ...danceIds).all();
-    if (results.length !== danceIds.length) throw new HttpError(400, "Tanz gehört nicht zur Choreo");
-  }
 
   const statements = [
     env.DB.prepare("UPDATE projects SET choreo_id = ? WHERE id = ?").bind(choreoId, projectId),
-    env.DB.prepare("DELETE FROM project_dances WHERE project_id = ?").bind(projectId),
-    ...danceIds.map((d) => env.DB.prepare("INSERT INTO project_dances (project_id, dance_id) VALUES (?, ?)").bind(projectId, d)),
+    env.DB.prepare(
+      `UPDATE tempo_sections SET dance_id = NULL
+        WHERE project_id = ? AND dance_id IS NOT NULL
+          AND dance_id NOT IN (SELECT id FROM dances WHERE choreo_id IS ?)`
+    ).bind(projectId, choreoId),
   ];
   if (project.choreo_id && project.choreo_id !== choreoId) {
     statements.push(env.DB.prepare("UPDATE choreos SET main_project_id = NULL WHERE id = ? AND main_project_id = ?")

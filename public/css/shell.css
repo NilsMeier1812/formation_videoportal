@@ -109,7 +109,7 @@ html, body {
 .bottom-nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
 .bottom-nav a[aria-current="page"] .nav-icon { background: var(--accent-dim); color: var(--accent); }
 .bottom-nav a:active .nav-icon { background: var(--press); }
-/* Anzahl neuer Videos am Reiter „Zuordnen“ */
+/* Anzahl neuer Videos am Reiter „Verwalten“ */
 .bottom-nav .nav-badge {
   position: absolute; top: -3px; right: 6px;
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;

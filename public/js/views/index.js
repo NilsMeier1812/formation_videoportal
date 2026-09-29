@@ -27,7 +27,7 @@ export function setupViews() {
     showCurrent();
   });
 
-  // Reiter „Zuordnen“ nur für Trainer, mit Zahl der neuen Videos
+  // Reiter „Verwalten“ nur für Trainer, mit Zahl der neuen Videos
   const showAdminTab = () => {
     document.querySelector('.bottom-nav [data-tab="admin"]').hidden = !session.isTrainer;
     refreshInboxBadge();

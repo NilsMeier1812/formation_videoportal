@@ -38,7 +38,7 @@
         <div class="title appbar-title" role="button" tabindex="0" @click="menuOpen = true" @keydown.enter="menuOpen = true" aria-label="Choreo wählen">
           <span x-text="project ? project.title : 'Kein Projekt'"></span>
           <template x-if="activeTempo">
-            <span class="meta" x-text="` · ${activeTempo.bpm} BPM · ${activeTempo.time_signature}`"></span>
+            <span class="meta" x-text="` · ${sectionDanceName(activeTempo) ? sectionDanceName(activeTempo) + ' · ' : ''}${activeTempo.bpm} BPM · ${activeTempo.time_signature}`"></span>
           </template>
           <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </div>
@@ -153,7 +153,7 @@
           </template>
         </div>
 
-        <!-- Tab: Stelle wählen (Admin, aus „Zuordnen“) -->
+        <!-- Tab: Stelle wählen (Admin, aus „Verwalten“) -->
         <div x-show="bottomTab === 'pick'" x-cloak class="tab-pane">
           <template x-if="pick">
             <div>
@@ -403,6 +403,12 @@
             <button type="button" data-rate="0.75" aria-pressed="false">0,75×</button>
             <button type="button" data-rate="1" aria-pressed="true">1×</button>
           </div>
+          <div class="seg" id="pl-steps" role="group" aria-label="Springen">
+            <button type="button" data-step-sec="-1" title="1 Sekunde zurück (←)">−1 s</button>
+            <button type="button" data-step-frame="-1" title="1 Bild zurück (,)">−1 Bild</button>
+            <button type="button" data-step-frame="1" title="1 Bild vor (.)">+1 Bild</button>
+            <button type="button" data-step-sec="1" title="1 Sekunde vor (→)">+1 s</button>
+          </div>
         </div>
 
         <p id="pl-processing" class="notice" hidden></p>
@@ -452,15 +458,15 @@
     </main>
   </section>
 
-  <!-- ============================ Zuordnen (nur Trainer) ============================ -->
+  <!-- ============================ Verwalten (nur Trainer) ============================ -->
   <section class="view vpage" data-view="admin" x-ignore>
     <header class="appbar">
       <button class="menu-btn" type="button" data-open-menu aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-      <h1 class="appbar-title">Zuordnen</h1>
+      <h1 class="appbar-title">Verwalten</h1>
     </header>
     <main>
       <section id="ad-denied" class="card login-card" hidden>
-        <p>Videos zuordnen und Choreos verwalten können nur Trainer. Im Menü (☰) mit dem <strong>Trainer-Code</strong> anmelden.</p>
+        <p>Videos zuordnen, Choreos und Audios verwalten können nur Trainer. Im Menü (☰) mit dem <strong>Trainer-Code</strong> anmelden.</p>
       </section>
 
       <div id="ad-main" hidden>
@@ -513,9 +519,9 @@
     Hochladen
   </a>
   <!-- nur für Trainer (views/index.js blendet ein) -->
-  <a href="/zuordnen" data-tab="admin" hidden>
+  <a href="/verwalten" data-tab="admin" hidden>
     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span class="nav-badge" id="nav-inbox" hidden></span></span>
-    Zuordnen
+    Verwalten
   </a>
 </nav>
 
@@ -554,8 +560,6 @@
                 <div class="pi-title"><span class="pi-main-mark" x-show="isMainAudio(p)" title="Hauptaudio">★</span><span x-text="p.title"></span></div>
                 <div class="pi-meta" x-text="(audioDances(p) ? audioDances(p) + ' · ' : '') + `${p.bpm} BPM · ${p.time_signature}` + (p.is_private ? ' · privat' : '')"></div>
               </div>
-              <button x-show="isEditor" class="icon" @click.stop="duplicateProject(p)" aria-label="Projekt duplizieren" title="Projekt duplizieren"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-              <button x-show="isEditor" class="icon danger" @click.stop="askDeleteProject(p)" aria-label="Projekt löschen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></button>
             </div>
           </template>
           </div>
@@ -564,52 +568,6 @@
             <div class="empty" style="padding:20px 0" x-text="online ? 'Noch keine Projekte.' : 'Offline – keine zwischengespeicherten Projekte.'"></div>
           </template>
 
-          <template x-if="isEditor"><div>
-          <div class="section-title">Neues Projekt</div>
-          <div class="field">
-            <label>Titel</label>
-            <input type="text" x-model="form.title" placeholder="z.B. Kür 2026" />
-          </div>
-          <div class="field two">
-            <div style="flex:1">
-              <label>BPM</label>
-              <input type="number" min="20" max="400" step="0.01" x-model.number="form.bpm" />
-            </div>
-            <div style="flex:1">
-              <label>Taktart</label>
-              <select x-model="form.time_signature">
-                <option>4/4</option>
-                <option>3/4</option>
-                <option>2/4</option>
-                <option>6/8</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <label>Audio-Datei (MP3 / WAV)</label>
-            <label class="filedrop">
-              <input type="file" accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav" style="display:none" @change="onFilePick($event)" />
-              <template x-if="!form.file"><span>Tippen, um Datei zu wählen</span></template>
-              <template x-if="form.file"><span><strong x-text="form.file.name"></strong><br><span x-text="prettySize(form.file.size)"></span></span></template>
-            </label>
-          </div>
-
-          <template x-if="uploading">
-            <div class="field">
-              <div style="font-size:13px;color:var(--muted)" x-text="`Lade hoch… ${Math.round(uploadProgress*100)}%`"></div>
-              <div class="progress"><div :style="`width:${uploadProgress*100}%`"></div></div>
-              <button style="margin-top:10px;width:100%" class="danger" @click="abortUpload()">Abbrechen</button>
-            </div>
-          </template>
-          <template x-if="uploadError">
-            <div class="field" style="color:var(--danger);font-size:13px" x-text="uploadError"></div>
-          </template>
-
-          <button class="primary" style="width:100%;margin-top:6px"
-                  :disabled="uploading || !form.title || !form.file || !online"
-                  @click="createProject()"
-                  x-text="online ? 'Projekt anlegen & hochladen' : 'Offline – Anlegen nicht möglich'"></button>
-          </div></template>
         </div>
         <div class="drawer-theme">
           <div class="section-title">Darstellung</div>
@@ -639,7 +597,7 @@
       <div class="scrim" @click="closeSettings()"></div>
       <div class="modal modal-lg">
         <header>
-          <h2>Projekt &amp; Takt</h2>
+          <h2>Tänze &amp; Takt</h2>
           <button class="icon" @click="closeSettings()" aria-label="Schließen">✕</button>
         </header>
         <div class="body">
@@ -657,8 +615,8 @@
             </label>
           </div>
 
-          <div class="section-title">Tempo-Abschnitte (Lieder)</div>
-          <p class="hint">Mehrere Lieder/Tempi in einer Audiodatei: pro Abschnitt Start/Ende, BPM, Taktart und Raster-Start. Abschnitte dürfen sich nicht überlappen. „Ende" leer = bis zum Schluss.</p>
+          <div class="section-title">Abschnitte (Tänze &amp; Tempo)</div>
+          <p class="hint">Pro Abschnitt: von–bis, welcher Tanz (oder keiner, z. B. Intro), BPM, Taktart und Raster-Start. Ein Tanz darf mehrere Abschnitte haben, wenn sich das Tempo ändert. Abschnitte dürfen sich nicht überlappen. „Ende" leer = bis zum Schluss.</p>
 
           <template x-for="sec in sortedTempo" :key="sec.id">
             <div class="tempo-card">
@@ -666,6 +624,16 @@
                 <input class="tc-label" type="text" :value="sec.label || ''" placeholder="Abschnitt-Name"
                        @input="patchTempo(sec, { label: $event.target.value })" />
                 <button class="icon danger" x-show="sortedTempo.length > 1" @click="deleteTempoSection(sec)" aria-label="Abschnitt löschen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></button>
+              </div>
+
+              <div class="field" style="margin-bottom:8px">
+                <label>Tanz</label>
+                <select class="tc-dance" :disabled="!projectDances.length" @change="setSectionDance(sec, $event.target.value)">
+                  <option value="" :selected="!sec.dance_id" x-text="projectDances.length ? '– kein Tanz (z. B. Intro) –' : 'Audio erst einer Choreo zuordnen'"></option>
+                  <template x-for="d in projectDances" :key="d.id">
+                    <option :value="d.id" :selected="sec.dance_id === d.id" x-text="d.name"></option>
+                  </template>
+                </select>
               </div>
 
               <div class="field two" style="margin-bottom:8px">
@@ -791,14 +759,71 @@
     </div>
   </template>
 
+  <!-- ===== Neue Audio (aus „Verwalten → Choreos“) ===== -->
+  <template x-if="newAudioOpen">
+    <div>
+      <div class="scrim" @click="!uploading && closeNewAudio()"></div>
+      <div class="modal">
+        <header><h2>Neue Audio</h2><button class="icon" @click="closeNewAudio()" :disabled="uploading" aria-label="Schließen">✕</button></header>
+        <div class="body">
+          <p class="hint" x-show="newAudioChoreoTitle" x-text="`Kommt in die Choreo „${newAudioChoreoTitle}“.`"></p>
+          <div class="field">
+            <label>Titel</label>
+            <input type="text" x-model="form.title" placeholder="z.B. Kür 2026" />
+          </div>
+          <div class="field two">
+            <div style="flex:1">
+              <label>BPM</label>
+              <input type="number" min="20" max="400" step="0.01" x-model.number="form.bpm" />
+            </div>
+            <div style="flex:1">
+              <label>Taktart</label>
+              <select x-model="form.time_signature">
+                <option>4/4</option>
+                <option>3/4</option>
+                <option>2/4</option>
+                <option>6/8</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Audio-Datei (MP3 / WAV)</label>
+            <label class="filedrop">
+              <input type="file" accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav" style="display:none" @change="onFilePick($event)" />
+              <template x-if="!form.file"><span>Tippen, um Datei zu wählen</span></template>
+              <template x-if="form.file"><span><strong x-text="form.file.name"></strong><br><span x-text="prettySize(form.file.size)"></span></span></template>
+            </label>
+          </div>
+          <p class="hint">Tänze, BPM und Taktart je Abschnitt stellst du danach unter „Tänze &amp; Takt“ ein.</p>
+
+          <template x-if="uploading">
+            <div class="field">
+              <div style="font-size:13px;color:var(--muted)" x-text="`Lade hoch… ${Math.round(uploadProgress*100)}%`"></div>
+              <div class="progress"><div :style="`width:${uploadProgress*100}%`"></div></div>
+              <button style="margin-top:10px;width:100%" class="danger" @click="abortUpload()">Abbrechen</button>
+            </div>
+          </template>
+          <template x-if="uploadError">
+            <div class="field" style="color:var(--danger);font-size:13px" x-text="uploadError"></div>
+          </template>
+
+          <button class="primary" style="width:100%;margin-top:6px"
+                  :disabled="uploading || !form.title || !form.file || !online"
+                  @click="createProject()"
+                  x-text="online ? 'Anlegen & hochladen' : 'Offline – Anlegen nicht möglich'"></button>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <!-- ===== Projekt löschen: Bestätigung mit Trainer-Code ===== -->
   <template x-if="deleteTarget">
     <div>
       <div class="scrim" @click="cancelDeleteProject()"></div>
       <div class="modal">
-        <header><h2>Projekt löschen</h2><button class="icon" @click="cancelDeleteProject()" aria-label="Schließen">✕</button></header>
+        <header><h2>Audio löschen</h2><button class="icon" @click="cancelDeleteProject()" aria-label="Schließen">✕</button></header>
         <div class="body">
-          <p class="hint">Projekt „<strong x-text="deleteTarget.title"></strong>" und alle Schritte, Gruppen &amp; Sprungmarken werden gelöscht. Zum Bestätigen bitte den <strong>Trainer-Code</strong> eingeben.</p>
+          <p class="hint">Audio „<strong x-text="deleteTarget.title"></strong>" samt Schritten, Abschnitten, Gruppen &amp; Sprungmarken wird gelöscht. Videos bleiben, verlieren aber ihre Stelle in dieser Musik. Zum Bestätigen bitte den <strong>Trainer-Code</strong> eingeben.</p>
           <div class="pw-row">
             <input :type="showDelPw ? 'text' : 'password'" x-model="deletePassword" placeholder="Trainer-Code"
                    autocomplete="current-password" @keydown.enter="doDeleteProject()" />

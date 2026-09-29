@@ -6,7 +6,7 @@
 // Teil, und nach erneuter Auswahl derselben Datei geht es an der Stelle weiter.
 // Mehr als die Datei braucht es nicht: Aufnahmezeit und Länge kommen aus den
 // Metadaten des Videos, ein Vorschaubild erzeugt der Browser; zugeordnet wird
-// von den Trainern (Reiter „Zuordnen“).
+// von den Trainern (Reiter „Verwalten“).
 import { api, ApiError, el, formatBytes, formatDateTime } from "../api.js";
 import { blobReader, readVideoMeta } from "../lib/mp4meta.js";
 import {

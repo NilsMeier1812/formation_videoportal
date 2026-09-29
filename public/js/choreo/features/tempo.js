@@ -39,6 +39,7 @@ export function tempo() {
         id: uuid(), project_id: this.project.id,
         sort_index: this.tempoSections.length,
         label: "Lied " + (this.tempoSections.length + 1),
+        dance_id: null,
         start_sec: round3(start), end_sec: null,
         bpm: last ? Number(last.bpm) : 120,
         time_signature: last ? last.time_signature : "4/4",
@@ -66,6 +67,34 @@ export function tempo() {
       this.tempoSections = this.tempoSections.filter((s) => s.id !== section.id);
       this.scheduleDraw();
       repo.remove("tempo_sections", section);
+    },
+
+    /** Tanz eines Abschnitts; heißt der Abschnitt noch „Lied N“ (oder nichts), bekommt er den Namen des Tanzes. */
+    setSectionDance(section, danceId) {
+      const changes = { dance_id: danceId || null };
+      const name = this.projectDances.find((d) => d.id === danceId)?.name;
+      if (name && (!section.label || /^Lied \d+$/.test(section.label))) changes.label = name;
+      this.patchTempo(section, changes);
+    },
+    sectionDanceName(section) {
+      return section?.dance_id ? this.projectDances.find((d) => d.id === section.dance_id)?.name || "" : "";
+    },
+    /**
+     * Tänze, die ein Zeitraum berührt (für die Zuordnung eines Videos) – nur Abschnitte,
+     * mit denen er sich nennenswert überschneidet. null, wenn die Audio keine Tänze kennt.
+     */
+    dancesInRange(start, end) {
+      const sections = this.sortedTempo;
+      if (!sections.some((s) => s.dance_id)) return null;
+      const minOverlap = Math.min(1, (end - start) * 0.25);
+      const ids = [];
+      for (const s of sections) {
+        const from = Number(s.start_sec) || 0;
+        const to = s.end_sec == null ? Infinity : Number(s.end_sec);
+        const overlap = Math.min(end, to) - Math.max(start, from);
+        if (s.dance_id && overlap >= minOverlap && !ids.includes(s.dance_id)) ids.push(s.dance_id);
+      }
+      return ids;
     },
 
     setTimeSig(section, value) { this.patchTempo(section, { time_signature: value }); },

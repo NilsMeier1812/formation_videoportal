@@ -1,5 +1,7 @@
 // Admin: Choreos (mit Tänzen, Audios und Hauptaudio) und Tags verwalten.
 // Jede Änderung geht sofort an den Server; danach wird neu geladen (reload).
+// Audios anlegen, duplizieren und löschen erledigt der Planer (Dialoge, Upload der
+// Musik) – hier werden nur die Ereignisse dafür ausgelöst.
 import { api, el, icon } from "../api.js";
 import { library } from "../library.js";
 import { router } from "../router.js";
@@ -7,6 +9,8 @@ import { router } from "../router.js";
 const TRASH = '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>';
 const GEAR = '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>';
 const CROSS = '<path d="M18 6 6 18M6 6l12 12"/>';
+const COPY = '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+const UPLOAD = '<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>';
 const STAR = '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>';
 
 function toast(message) {
@@ -53,7 +57,7 @@ function addForm(placeholder, button, onAdd) {
   return form;
 }
 
-/** „Projekt & Takt“: öffnet den Planer mit den Einstellungen dieser Audio (Takt braucht die Welle). */
+/** „Tänze & Takt“: öffnet den Planer mit den Einstellungen dieser Audio (Takt braucht die Welle). */
 function settingsButton(audio) {
   return el("button", {
     type: "button", class: "small-btn",
@@ -61,30 +65,45 @@ function settingsButton(audio) {
       window.dispatchEvent(new CustomEvent("open-project-settings", { detail: { projectId: audio.id } }));
       router.navigate("/");
     },
-  }, icon(GEAR, 16), "Projekt & Takt");
+  }, icon(GEAR, 16), "Tänze & Takt");
+}
+
+const fire = (name, detail) => window.dispatchEvent(new CustomEvent(name, { detail }));
+
+/** Duplizieren und Löschen einer Audio (Löschen fragt den Trainer-Code ab). */
+function audioTools(audio) {
+  return [
+    el("button", { type: "button", class: "icon-btn", "aria-label": "Duplizieren", title: "Duplizieren",
+      onclick: () => fire("duplicate-audio", { projectId: audio.id }) }, icon(COPY, 18)),
+    deleteButton("Audio löschen", () => fire("delete-audio", { projectId: audio.id })),
+  ];
+}
+
+function newAudioButton(choreoId) {
+  return el("button", { type: "button", class: "small-btn", onclick: () => fire("new-audio", { choreoId }) },
+    icon(UPLOAD, 16), "Neue Audio hochladen");
 }
 
 function audioRow(choreo, audio, reload) {
   const isMain = choreo.main_project_id === audio.id;
-  const dances = new Set(audio.dance_ids);
-  const setDances = (next) => change(reload, `/api/audios/${audio.id}`, "PUT", { choreo_id: choreo.id, dance_ids: [...next] });
+  const danceNames = audio.dance_ids.map((id) => library.dance(id)?.name).filter(Boolean);
   return el("div", { class: "lib-audio" },
     el("div", { class: "lib-audio-head" },
+      el("span", { class: "lib-audio-title" }, audio.title + (audio.is_private ? " (privat)" : "")),
+      ...audioTools(audio),
+      deleteButton("Aus der Choreo nehmen", () => change(reload, `/api/audios/${audio.id}`, "PUT", { choreo_id: null }), CROSS),
+    ),
+    el("div", { class: "lib-audio-foot" },
       el("button", {
         type: "button", class: `main-toggle${isMain ? " on" : ""}`, "aria-pressed": String(isMain),
         title: isMain ? "Hauptaudio" : "Zur Hauptaudio machen",
         onclick: () => !isMain && change(reload, `/api/choreos/${choreo.id}`, "PATCH", { main_project_id: audio.id }),
       }, icon(STAR, 16), isMain ? "Hauptaudio" : "Als Hauptaudio"),
-      el("span", { class: "lib-audio-title" }, audio.title + (audio.is_private ? " (privat)" : "")),
-      deleteButton("Aus der Choreo nehmen", () => change(reload, `/api/audios/${audio.id}`, "PUT", { choreo_id: null }), CROSS),
-    ),
-    el("div", { class: "lib-audio-foot" },
-      choreo.dances.length ? el("div", { class: "chips" }, ...choreo.dances.map((d) => el("button", {
-        type: "button", class: "chip-toggle", "aria-pressed": String(dances.has(d.id)),
-        onclick: () => { dances.has(d.id) ? dances.delete(d.id) : dances.add(d.id); setDances(dances); },
-      }, d.name))) : el("span"),
       settingsButton(audio),
     ),
+    el("span", { class: "muted small lib-audio-dances" }, danceNames.length
+      ? `Tänze: ${danceNames.join(" → ")}`
+      : "Noch keine Tänze an den Abschnitten"),
   );
 }
 
@@ -98,7 +117,7 @@ function choreoCard(choreo, reload) {
   );
   addAudio.disabled = !free.length;
   addAudio.addEventListener("change", () => {
-    if (addAudio.value) change(reload, `/api/audios/${addAudio.value}`, "PUT", { choreo_id: choreo.id, dance_ids: choreo.dances.map((d) => d.id) });
+    if (addAudio.value) change(reload, `/api/audios/${addAudio.value}`, "PUT", { choreo_id: choreo.id });
   });
 
   return el("div", { class: "card lib-choreo" },
@@ -120,8 +139,9 @@ function choreoCard(choreo, reload) {
     addForm("Neuer Tanz, z. B. Latein", "Hinzufügen", (name) => change(reload, `/api/choreos/${choreo.id}/dances`, "POST", { name })),
     el("div", { class: "section-title" }, "Audios"),
     audios.length ? null : el("p", { class: "muted small" }, "Noch keine Audio. Die Hauptaudio ist die, in der man die Videos findet."),
+    audios.length ? el("p", { class: "muted small" }, "Wo welcher Tanz in der Musik liegt (und BPM/Taktart), stellst du unter „Tänze & Takt“ ein.") : null,
     ...audios.map((a) => audioRow(choreo, a, reload)),
-    addAudio,
+    el("div", { class: "lib-add-audio" }, addAudio, newAudioButton(choreo.id)),
   );
 }
 
@@ -134,8 +154,9 @@ export function renderChoreos(container, reload) {
       el("div", { class: "section-title first" }, "Neue Choreo"),
       addForm("z. B. Kür 2026", "Anlegen", (title) => change(reload, "/api/choreos", "POST", { title })),
     ),
-    free.length ? el("div", { class: "card" },
-      el("div", { class: "section-title first" }, `Audios ohne Choreo (${free.length})`),
+    el("div", { class: "card lib-free-card" },
+      el("div", { class: "section-title first" }, free.length ? `Audios ohne Choreo (${free.length})` : "Audios ohne Choreo"),
+      free.length ? null : el("p", { class: "muted small" }, "Keine."),
       ...free.map((a) => {
         const select = el("select", { "aria-label": `Choreo für ${a.title}` },
           el("option", { value: "" }, "Choreo wählen …"),
@@ -143,11 +164,14 @@ export function renderChoreos(container, reload) {
         );
         select.addEventListener("change", () => {
           const choreo = library.choreo(select.value);
-          if (choreo) change(reload, `/api/audios/${a.id}`, "PUT", { choreo_id: choreo.id, dance_ids: choreo.dances.map((d) => d.id) });
+          if (choreo) change(reload, `/api/audios/${a.id}`, "PUT", { choreo_id: choreo.id });
         });
-        return el("div", { class: "lib-free" }, el("span", {}, a.title + (a.is_private ? " (privat)" : "")), settingsButton(a), select);
+        return el("div", { class: "lib-free" },
+          el("span", {}, a.title + (a.is_private ? " (privat)" : "")),
+          el("div", { class: "lib-free-tools" }, settingsButton(a), ...audioTools(a), select));
       }),
-    ) : null,
+      newAudioButton(null),
+    ),
   ].filter(Boolean));
 }
 
