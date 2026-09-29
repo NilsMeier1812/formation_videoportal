@@ -70,8 +70,8 @@ export async function sendWeeklySummary(env, now = Date.now()) {
 
   return sendMail(env, {
     subject: `Formation: Woche mit ${st.newCount} neuen Videos` + (st.untagged ? `, ${st.untagged} zum Zuordnen` : ""),
-    text: `${lines.join("\n")}\n\n${appUrl(env)}/zuordnen`,
+    text: `${lines.join("\n")}\n\n${appUrl(env)}/verwalten`,
     html: layout("Wochenübersicht", `<ul style="padding-left:18px">${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>
-      <p><a href="${appUrl(env)}/zuordnen">Zum Zuordnen</a></p>`),
+      <p><a href="${appUrl(env)}/verwalten">Zum Zuordnen</a></p>`),
   });
 }

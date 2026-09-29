@@ -57,15 +57,15 @@ describe("Bibliothek", () => {
   });
 
   it("baut Choreo mit Tänzen und Audios auf; die erste Audio wird Hauptaudio", async () => {
-    const { kuer, std, lat, voll, latein } = await setup();
-    expect((await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer, dance_ids: [std, lat] } })).status).toBe(204);
-    await call(`/api/audios/${latein}`, { method: "PUT", body: { choreo_id: kuer, dance_ids: [lat] } });
+    const { kuer, voll, latein } = await setup();
+    expect((await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer } })).status).toBe(204);
+    await call(`/api/audios/${latein}`, { method: "PUT", body: { choreo_id: kuer } });
 
     const lib = await data(await call("/api/library"));
     const c = lib.choreos.find((x) => x.id === kuer);
     expect(c.main_project_id).toBe(voll);
     expect(c.dances.map((d) => d.name)).toEqual(["Standard", "Latein"]);
-    expect(lib.audios.find((a) => a.id === latein)).toMatchObject({ choreo_id: kuer, dance_ids: [lat] });
+    expect(lib.audios.find((a) => a.id === latein)).toMatchObject({ choreo_id: kuer, dance_ids: [] });
 
     // Hauptaudio wechseln – nur innerhalb der Choreo
     expect((await call(`/api/choreos/${kuer}`, { method: "PATCH", body: { main_project_id: latein } })).status).toBe(204);
@@ -73,12 +73,37 @@ describe("Bibliothek", () => {
     expect((await call(`/api/choreos/${kuer}`, { method: "PATCH", body: { main_project_id: fremd } })).status).toBe(400);
   });
 
-  it("lehnt Tänze einer anderen Choreo an einer Audio ab", async () => {
-    const { kuer, voll } = await setup();
+  it("Tänze einer Audio kommen aus den Tempo-Abschnitten (in Reihenfolge der Musik)", async () => {
+    const { kuer, std, lat, voll } = await setup();
+    await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer } });
+    const section = (start, end, dance_id) => ({ id: uid(), project_id: voll, start_sec: start, end_sec: end, bpm: 120, time_signature: "4/4", offset_sec: 0, dance_id });
+    const rows = [section(0, 4, null), section(4, 60, lat), section(60, 90, std), section(90, null, lat)];
+    expect((await call("/api/choreo/tempo_sections", { method: "POST", body: rows })).status).toBe(201);
+    let lib = await data(await call("/api/library"));
+    expect(lib.audios.find((a) => a.id === voll).dance_ids).toEqual([lat, std]);
+
+    // Tanz ändern per PATCH; unbekannter Tanz geht nicht
+    expect((await call(`/api/choreo/tempo_sections/${rows[2].id}`, { method: "PATCH", body: { dance_id: null } })).status).toBe(204);
+    expect((await call(`/api/choreo/tempo_sections/${rows[2].id}`, { method: "PATCH", body: { dance_id: "gibt-es-nicht" } })).status).toBe(409);
+    lib = await data(await call("/api/library"));
+    expect(lib.audios.find((a) => a.id === voll).dance_ids).toEqual([lat]);
+
+    // Tanz gelöscht → Abschnitte bleiben, ohne Tanz
+    expect((await call(`/api/dances/${lat}`, { method: "DELETE" })).status).toBe(204);
+    const { n } = await env.DB.prepare("SELECT COUNT(*) AS n FROM tempo_sections WHERE project_id = ? AND dance_id IS NULL").bind(voll).first();
+    expect(n).toBe(4);
+  });
+
+  it("Audio wechselt die Choreo → Abschnitte verlieren fremde Tänze", async () => {
+    const { kuer, std, voll } = await setup();
+    await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer } });
+    const id = uid();
+    await call("/api/choreo/tempo_sections", { method: "POST", body: { id, project_id: voll, start_sec: 0, bpm: 120, time_signature: "4/4", offset_sec: 0, dance_id: std } });
+    await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer } }); // gleiche Choreo: bleibt
+    expect((await env.DB.prepare("SELECT dance_id FROM tempo_sections WHERE id = ?").bind(id).first()).dance_id).toBe(std);
     const { id: other } = await data(await call("/api/choreos", { method: "POST", body: { title: "Andere" } }));
-    const { id: fremd } = await data(await call(`/api/choreos/${other}/dances`, { method: "POST", body: { name: "Tanz" } }));
-    const res = await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer, dance_ids: [fremd] } });
-    expect(res.status).toBe(400);
+    await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: other } });
+    expect((await env.DB.prepare("SELECT dance_id FROM tempo_sections WHERE id = ?").bind(id).first()).dance_id).toBeNull();
   });
 
   it("nimmt einer Choreo die Hauptaudio, wenn die Audio woanders hin wechselt", async () => {
@@ -109,7 +134,7 @@ describe("Bibliothek", () => {
 
   it("löscht eine Choreo samt Tänzen; Audios und Videos bleiben", async () => {
     const { kuer, std, voll } = await setup();
-    await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer, dance_ids: [std] } });
+    await call(`/api/audios/${voll}`, { method: "PUT", body: { choreo_id: kuer } });
     await readyVideo(V1);
     await call("/api/videos/assign", { method: "POST", body: { ids: [V1], changes: { choreo_id: kuer, dance_ids: [std] } } });
 
@@ -125,7 +150,7 @@ describe("Videos zuordnen", () => {
   let ids;
   beforeEach(async () => {
     ids = await setup();
-    await call(`/api/audios/${ids.voll}`, { method: "PUT", body: { choreo_id: ids.kuer, dance_ids: [ids.std, ids.lat] } });
+    await call(`/api/audios/${ids.voll}`, { method: "PUT", body: { choreo_id: ids.kuer } });
     await readyVideo(V1);
     await readyVideo(V2, "2026-09-24T10:00:03Z");
   });

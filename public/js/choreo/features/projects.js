@@ -1,15 +1,21 @@
-// Projekte: laden, öffnen, anlegen (mit Audio-Upload), duplizieren, löschen, Einstellungen.
+// Projekte (= Audios): laden, öffnen, anlegen (mit Audio-Upload), duplizieren, löschen,
+// Einstellungen. Anlegen/Duplizieren/Löschen starten aus „Verwalten → Choreos“ (Ereignisse
+// new-audio, duplicate-audio, delete-audio); die Dialoge dafür gehören zum Planer.
 import { AUDIO_EXTENSIONS } from "../config.js";
 import { local, remote, repo } from "../data/index.js";
 import { formatBytes, uuid } from "../lib/util.js";
+import { api } from "/js/api.js";
 import { rt } from "../runtime.js";
+import { library } from "/js/library.js";
 import { router } from "/js/router.js";
 
 const emptyForm = () => ({ title: "", bpm: 120, time_signature: "4/4", file: null });
 
 export function projects() {
   return {
-    // ---- Neues Projekt ----
+    // ---- Neue Audio (= Projekt), aus „Verwalten → Choreos“ ----
+    newAudioOpen: false,
+    newAudioChoreo: null, // Choreo, in die die neue Audio kommt (oder null)
     form: emptyForm(),
     uploading: false,
     uploadProgress: 0,
@@ -74,8 +80,8 @@ export function projects() {
       await this.loadAudio(p);
     },
 
-    // ---- Einstellungen („Projekt & Takt“) ----
-    // Aufgerufen aus dem Bereich „Zuordnen → Choreos“. Das Einstellen des Takts braucht
+    // ---- Einstellungen („Tänze & Takt“) ----
+    // Aufgerufen aus dem Bereich „Verwalten → Choreos“. Das Einstellen des Takts braucht
     // Welle und Raster, deshalb öffnet sich dafür der Planer; „Fertig“ führt zurück.
     openSettings() {
       if (!this.project) return;
@@ -92,10 +98,11 @@ export function projects() {
     },
     closeSettings() {
       this.settingsOpen = false;
+      library.load(true).catch(() => {}); // Tänze der Audio ergeben sich aus den Abschnitten
       if (rt.settingsFromAdmin) {
         rt.settingsFromAdmin = false;
         if (this.isPlaying) rt.ws?.pause();
-        router.back("/zuordnen");
+        router.back("/verwalten");
       }
     },
 
@@ -110,6 +117,25 @@ export function projects() {
     },
 
     // ---- Anlegen ----
+    openNewAudio(choreoId = null) {
+      if (!this.isEditor) return;
+      this.newAudioChoreo = choreoId;
+      this.form = emptyForm();
+      this.uploadError = null;
+      this.newAudioOpen = true;
+    },
+    closeNewAudio() {
+      if (this.uploading) return;
+      this.newAudioOpen = false;
+    },
+    get newAudioChoreoTitle() {
+      return this.libraryData.choreos.find((c) => c.id === this.newAudioChoreo)?.title || "";
+    },
+    /** Audio in dieselbe Choreo wie `choreoId` legen (erste wird Hauptaudio), dann Bibliothek neu laden. */
+    async assignToChoreo(projectId, choreoId) {
+      if (choreoId) await api(`/api/audios/${projectId}`, { method: "PUT", body: { choreo_id: choreoId } });
+      await library.load(true);
+    },
     prettySize(bytes) { return formatBytes(bytes); },
 
     onFilePick(e) {
@@ -158,11 +184,14 @@ export function projects() {
         // Datei gleich lokal ablegen → erstes Öffnen sofort und offline
         await local.putAudio(project.id, file);
 
+        await this.assignToChoreo(project.id, this.newAudioChoreo).catch(() => {});
         this.uploading = false;
         this.form = emptyForm();
+        this.newAudioOpen = false;
         await this.loadProjects();
-        await this.openProject(project);
-        this.setStatus("Projekt angelegt");
+        // Im Planer gleich öffnen; aus „Verwalten“ heraus dort bleiben
+        if (this.appView === "choreo") await this.openProject(project);
+        this.setStatus(`Audio „${project.title}“ angelegt`);
       } catch (e) {
         rt.upload = null;
         this.uploading = false;
@@ -180,7 +209,7 @@ export function projects() {
     // (gleiche audio_url). Beim Löschen eines Projekts bleibt die Musik in R2 liegen.
     async duplicateProject(p) {
       if (!this.isEditor) return;
-      this.setStatus("Dupliziere Projekt…");
+      this.setStatus(`Dupliziere „${p.title}“ …`);
       try {
         const copy = await remote.createProject({
           title: (p.title || "Projekt") + " (Kopie)",
@@ -202,7 +231,7 @@ export function projects() {
             const id = uuid(); tempoIds[s.id] = id;
             return { id, project_id: pid, sort_index: s.sort_index, label: s.label,
               start_sec: s.start_sec, end_sec: s.end_sec, bpm: s.bpm,
-              time_signature: s.time_signature, offset_sec: s.offset_sec };
+              time_signature: s.time_signature, offset_sec: s.offset_sec, dance_id: s.dance_id ?? null };
           }),
           persons: persons.map((x) => ({ id: uuid(), project_id: pid, number: x.number, name: x.name })),
           parts: parts.map((x) => {
@@ -228,8 +257,9 @@ export function projects() {
         const cached = await local.getAudio(p.id);
         if (cached?.blob) await local.putAudio(pid, cached.blob);
 
+        await this.assignToChoreo(pid, library.audio(p.id)?.choreo_id || null).catch(() => {});
         await this.loadProjects();
-        this.setStatus("Projekt dupliziert");
+        this.setStatus(`„${copy.title}“ angelegt`);
       } catch {
         this.setStatus("Duplizieren fehlgeschlagen" + (navigator.onLine ? "" : " (offline?)"));
       }
@@ -270,10 +300,11 @@ export function projects() {
           this.segments = [];
         }
         await this.loadProjects();
+        await library.load(true).catch(() => {});
         this.deleteTarget = null;
         this.deletePassword = "";
         this.deleting = false;
-        this.setStatus("Projekt gelöscht");
+        this.setStatus(`Audio „${p.title}“ gelöscht`);
       } catch {
         this.deleting = false;
         this.deleteError = "Löschen fehlgeschlagen (offline?).";

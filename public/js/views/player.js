@@ -61,7 +61,7 @@ function showAssignment(v) {
       session.isTrainer && el("button", {
         type: "button",
         onclick: () => {
-          router.navigate("/zuordnen");
+          router.navigate("/verwalten");
           window.dispatchEvent(new CustomEvent("edit-videos", { detail: { ids: [v.id] } }));
         },
       }, "Zuordnung bearbeiten"),
@@ -76,6 +76,34 @@ function showProcessing(v) {
   note.textContent = v.processing === "failed"
     ? "Die Umwandlung ist fehlgeschlagen – es läuft die Originaldatei. iPhone-Videos spielen dann nicht überall."
     : "Wird noch umgewandelt (dauert meist wenige Minuten) – bis dahin läuft die Originaldatei. iPhone-Videos spielen auf manchen Geräten erst danach.";
+}
+
+// ---------------- Springen: ±1 s, ±1 Bild ----------------
+// Die Bildrate verrät der Browser nicht; sie wird beim Abspielen aus den Zeitstempeln
+// der gezeigten Bilder geschätzt (bis dahin 30 Bilder/s – typisch für Handys).
+const DEFAULT_FRAME = 1 / 30;
+let frameSec = DEFAULT_FRAME;
+let lastMediaTime = null;
+
+function watchFrames(video) {
+  if (!video.requestVideoFrameCallback) return;
+  const onFrame = (_now, meta) => {
+    const delta = lastMediaTime == null ? 0 : meta.mediaTime - lastMediaTime;
+    // kleinster plausibler Abstand zweier Bilder (120 bis 10 Bilder/s)
+    if (delta > 1 / 125 && delta < 1 / 9 && (frameSec === DEFAULT_FRAME || delta < frameSec - 0.0005)) frameSec = delta;
+    lastMediaTime = meta.mediaTime;
+    video.requestVideoFrameCallback(onFrame);
+  };
+  video.requestVideoFrameCallback(onFrame);
+}
+
+function stepSeconds(video, sec) {
+  const end = Number.isFinite(video.duration) ? video.duration : Infinity;
+  video.currentTime = Math.max(0, Math.min(end, video.currentTime + sec));
+}
+function stepFrames(video, frames) {
+  video.pause(); // Bild für Bild geht nur im Stand
+  stepSeconds(video, frames * frameSec);
 }
 
 function activeRate() {
@@ -129,6 +157,28 @@ export const playerView = {
     }
     // Manche Browser setzen das Tempo beim Laden zurück
     video.addEventListener("loadedmetadata", () => { video.playbackRate = activeRate(); });
+
+    // ±1 s, ±1 Bild – als Knöpfe und am PC mit ← → , .
+    watchFrames(video);
+    video.addEventListener("emptied", () => { frameSec = DEFAULT_FRAME; lastMediaTime = null; });
+    video.addEventListener("seeked", () => { lastMediaTime = null; });
+    for (const button of document.querySelectorAll("#pl-steps [data-step-sec]")) {
+      button.addEventListener("click", () => stepSeconds(video, Number(button.dataset.stepSec)));
+    }
+    for (const button of document.querySelectorAll("#pl-steps [data-step-frame]")) {
+      button.addEventListener("click", () => stepFrames(video, Number(button.dataset.stepFrame)));
+    }
+    document.addEventListener("keydown", (e) => {
+      if (document.body.dataset.view !== "player" || $("pl-box").hidden) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+      const action = {
+        ArrowLeft: () => stepSeconds(video, -1), ArrowRight: () => stepSeconds(video, 1),
+        ",": () => stepFrames(video, -1), ".": () => stepFrames(video, 1),
+      }[e.key];
+      if (!action) return;
+      e.preventDefault(); // sonst springt das Video selbst (Pfeiltasten) zusätzlich
+      action();
+    });
     $("pl-back").addEventListener("click", () => router.back("/videos"));
     window.addEventListener("videos-changed", () => { stale = true; });
   },

@@ -3,7 +3,7 @@
 //   Tab „Videos“      Videos, deren Zeitraum (von–bis) die aktuelle Stelle der Musik
 //                     enthält. Gezeigt werden nur Vorschaubild, Titel und Tags – die
 //                     Videos selbst laden erst, wenn man eines antippt (Player).
-//   „Stelle wählen“   für Admins (Reiter „Zuordnen“): Start und Ende eines Videos in
+//   „Stelle wählen“   für Admins (Reiter „Verwalten“): Start und Ende eines Videos in
 //                     der Musik festlegen. Der Zeitraum erscheint als Fläche in der Welle.
 //
 // Die Choreos/Tänze/Tags kommen aus /js/library.js (auch für das Menü).
@@ -33,6 +33,11 @@ export function videos() {
       window.addEventListener("pick-range", (e) => this.startPick(e.detail));
       window.addEventListener("show-in-choreo", (e) => this.showInChoreo(e.detail));
       window.addEventListener("open-project-settings", (e) => this.openSettingsFor(e.detail.projectId));
+      // Audios verwalten (aus „Verwalten → Choreos“)
+      const audioById = (id) => this.projects.find((x) => x.id === id);
+      window.addEventListener("new-audio", (e) => this.openNewAudio(e.detail?.choreoId || null));
+      window.addEventListener("duplicate-audio", (e) => { const p = audioById(e.detail.projectId); if (p) this.duplicateProject(p); });
+      window.addEventListener("delete-audio", (e) => { const p = audioById(e.detail.projectId); if (p) this.askDeleteProject(p); });
       window.addEventListener("videos-changed", () => { if (this.planVideosLoaded) this.loadPlanVideos(); });
     },
 
@@ -56,6 +61,12 @@ export function videos() {
     },
     isMainAudio(p) {
       return this.libraryData.choreos.some((c) => c.main_project_id === p.id);
+    },
+    /** Tänze der Choreo, zu der die offene Audio gehört (Auswahl an den Abschnitten). */
+    get projectDances() {
+      if (!this.project) return [];
+      const audio = this.libraryData.audios.find((a) => a.id === this.project.id);
+      return this.libraryData.choreos.find((c) => c.id === audio?.choreo_id)?.dances || [];
     },
     /** „Standard & Latein“ – Tänze einer Audio. */
     audioDances(p) {
@@ -193,13 +204,15 @@ export function videos() {
     finishPick(apply) {
       if (apply && this.pickValid) {
         const { projectId, start, end } = this.pick;
-        window.dispatchEvent(new CustomEvent("range-picked", { detail: { projectId, start, end } }));
+        // Tänze aus den Abschnitten dieser Audio (die Zuordnung übernimmt sie, änderbar)
+        const danceIds = this.project?.id === projectId ? this.dancesInRange(start, end) : null;
+        window.dispatchEvent(new CustomEvent("range-picked", { detail: { projectId, start, end, danceIds } }));
       }
       this.pick = null;
       this.bottomTab = "steps";
       this.renderRegions();
       if (this.isPlaying) rt.ws?.pause();
-      router.back("/zuordnen");
+      router.back("/verwalten");
     },
   };
 }

@@ -50,7 +50,7 @@ Der Umsetzungsplan fürs Videoportal (`docs/umsetzungsplan.md`) gilt weiter, wo 
 ```
 Choreo ── genau eine Hauptaudio (choreos.main_project_id)
  ├─ Tänze   (dances)
- ├─ Audios  (projects = Planer-Projekte; project_dances: welche Tänze eine Audio enthält)
+ ├─ Audios  (projects = Planer-Projekte; tempo_sections.dance_id: welcher Tanz wo in der Musik liegt)
  └─ Videos  (video.choreo_id; video_dances; video_tags; audio_project_id + audio_start_s/audio_end_s)
 ```
 
@@ -62,7 +62,8 @@ Choreo ── genau eine Hauptaudio (choreos.main_project_id)
   Aufnahmezeiten (Start bis Start + Länge, 5 s Spielraum), stehen die Videos als „gleichzeitig gefilmt“ zusammen.
 - **Zuordnen:** eines oder mehrere Videos auf einmal (`POST /api/videos/assign`). Die Stelle (von–bis) wird im
   Planer gewählt: Der Admin-Bereich schickt `pick-range`, der Planer öffnet die Audio mit dem Tab „Stelle wählen“
-  und meldet `range-picked` zurück. Die Zeiten beziehen sich auf die gewählte Audio (in der Regel die Hauptaudio);
+  und meldet `range-picked` zurück – mit den Tänzen der Abschnitte, die die Stelle nennenswert berührt
+  (mindestens 1 s bzw. ein Viertel der Stelle). Die Zeiten beziehen sich auf die gewählte Audio (in der Regel die Hauptaudio);
   wird die Audio gelöscht, entfallen sie.
 - **Finden:** Tab „Videos“ im Planer (Videos, deren von–bis die aktuelle Position enthält; ohne Treffer die
   Bereiche mit Videos zum Hinspringen) und die Videothek mit Filtern.

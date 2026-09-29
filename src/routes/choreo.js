@@ -14,7 +14,7 @@ const TABLES = {
     booleans: ["is_private"],
   },
   tempo_sections: {
-    columns: ["project_id", "sort_index", "label", "start_sec", "end_sec", "bpm", "time_signature", "offset_sec", "updated_at"],
+    columns: ["project_id", "sort_index", "label", "start_sec", "end_sec", "bpm", "time_signature", "offset_sec", "dance_id", "updated_at"],
     order: "start_sec",
   },
   choreo_segments: {

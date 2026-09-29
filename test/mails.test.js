@@ -62,7 +62,7 @@ describe("Mails", () => {
     expect(mail.subject).toMatch(/^Formation: Woche mit \d+ neuen Videos/);
     expect(mail.text).toContain("Noch nicht zugeordnet:");
     expect(mail.text).toContain("Speicher:");
-    expect(mail.text).toContain("/zuordnen");
+    expect(mail.text).toContain("/verwalten");
   });
 
   it("schweigt, wenn es nichts zu berichten gibt", async () => {
