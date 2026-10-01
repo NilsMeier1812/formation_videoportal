@@ -358,37 +358,82 @@
 .vpage .ed-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* Choreos & Tags verwalten */
-.vpage .lib-choreo { display: grid; gap: 8px; margin-bottom: 12px; }
-.vpage .lib-choreo .section-title { margin: 10px 0 0; }
-.vpage .lib-head, .vpage .lib-row, .vpage .add-row { display: flex; align-items: center; gap: 8px; }
-.vpage .lib-head input { flex: 1; font-weight: 700; font-size: 17px; }
+.vpage .lib-row, .vpage .add-row { display: flex; align-items: center; gap: 8px; }
 .vpage .lib-row input, .vpage .add-row input { flex: 1; min-width: 0; }
 .vpage .add-row button { flex-shrink: 0; }
-.vpage .lib-audio { display: grid; gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); }
-.vpage .lib-audio-head { display: flex; align-items: center; gap: 8px; }
-.vpage .lib-audio-title { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
-.vpage .main-toggle {
-  flex-shrink: 0; min-height: 32px; padding: 4px 10px; gap: 4px;
-  border-radius: 999px; font-size: 12px; color: var(--muted);
-}
-.vpage .main-toggle.on { background: var(--badge-lock-bg); border-color: transparent; color: var(--badge-lock-text); }
-.vpage .main-toggle svg { display: block; }
-.vpage .lib-audio-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .vpage .small-btn { min-height: 34px; padding: 6px 10px; gap: 6px; font-size: 13px; font-weight: 600; }
 .vpage .small-btn svg { display: block; }
-.vpage .lib-free-card { display: grid; gap: 8px; }
-.vpage .lib-free { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
-.vpage .lib-free > span { font-weight: 600; overflow-wrap: anywhere; }
-.vpage .lib-free-tools, .vpage .lib-add-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.vpage .lib-free-tools select, .vpage .lib-add-audio select { flex: 1; min-width: 150px; width: auto; }
-.vpage .lib-free-card > .small-btn { justify-self: start; }
-.vpage .lib-audio-dances { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: -2px; }
 .vpage .pill {
   display: inline-block; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
   font-size: 12px; font-weight: 600; line-height: 16px; font-variant-numeric: tabular-nums;
   background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
 }
 .vpage .pill.dance { background: var(--accent-dim); border-color: transparent; color: var(--accent); }
+.vpage .pill.private { background: var(--badge-lock-bg); border-color: transparent; color: var(--badge-lock-text); }
+
+/* Choreos: Übersicht → Detail */
+.vpage .lib-page { display: grid; gap: 12px; }
+.vpage .lib-card { display: grid; gap: 8px; padding: 6px 14px; }
+.vpage .lib-card > .section-title { margin: 8px 0 0; }
+.vpage .lib-card > .muted.small { margin: 0; }
+.vpage .lib-card > :last-child { margin-bottom: 8px; }
+.vpage .lib-search { width: 100%; }
+.vpage .lib-list { display: grid; }
+.vpage .lib-empty { padding: 12px 0; margin: 0; }
+
+/* Zeilen (Übersicht und Audios): volle Breite, Trennlinie, Chevron */
+.vpage button.lib-nav, .vpage button.lib-audio-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0;
+  padding: 12px 0; border: none; border-radius: 0; background: none; text-align: left;
+  font: inherit; color: var(--text);
+}
+.vpage .lib-list > * + * { border-top: 1px solid var(--border); }
+.vpage button.lib-nav:active, .vpage button.lib-audio-btn:active { background: var(--press); }
+.vpage .lib-nav-main, .vpage .lib-audio-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.vpage .lib-nav-title { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+.vpage .lib-nav-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vpage .lib-nav-meta { flex-shrink: 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.vpage .lib-nav-free .lib-nav-title { font-weight: 600; color: var(--muted); }
+.vpage .lib-chev { flex-shrink: 0; display: flex; color: var(--muted); transition: transform .15s; }
+.vpage .lib-audio-btn[aria-expanded="true"] .lib-chev { transform: rotate(90deg); }
+
+.vpage .lib-audio-name { display: flex; align-items: center; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
+.vpage .lib-star { display: flex; color: var(--badge-lock-text); }
+.vpage .lib-star svg { fill: currentColor; }
+.vpage .lib-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.vpage .lib-audio2.open { padding-bottom: 12px; }
+.vpage .lib-audio-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vpage .lib-move { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; font-size: 13px; color: var(--muted); }
+.vpage .lib-move select { flex: 1; width: auto; min-width: 0; }
+
+.vpage .lib-add-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
+.vpage .lib-add-audio select { flex: 1; min-width: 150px; width: auto; }
+.vpage .lib-new { padding-top: 12px; padding-bottom: 12px; }
+.vpage .lib-new > .small-btn { justify-self: start; }
+
+.vpage button.lib-back {
+  justify-self: start; min-height: 0; padding: 4px 8px 4px 2px; gap: 2px;
+  border: none; background: none; color: var(--accent); font-size: 15px; font-weight: 600;
+}
+.vpage .lib-title { width: 100%; margin-top: 8px; font-weight: 700; font-size: 18px; }
+
+/* Tänze als Chips, direkt umbenennbar */
+.vpage .dance-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 4px; }
+.vpage .dance-chip {
+  display: inline-flex; align-items: center; gap: 2px; padding: 0 4px 0 2px;
+  border-radius: 999px; background: var(--accent-dim); color: var(--accent);
+}
+.vpage .dance-chip.add { background: var(--panel-2); border: 1px dashed var(--border); color: var(--muted); padding: 0 4px; }
+.vpage .dance-chip input.chip-input {
+  width: auto; min-width: 0; padding: 6px 4px 6px 10px; border: none; background: transparent;
+  color: inherit; font: 600 14px var(--font);
+}
+.vpage .dance-chip input.chip-input:focus { outline: none; }
+.vpage .dance-chip:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.vpage button.chip-x {
+  min-height: 0; width: 26px; height: 26px; padding: 0; border: none; border-radius: 50%;
+  background: none; color: inherit; opacity: .7;
+}
 
 /* Player: Zuordnung */
 .vpage .pl-assign { display: grid; gap: 10px; margin: 0 0 12px; }
