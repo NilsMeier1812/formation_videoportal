@@ -5,6 +5,32 @@ import { beatsPerBar, countInBar, isOffbeat, secondsPerBeat } from "../lib/timel
 import { rt } from "../runtime.js";
 
 const LANE_ROLES = ["herren", "damen", "note"];
+// Höhenanteile der Spuren: Leader ¼, Follower ¼, Notizen ½ (Notizen zweizeilig)
+const LANE_SHARES = [0.25, 0.25, 0.5];
+/** Spuren als [{ role, y0, h }] für eine Gesamthöhe. */
+function laneRows(h) {
+  let y0 = 0;
+  return LANE_ROLES.map((role, i) => {
+    const row = { role, y0, h: h * LANE_SHARES[i] };
+    y0 += row.h;
+    return row;
+  });
+}
+/** Notiz in höchstens zwei Zeilen: bei längerem Text am Leerzeichen nahe der Mitte umbrechen. */
+function noteLines(ctx, text, maxW) {
+  const fit = (line) => {
+    if (ctx.measureText(line).width <= maxW) return line;
+    while (line.length > 1 && ctx.measureText(line + "…").width > maxW) line = line.slice(0, -1);
+    return line + "…";
+  };
+  if (ctx.measureText(text).width <= maxW * 0.6 || !text.includes(" ")) return [fit(text)];
+  const mid = text.length / 2;
+  let cut = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === " " && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
+  }
+  return [fit(text.slice(0, cut)), fit(text.slice(cut + 1))];
+}
 
 /** Farben der Zeichenflächen aus theme.css (Hell/Dunkel). */
 function readPalette() {
@@ -263,10 +289,10 @@ export function canvas() {
       const { startT, pxPerSec } = vp;
       const endT = startT + w / pxPerSec;
       const dur = rt.ws.getDuration() || 0;
-      const laneH = h / 3; // Leader / Follower / Notizen
+      const [lead, follow, notes] = laneRows(h);
 
       // Ohne gewähltes Paar (außerhalb des Editors) nur der Hinweis
-      if (!this.isEditingSteps && !this.myPersonNumber) { this.drawLanePlaceholder(w, laneH); return; }
+      if (!this.isEditingSteps && !this.myPersonNumber) { this.drawLanePlaceholder(w, h); return; }
 
       // schwache Taktlinien zur Ausrichtung mit der Welle
       ctx.strokeStyle = rt.palette.laneGrid;
@@ -281,24 +307,25 @@ export function canvas() {
         });
       }
 
-      this.drawLaneDividers(w, laneH);
-      this.drawLaneSteps("herren", 0, laneH, startT, pxPerSec, endT);
-      this.drawLaneSteps("damen", laneH, laneH, startT, pxPerSec, endT);
-      this.drawNoteLane(2 * laneH, laneH, startT, pxPerSec, endT, dur);
+      this.drawLaneDividers(w, h);
+      this.drawLaneSteps("herren", lead.y0, lead.h, startT, pxPerSec, endT);
+      this.drawLaneSteps("damen", follow.y0, follow.h, startT, pxPerSec, endT);
+      this.drawNoteLane(notes.y0, notes.h, startT, pxPerSec, endT, dur);
     },
 
-    drawLaneDividers(w, laneH) {
+    drawLaneDividers(w, h) {
       const ctx = rt.laneCtx;
       ctx.strokeStyle = rt.palette.laneDivider;
       ctx.lineWidth = 1;
-      for (let i = 1; i < 3; i++) {
-        ctx.beginPath(); ctx.moveTo(0, laneH * i + 0.5); ctx.lineTo(w, laneH * i + 0.5); ctx.stroke();
+      for (const { y0 } of laneRows(h).slice(1)) {
+        const y = Math.round(y0) + 0.5;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
       }
     },
 
-    drawLanePlaceholder(w, laneH) {
+    drawLanePlaceholder(w, h) {
       const ctx = rt.laneCtx;
-      this.drawLaneDividers(w, laneH);
+      this.drawLaneDividers(w, h);
       ctx.save();
       ctx.fillStyle = rt.palette.laneHint;
       ctx.font = "13px -apple-system, sans-serif";
@@ -306,8 +333,8 @@ export function canvas() {
       ctx.textBaseline = "middle";
       const msg = "Bitte unten Paar auswählen";
       const gap = ctx.measureText(msg + "      ").width;
-      for (let i = 0; i < 3; i++) {
-        const cy = i * laneH + laneH / 2;
+      for (const { y0, h: rowH } of laneRows(h)) {
+        const cy = y0 + rowH / 2;
         for (let x = 26; x < w; x += gap) ctx.fillText(msg, x, cy);
       }
       ctx.restore();
@@ -348,7 +375,10 @@ export function canvas() {
       ctx.globalAlpha = 1;
     },
 
-    /** Notizen-Spur (Punkt + Wort, Wort blendet beim Rauszoomen aus) und Abschnittsgrenzen. */
+    /**
+     * Notizen-Spur (Punkt + Text in bis zu zwei Zeilen, Text blendet beim Rauszoomen aus)
+     * und Abschnittsgrenzen.
+     */
     drawNoteLane(y0, laneH, startT, pxPerSec, endT, dur) {
       const ctx = rt.laneCtx;
       const cy = y0 + laneH / 2;
@@ -356,15 +386,28 @@ export function canvas() {
       ctx.textBaseline = "middle";
       ctx.font = "12px -apple-system, sans-serif";
       const showText = pxPerSec >= 30;
+      const lineGap = 14;
+      const maxW = 110; // zweizeilig statt lang in die Breite
+      // sichtbare Notizen von links nach rechts – Text reicht höchstens bis zur nächsten
+      const visible = [];
       for (const { s: step, dim } of this.laneEntries("note")) {
         const pos = this.stepPosition(step);
         if (!pos || pos.t < startT - pos.spb || pos.t > endT + pos.spb) continue;
-        const x = (pos.t - startT) * pxPerSec;
+        visible.push({ step, dim, x: (pos.t - startT) * pxPerSec });
+      }
+      visible.sort((a, b) => a.x - b.x);
+      visible.forEach(({ step, dim, x }, k) => {
+        const next = visible[k + 1];
+        const room = next ? Math.min(maxW, next.x - x - 14) : maxW;
         ctx.globalAlpha = dim ? 0.3 : 1;
         ctx.fillStyle = rt.palette.note;
         ctx.beginPath(); ctx.arc(x, cy, 4, 0, 7); ctx.fill();
-        if (showText && step.value) { ctx.fillStyle = rt.palette.noteText; ctx.fillText(step.value, x + 7, cy); }
-      }
+        if (showText && step.value && room >= 16) {
+          ctx.fillStyle = rt.palette.noteText;
+          const lines = noteLines(ctx, step.value, room);
+          lines.forEach((line, i) => ctx.fillText(line, x + 7, cy + (i - (lines.length - 1) / 2) * lineGap));
+        }
+      });
       ctx.globalAlpha = 1;
 
       // Abschnittsgrenzen: dezente Linie an der Unterkante + Dreiecke an Start/Ende
@@ -404,7 +447,8 @@ export function canvas() {
       lp.y = e.clientY;
       lp.handled = false;
       lp.moved = false;
-      lp.role = LANE_ROLES[Math.min(2, Math.max(0, Math.floor((e.clientY - rect.top) / (rect.height / 3))))];
+      const y = e.clientY - rect.top;
+      lp.role = laneRows(rect.height).find((r) => y < r.y0 + r.h)?.role || "note";
       lp.time = vp.startT + (e.clientX - rect.left) / vp.pxPerSec;
       if (this.isEditingSteps) {
         this.cancelLongPress();

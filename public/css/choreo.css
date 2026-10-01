@@ -50,7 +50,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 #lanes {
   position: relative;
   flex-shrink: 0;
-  height: 108px;
+  height: 112px; /* Leader ¼, Follower ¼, Notizen ½ (siehe LANE_SHARES in canvas.js) */
   border-top: 1px solid var(--border);
   background: var(--panel-2);
 }
@@ -58,9 +58,15 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   position: absolute; inset: 0; width: 100%; height: 100%; display: block;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
-.lane-label { position: absolute; left: 5px; font-size: 12px; font-weight: 600; color: var(--muted); pointer-events: none; z-index: 2; }
-.lane-h { top: 3px; }
-.lane-d { top: 33.33%; margin-top: 3px; }
+.lane-label {
+  position: absolute; left: 2px; transform: translateY(-50%);
+  padding: 2px 3px; border-radius: 4px; background: var(--panel-2); /* bleibt lesbar über Schritten */
+  font-size: 12px; font-weight: 600; line-height: 1; color: var(--muted); pointer-events: none; z-index: 2;
+}
+/* mittig in der jeweiligen Spur */
+.lane-h { top: 12.5%; }
+.lane-d { top: 37.5%; }
+.lane-n { top: 75%; }
 
 /* Kopfzeile: Grundform aus shell.css (.appbar), hier nur das Planer-Eigene */
 .topbar .meta { font-size: 11px; color: var(--muted); font-weight: 400; }
