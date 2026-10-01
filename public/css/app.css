@@ -382,7 +382,13 @@
 .vpage .lib-free-tools, .vpage .lib-add-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .vpage .lib-free-tools select, .vpage .lib-add-audio select { flex: 1; min-width: 150px; width: auto; }
 .vpage .lib-free-card > .small-btn { justify-self: start; }
-.vpage .lib-audio-dances { margin-top: -2px; }
+.vpage .lib-audio-dances { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: -2px; }
+.vpage .pill {
+  display: inline-block; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font-size: 12px; font-weight: 600; line-height: 16px; font-variant-numeric: tabular-nums;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+}
+.vpage .pill.dance { background: var(--accent-dim); border-color: transparent; color: var(--accent); }
 
 /* Player: Zuordnung */
 .vpage .pl-assign { display: grid; gap: 10px; margin: 0 0 12px; }

@@ -9,6 +9,7 @@ import { rt } from "../runtime.js";
 import { library } from "/js/library.js";
 import { router } from "/js/router.js";
 
+// BPM/Taktart fragt der Dialog nicht ab – sie gehören an die Abschnitte („Tänze & Takt“); bis dahin 120 · 4/4.
 const emptyForm = () => ({ title: "", bpm: 120, time_signature: "4/4", file: null });
 
 export function projects() {

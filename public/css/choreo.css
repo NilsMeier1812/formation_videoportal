@@ -349,7 +349,15 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .project-item.active { border-color: var(--accent); background: var(--accent-surface); }
 .project-item .pi-main { flex: 1; min-width: 0; }
 .project-item .pi-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.project-item .pi-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+/* Tempo der Audio als Pillen: Tanz · BPM · Taktart (aus den Abschnitten) */
+.pi-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; line-height: 16px; font-variant-numeric: tabular-nums;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+}
+.pill.dance { background: var(--accent-dim); border-color: transparent; color: var(--accent); }
+.pill.private { background: var(--badge-lock-bg); border-color: transparent; color: var(--badge-lock-text); }
 
 /* Anmeldung im Menü */
 .account {

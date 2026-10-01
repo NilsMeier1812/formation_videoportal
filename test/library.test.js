@@ -81,6 +81,13 @@ describe("Bibliothek", () => {
     expect((await call("/api/choreo/tempo_sections", { method: "POST", body: rows })).status).toBe(201);
     let lib = await data(await call("/api/library"));
     expect(lib.audios.find((a) => a.id === voll).dance_ids).toEqual([lat, std]);
+    // Tempo je Abschnitt für die Anzeige (Pillen), in Reihenfolge der Musik
+    expect(lib.audios.find((a) => a.id === voll).sections).toEqual([
+      { dance_id: null, bpm: 120, time_signature: "4/4" },
+      { dance_id: lat, bpm: 120, time_signature: "4/4" },
+      { dance_id: std, bpm: 120, time_signature: "4/4" },
+      { dance_id: lat, bpm: 120, time_signature: "4/4" },
+    ]);
 
     // Tanz ändern per PATCH; unbekannter Tanz geht nicht
     expect((await call(`/api/choreo/tempo_sections/${rows[2].id}`, { method: "PATCH", body: { dance_id: null } })).status).toBe(204);

@@ -86,7 +86,8 @@ function newAudioButton(choreoId) {
 
 function audioRow(choreo, audio, reload) {
   const isMain = choreo.main_project_id === audio.id;
-  const danceNames = audio.dance_ids.map((id) => library.dance(id)?.name).filter(Boolean);
+  const pills = library.tempoPills(audio);
+  const hasDances = pills.some((p) => p.dance);
   return el("div", { class: "lib-audio" },
     el("div", { class: "lib-audio-head" },
       el("span", { class: "lib-audio-title" }, audio.title + (audio.is_private ? " (privat)" : "")),
@@ -101,9 +102,9 @@ function audioRow(choreo, audio, reload) {
       }, icon(STAR, 16), isMain ? "Hauptaudio" : "Als Hauptaudio"),
       settingsButton(audio),
     ),
-    el("span", { class: "muted small lib-audio-dances" }, danceNames.length
-      ? `Tänze: ${danceNames.join(" → ")}`
-      : "Noch keine Tänze an den Abschnitten"),
+    el("div", { class: "lib-audio-dances" },
+      ...pills.map((p) => el("span", { class: `pill${p.dance ? " dance" : ""}` }, p.label)),
+      hasDances ? null : el("span", { class: "muted small" }, "noch keine Tänze an den Abschnitten")),
   );
 }
 
