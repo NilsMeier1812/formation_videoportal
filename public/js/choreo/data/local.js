@@ -81,7 +81,8 @@ export const local = {
 
   // ---- Audio ----
   getAudio: (projectId) => quiet(db.audioCache.get(projectId), null),
-  putAudio: (projectId, blob) => quiet(db.audioCache.put({ projectId, blob, cachedAt: Date.now() })),
+  // url: von wo die Datei stammt – nach „Audio austauschen“ passt sie nicht mehr → neu laden
+  putAudio: (projectId, blob, url = null) => quiet(db.audioCache.put({ projectId, blob, url, cachedAt: Date.now() })),
   dropAudio: (projectId) => quiet(db.audioCache.delete(projectId)),
 
   // ---- Warteschlange ----

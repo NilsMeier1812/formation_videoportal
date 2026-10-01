@@ -182,7 +182,7 @@ export function projects() {
         });
 
         // Datei gleich lokal ablegen → erstes Öffnen sofort und offline
-        await local.putAudio(project.id, file);
+        await local.putAudio(project.id, file, audio_url);
 
         await this.assignToChoreo(project.id, this.newAudioChoreo).catch(() => {});
         this.uploading = false;
@@ -255,7 +255,7 @@ export function projects() {
         }
 
         const cached = await local.getAudio(p.id);
-        if (cached?.blob) await local.putAudio(pid, cached.blob);
+        if (cached?.blob) await local.putAudio(pid, cached.blob, p.audio_url);
 
         await this.assignToChoreo(pid, library.audio(p.id)?.choreo_id || null).catch(() => {});
         await this.loadProjects();

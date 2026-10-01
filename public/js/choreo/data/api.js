@@ -70,6 +70,10 @@ export function createApiRemote() {
       });
     },
     createProject: (row) => request("POST", "/api/choreo/projects", { body: row }),
+    /** Alles um shift_s verschieben, optional mit neuer Audiodatei (Audio austauschen). */
+    shiftProject: (projectId, body) => request("POST", `/api/choreo/projects/${enc(projectId)}/shift`, { body }),
+    /** Umgerechnete Zeilen aus einer anderen Audio in einem Rutsch übernehmen. */
+    importRows: (projectId, body) => request("POST", `/api/choreo/projects/${enc(projectId)}/import`, { body }),
 
     // ---------------- Bearbeitungssperre ----------------
     acquireLock: (projectId, user) =>

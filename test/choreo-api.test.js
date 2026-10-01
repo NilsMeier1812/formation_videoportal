@@ -218,3 +218,119 @@ describe("Musik", () => {
     expect((await call("/api/choreo/audio/../../raw/geheim.mp3")).status).toBe(404);
   });
 });
+
+describe("Audio austauschen / alles verschieben", () => {
+  const rows = (table, id) => call(`/api/choreo/projects/${id}/${table}`).then((r) => r.json());
+  async function setup() {
+    const p = await project();
+    const t1 = uid("t"), t2 = uid("t");
+    const post = (table, body) => call(`/api/choreo/${table}`, { method: "POST", headers: TRAINER, body });
+    await post("tempo_sections", [
+      { id: t1, project_id: p.id, start_sec: 0, end_sec: 10, bpm: 120, time_signature: "4/4", offset_sec: 0.5 },
+      { id: t2, project_id: p.id, start_sec: 10, end_sec: null, bpm: 100, time_signature: "4/4", offset_sec: 10 },
+    ]);
+    await post("steps", [
+      { id: uid("s"), project_id: p.id, tempo_section_id: t1, role: "herren", beat_pos: 0, length_beats: 1 }, // 0,5 s
+      { id: uid("s"), project_id: p.id, tempo_section_id: t1, role: "damen", beat_pos: 4, length_beats: 1 }, // 2,5 s
+      { id: uid("s"), project_id: p.id, tempo_section_id: t2, role: "note", beat_pos: 5, length_beats: 1, value: "Hebung" }, // 13 s
+    ]);
+    await post("choreo_segments", [{ id: uid("m"), project_id: p.id, timestamp: 1, label: "Start" }, { id: uid("m"), project_id: p.id, timestamp: 12, label: "Mitte" }]);
+    await post("parts", [{ id: uid("pa"), project_id: p.id, start_sec: 2, end_sec: 6, group_names: { 1: "A" } }]);
+    const v = uid("v");
+    await env.DB.prepare(
+      `INSERT INTO video (id, storage_key, size_bytes, file_state, tag_state, created_at, audio_project_id, audio_start_s, audio_end_s)
+       VALUES (?, ?, 1, 'ready', 'tagged', '2026-09-30T10:00:00Z', ?, 3, 8)`
+    ).bind(v, `raw/${v}.mp4`, p.id).run();
+    return { p, t1, t2, v };
+  }
+  const shift = (id, body, headers = TRAINER) => call(`/api/choreo/projects/${id}/shift`, { method: "POST", headers, body });
+
+  it("Intro vorne: alles wandert nach hinten, der erste Abschnitt deckt das Intro ab, Datei wird getauscht", async () => {
+    const { p, t1, t2, v } = await setup();
+    const up = await call("/api/choreo/audio/neu.mp3", { method: "PUT", headers: { ...TRAINER, "content-length": "4" }, raw: "ID3x" });
+    const { url } = await up.json();
+    expect((await shift(p.id, { shift_s: 8, audio_url: url })).status).toBe(204);
+
+    const tempo = await rows("tempo_sections", p.id);
+    expect(tempo.find((t) => t.id === t1)).toMatchObject({ start_sec: 0, end_sec: 18, offset_sec: 8.5 });
+    expect(tempo.find((t) => t.id === t2)).toMatchObject({ start_sec: 18, end_sec: null, offset_sec: 18 });
+    expect((await rows("steps", p.id)).length).toBe(3); // Beats unverändert → Zeit + 8 s
+    expect((await rows("choreo_segments", p.id)).map((s) => s.timestamp)).toEqual([9, 20]);
+    expect((await rows("parts", p.id))[0]).toMatchObject({ start_sec: 10, end_sec: 14 });
+    const video = await env.DB.prepare("SELECT audio_start_s, audio_end_s FROM video WHERE id = ?").bind(v).first();
+    expect(video).toEqual({ audio_start_s: 11, audio_end_s: 16 });
+    const list = await call("/api/choreo/projects", { headers: TRAINER }).then((r) => r.json());
+    expect(list.find((x) => x.id === p.id).audio_url).toBe(url);
+  });
+
+  it("vorne gekürzt: was vor 0 rutscht, entfällt", async () => {
+    const { p, v } = await setup();
+    expect((await shift(p.id, { shift_s: -2 })).status).toBe(204);
+    const steps = await rows("steps", p.id);
+    expect(steps.map((s) => s.role).sort()).toEqual(["damen", "note"]); // der Schritt bei 0,5 s ist weg
+    expect((await rows("choreo_segments", p.id)).map((s) => s.label)).toEqual(["Mitte"]);
+    expect((await rows("tempo_sections", p.id))[0]).toMatchObject({ start_sec: 0, end_sec: 8, offset_sec: -1.5 });
+    const video = await env.DB.prepare("SELECT audio_start_s, audio_end_s FROM video WHERE id = ?").bind(v).first();
+    expect(video).toEqual({ audio_start_s: 1, audio_end_s: 6 });
+  });
+
+  it("prüft Rechte, Versatz und Datei", async () => {
+    const { p } = await setup();
+    expect((await shift(p.id, { shift_s: 1 }, GROUP)).status).toBe(401);
+    expect((await shift(p.id, { shift_s: 9999 })).status).toBe(400);
+    expect((await shift(p.id, { shift_s: 0, audio_url: "/api/choreo/audio/gibtsnicht.mp3" })).status).toBe(400);
+    expect((await shift(p.id, { shift_s: 0, audio_url: "https://evil.example/x.mp3" })).status).toBe(400);
+    expect((await shift("gibt-es-nicht", { shift_s: 1 })).status).toBe(404);
+  });
+});
+
+describe("Aus einer anderen Audio übernehmen", () => {
+  const imp = (id, body, headers = TRAINER) => call(`/api/choreo/projects/${id}/import`, { method: "POST", headers, body });
+  async function target() {
+    const p = await project();
+    const t = uid("t");
+    await call("/api/choreo/tempo_sections", { method: "POST", headers: TRAINER, body: { id: t, project_id: p.id, start_sec: 0, bpm: 120, time_signature: "4/4", offset_sec: 0 } });
+    await call("/api/choreo/steps", { method: "POST", headers: TRAINER, body: [
+      { id: uid("s"), project_id: p.id, tempo_section_id: t, role: "herren", beat_pos: 1, length_beats: 1 },
+      { id: uid("s"), project_id: p.id, tempo_section_id: t, role: "note", beat_pos: 2, length_beats: 1, value: "alt" },
+    ] });
+    return { p, t };
+  }
+
+  it("ersetzt auf Wunsch nur die gewählte Art und fügt alles in einem Rutsch ein", async () => {
+    const { p, t } = await target();
+    const part = uid("pa");
+    const res = await imp(p.id, {
+      clear: ["steps", "pairs"],
+      rows: {
+        steps: [{ tempo_section_id: t, role: "damen", beat_pos: 3, length_beats: 1, foot: "L", project_id: "fremd" }],
+        persons: [{ number: 1, name: "Anna & Ben" }],
+        parts: [{ id: part, start_sec: 1, end_sec: 4, group_names: { 1: "Innen" } }],
+        group_memberships: [{ part_id: part, person_number: 1, group_number: 1 }],
+        choreo_segments: [{ timestamp: 2, label: "Neu" }],
+      },
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).inserted).toBe(5);
+    const steps = await call(`/api/choreo/projects/${p.id}/steps`).then((r) => r.json());
+    expect(steps.map((s) => s.role).sort()).toEqual(["damen", "note"]); // alter Leader-Schritt ersetzt, Notiz bleibt
+    expect((await call(`/api/choreo/projects/${p.id}/persons`).then((r) => r.json()))[0].name).toBe("Anna & Ben");
+  });
+
+  it("lehnt fremde Abschnitte, Rechte und Unbekanntes ab – ohne halbe Sachen", async () => {
+    const { p, t } = await target();
+    const other = await target();
+    expect((await imp(p.id, { rows: { steps: [{ tempo_section_id: other.t, role: "herren", beat_pos: 0 }] } })).status).toBe(400);
+    expect((await imp(p.id, { rows: { group_memberships: [{ part_id: "fremd", person_number: 1, group_number: 1 }] } })).status).toBe(400);
+    expect((await imp(p.id, { clear: ["alles"] })).status).toBe(400);
+    expect((await imp(p.id, { rows: { projects: [] } })).status).toBe(400);
+    expect((await imp(p.id, { rows: {} }, GROUP)).status).toBe(401);
+    // gültige Zeile + ungültige → nichts geschrieben, auch nicht das Löschen
+    const bad = await imp(p.id, { clear: ["notes"], rows: { steps: [
+      { tempo_section_id: t, role: "herren", beat_pos: 0 },
+      { tempo_section_id: other.t, role: "herren", beat_pos: 0 },
+    ] } });
+    expect(bad.status).toBe(400);
+    expect((await call(`/api/choreo/projects/${p.id}/steps`).then((r) => r.json())).length).toBe(2);
+  });
+});

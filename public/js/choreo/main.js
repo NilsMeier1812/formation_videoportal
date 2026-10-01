@@ -11,6 +11,7 @@
 //   groups    Paare, Abschnitte, Gruppen, Zuteilung
 //   editing   Bearbeiten an/aus (nur Trainer), Bearbeitungssperre
 //   videos    Tab „Videos“, Stelle wählen (Admin), Menü nach Choreos gruppiert
+//   transfer  Audio austauschen, alles verschieben, aus anderer Audio übernehmen
 //
 // Die Komponente hängt am <body> der App: Das gemeinsame Menü (Choreo-Wahl,
 // Anmeldung, Hell/Dunkel) und die Dialoge liegen außerhalb des Planer-Bereichs,
@@ -28,6 +29,7 @@ import { projects } from "./features/projects.js";
 import { segments } from "./features/segments.js";
 import { steps } from "./features/steps.js";
 import { tempo } from "./features/tempo.js";
+import { transfer } from "./features/transfer.js";
 import { videos } from "./features/videos.js";
 
 /**
@@ -48,7 +50,7 @@ function compose(...parts) {
 }
 
 Alpine.data("choreo", () =>
-  compose(core(), auth(), projects(), audio(), canvas(), steps(), segments(), tempo(), groups(), editing(), videos())
+  compose(core(), auth(), projects(), audio(), canvas(), steps(), segments(), tempo(), groups(), editing(), videos(), transfer())
 );
 
 window.Alpine = Alpine;

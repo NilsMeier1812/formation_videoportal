@@ -57,6 +57,8 @@ const routes = [
   ["POST", new RegExp(`^/api/choreo/projects/${KEY}/lock$`), choreo.acquireLock],
   ["POST", new RegExp(`^/api/choreo/projects/${KEY}/lock/renew$`), choreo.renewLock],
   ["POST", new RegExp(`^/api/choreo/projects/${KEY}/lock/release$`), choreo.releaseLock],
+  ["POST", new RegExp(`^/api/choreo/projects/${KEY}/shift$`), choreo.shiftProject],
+  ["POST", new RegExp(`^/api/choreo/projects/${KEY}/import$`), choreo.importRows],
   ["PUT", /^\/api\/choreo\/audio\/([A-Za-z0-9_.-]+)$/, choreo.uploadAudio],
   ["GET", /^\/api\/choreo\/audio\/([A-Za-z0-9_.-]+)$/, choreo.getAudio],
   ["POST", new RegExp(`^/api/choreo/${TABLE}$`), choreo.insertRows],

@@ -67,6 +67,9 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   Tags verwalten, **Audios hochladen, duplizieren und löschen** (Löschen mit Trainer-Code), Videos in den
   Papierkorb legen. **Tänze & Takt** einer Audio (Titel, privat, Abschnitte mit Tanz, BPM, Taktart) öffnet sich
   von hier aus im Planer, weil das Einstellen des Takts Welle und Raster braucht; „Fertig“ führt zurück.
+  Dort außerdem: **Audio austauschen** (neue Fassung, z. B. mit Intro: Datei + wie viel vorne dazugekommen
+  ist; alles wandert mit, danach „Alles verschieben“ zum Feinjustieren) und **Aus anderer Audio übernehmen**
+  (Schritte, Notizen, Sprungmarken, Paare/Gruppen; Zeit hier = Zeit dort + Versatz, optional nur ein Bereich).
 - **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
   erst im Player) und die **Videothek** mit Suche und Filtern (Choreo, Tanz, Tag). Im Player: „In der Musik
   zeigen“ und für Trainer „Zuordnung bearbeiten“; Tempo 0,25–1×, ±1 s und ±1 Bild (am PC auch ← → , .).

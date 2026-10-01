@@ -282,3 +282,150 @@ export async function getAudio(request, env, file) {
   headers.set("cache-control", "public, max-age=31536000, immutable");
   return new Response(obj.body, { headers });
 }
+
+// ---------------- Audio austauschen / alles verschieben ----------------
+
+const MAX_SHIFT_S = 600;
+
+/**
+ * POST /api/choreo/projects/:id/shift { shift_s, audio_url? }
+ *
+ * Verschiebt alles, was an der Zeit der Musik hängt, um shift_s Sekunden – optional
+ * zusammen mit dem Austausch der Audiodatei (neue Datei vorher per PUT /api/choreo/audio).
+ * Positiv: vorne ist Musik dazugekommen (z. B. ein Intro); negativ: vorne wurde gekürzt.
+ *
+ *   Tempo-Abschnitte  Raster-Start, Start und Ende verschoben; ein Abschnitt ab 0 bleibt
+ *                     bei einem Intro ab 0 (deckt das Intro mit ab)
+ *   Schritte/Notizen  hängen über den Raster-Start an ihrem Abschnitt – wandern mit
+ *   Sprungmarken, Gruppen-Abschnitte, Stellen der Videos in dieser Audio
+ *
+ * Was durch Kürzen vor 0 rutscht, entfällt. Alles in einem Batch (ganz oder gar nicht).
+ */
+export async function shiftProject(request, env, projectId) {
+  await requireRole(request, env, "tagger");
+  const body = await readJson(request);
+  const shift = Number(body.shift_s ?? 0);
+  if (!Number.isFinite(shift) || Math.abs(shift) > MAX_SHIFT_S) throw new HttpError(400, "Versatz ungültig");
+  let audioUrl = null;
+  if (body.audio_url != null) {
+    audioUrl = String(body.audio_url);
+    const file = /^\/api\/choreo\/audio\/([A-Za-z0-9_-]{1,64}\.(mp3|wav))$/.exec(audioUrl)?.[1];
+    if (!file || !(await env.BUCKET.head(`audio/${file}`))) throw new HttpError(400, "Audiodatei nicht gefunden");
+  }
+  const project = await env.DB.prepare("SELECT id FROM projects WHERE id = ?").bind(checkId(projectId)).first();
+  if (!project) throw new HttpError(404, "Projekt nicht gefunden");
+  if (!shift && !audioUrl) return new Response(null, { status: 204 });
+
+  const now = new Date().toISOString();
+  const db = env.DB;
+  const statements = [];
+  if (audioUrl) {
+    statements.push(db.prepare("UPDATE projects SET audio_url = ?, updated_at = ? WHERE id = ?").bind(audioUrl, now, projectId));
+  }
+  if (shift) {
+    statements.push(
+      // Abschnitte, die beim Kürzen ganz vor 0 landen, fallen weg (ihre Schritte per Cascade)
+      db.prepare("DELETE FROM tempo_sections WHERE project_id = ?1 AND end_sec IS NOT NULL AND end_sec + ?2 <= 0")
+        .bind(projectId, shift),
+      db.prepare(
+        `UPDATE tempo_sections
+            SET offset_sec = COALESCE(offset_sec, 0) + ?2,
+                start_sec = CASE WHEN ?2 > 0 AND COALESCE(start_sec, 0) <= 0.0005 THEN 0
+                                 ELSE MAX(0, COALESCE(start_sec, 0) + ?2) END,
+                end_sec = CASE WHEN end_sec IS NULL THEN NULL ELSE end_sec + ?2 END,
+                updated_at = ?3
+          WHERE project_id = ?1`
+      ).bind(projectId, shift, now),
+      // Schritte, die jetzt vor 0 lägen
+      db.prepare(
+        `DELETE FROM steps WHERE project_id = ?1 AND EXISTS (
+           SELECT 1 FROM tempo_sections t
+            WHERE t.id = steps.tempo_section_id
+              AND t.offset_sec + steps.beat_pos * 60.0 / COALESCE(NULLIF(t.bpm, 0), 120) < -0.001)`
+      ).bind(projectId),
+      db.prepare("DELETE FROM choreo_segments WHERE project_id = ?1 AND timestamp + ?2 < 0").bind(projectId, shift),
+      db.prepare("UPDATE choreo_segments SET timestamp = timestamp + ?2, updated_at = ?3 WHERE project_id = ?1")
+        .bind(projectId, shift, now),
+      db.prepare("DELETE FROM parts WHERE project_id = ?1 AND end_sec IS NOT NULL AND end_sec + ?2 <= 0").bind(projectId, shift),
+      db.prepare(
+        `UPDATE parts SET start_sec = MAX(0, COALESCE(start_sec, 0) + ?2),
+                          end_sec = CASE WHEN end_sec IS NULL THEN NULL ELSE end_sec + ?2 END
+          WHERE project_id = ?1`
+      ).bind(projectId, shift),
+      // Stellen der Videos in dieser Audio: wandern mit; ganz vor 0 → Stelle entfällt
+      db.prepare(
+        `UPDATE video SET audio_project_id = NULL, audio_start_s = NULL, audio_end_s = NULL
+          WHERE audio_project_id = ?1 AND audio_end_s + ?2 <= 0`
+      ).bind(projectId, shift),
+      db.prepare(
+        `UPDATE video SET audio_start_s = MAX(0, audio_start_s + ?2), audio_end_s = audio_end_s + ?2
+          WHERE audio_project_id = ?1`
+      ).bind(projectId, shift),
+    );
+  }
+  await runWrites(() => db.batch(statements));
+  return new Response(null, { status: 204 });
+}
+
+// ---------------- Aus einer anderen Audio übernehmen ----------------
+
+const IMPORT_KINDS = {
+  steps: "DELETE FROM steps WHERE project_id = ? AND role IN ('herren', 'damen')",
+  notes: "DELETE FROM steps WHERE project_id = ? AND role = 'note'",
+  segments: "DELETE FROM choreo_segments WHERE project_id = ?",
+  pairs: ["DELETE FROM persons WHERE project_id = ?", "DELETE FROM parts WHERE project_id = ?"],
+};
+const IMPORT_TABLES = ["persons", "parts", "group_memberships", "steps", "choreo_segments"];
+const MAX_IMPORT_ROWS = 5000;
+
+/**
+ * POST /api/choreo/projects/:id/import { clear: ["steps"|"notes"|"segments"|"pairs"], rows: { table: [...] } }
+ *
+ * Fertig umgerechnete Zeilen (der Planer rechnet Zeiten ins Raster dieser Audio um) in
+ * einem Rutsch einfügen; vorher auf Wunsch die vorhandenen derselben Art löschen.
+ * Alle Zeilen gehören zu dieser Audio; Gruppen-Zuteilungen nur zu Abschnitten dieser Audio.
+ */
+export async function importRows(request, env, projectId) {
+  await requireRole(request, env, "tagger");
+  const body = await readJson(request);
+  const project = await env.DB.prepare("SELECT id FROM projects WHERE id = ?").bind(checkId(projectId)).first();
+  if (!project) throw new HttpError(404, "Projekt nicht gefunden");
+
+  const clear = Array.isArray(body.clear) ? body.clear : [];
+  for (const kind of clear) if (!IMPORT_KINDS[kind]) throw new HttpError(400, "Unbekannte Art");
+  const rows = body.rows && typeof body.rows === "object" ? body.rows : {};
+  for (const table of Object.keys(rows)) {
+    if (!IMPORT_TABLES.includes(table) || !Array.isArray(rows[table])) throw new HttpError(400, "Unbekannte Tabelle");
+  }
+  const total = IMPORT_TABLES.reduce((n, t) => n + (rows[t]?.length || 0), 0);
+  if (total > MAX_IMPORT_ROWS) throw new HttpError(413, "Zu viele Zeilen");
+
+  // Abschnitte, an die Zuteilungen dürfen: die mitgeschickten und (ohne Löschen) die vorhandenen
+  const partIds = new Set((rows.parts || []).map((p) => p.id));
+  if (!clear.includes("pairs") && rows.group_memberships?.length) {
+    const { results } = await env.DB.prepare("SELECT id FROM parts WHERE project_id = ?").bind(projectId).all();
+    for (const r of results) partIds.add(r.id);
+  }
+  // Tempo-Abschnitte dieser Audio (Schritte müssen an einem davon hängen)
+  const { results: tempo } = await env.DB.prepare("SELECT id FROM tempo_sections WHERE project_id = ?").bind(projectId).all();
+  const tempoIds = new Set(tempo.map((t) => t.id));
+
+  const statements = [];
+  for (const kind of clear) {
+    for (const sql of [].concat(IMPORT_KINDS[kind])) statements.push(env.DB.prepare(sql).bind(projectId));
+  }
+  for (const table of IMPORT_TABLES) {
+    for (const row of rows[table] || []) {
+      row.id ??= crypto.randomUUID();
+      if (table === "group_memberships") {
+        if (!partIds.has(row.part_id)) throw new HttpError(400, "Zuteilung zu fremdem Abschnitt");
+      } else {
+        row.project_id = projectId;
+      }
+      if (table === "steps" && !tempoIds.has(row.tempo_section_id)) throw new HttpError(400, "Schritt ohne Abschnitt dieser Audio");
+      statements.push(writeStatement(env, table, row, { upsert: false }));
+    }
+  }
+  if (statements.length) await runWrites(() => env.DB.batch(statements));
+  return json({ inserted: total });
+}
