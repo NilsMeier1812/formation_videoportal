@@ -40,6 +40,25 @@ export const library = {
   dancesOf(choreoId) { return library.choreo(choreoId)?.dances || []; },
   audiosOf(choreoId) { return data.audios.filter((a) => a.choreo_id === choreoId); },
 
+  /**
+   * Tempo einer Audio als Pillen, aus ihren Abschnitten: je Tanz „Latein · 98 · 4/4“
+   * (gleiche aufeinanderfolgende zusammengefasst, ein Tanz mit Tempowechsel mehrfach).
+   * Ohne Tänze an den Abschnitten: nur das Tempo („120 BPM · 4/4“).
+   */
+  tempoPills(audioOrId) {
+    const audio = typeof audioOrId === "string" ? library.audio(audioOrId) : audioOrId;
+    const sections = audio?.sections || [];
+    const fmt = (bpm) => String(Math.round(Number(bpm) * 100) / 100).replace(".", ",");
+    const withDance = sections.filter((s) => s.dance_id && library.dance(s.dance_id));
+    const pills = [];
+    for (const s of withDance.length ? withDance : sections) {
+      const name = s.dance_id ? library.dance(s.dance_id)?.name : null;
+      const label = name ? `${name} · ${fmt(s.bpm)} · ${s.time_signature}` : `${fmt(s.bpm)} BPM · ${s.time_signature}`;
+      if (pills[pills.length - 1]?.label !== label) pills.push({ label, dance: Boolean(name) });
+    }
+    return pills;
+  },
+
   /** Anzeigename eines Videos: eigener Titel, sonst Choreo · Tänze · Tags. */
   videoTitle(video) {
     if (video.title) return video.title;

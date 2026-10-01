@@ -34,7 +34,7 @@ async function exists(env, table, id) {
 // GET /api/library – alles auf einmal (klein: eine Handvoll Choreos und Tags)
 export async function getLibrary(request, env) {
   const trainer = hasRole(await roleFor(request, env), "tagger");
-  const [choreos, dances, tags, audios, links] = await env.DB.batch([
+  const [choreos, dances, tags, audios, links, sections] = await env.DB.batch([
     env.DB.prepare("SELECT id, title, main_project_id, sort_index FROM choreos ORDER BY sort_index, title"),
     env.DB.prepare("SELECT id, choreo_id, name, sort_index FROM dances ORDER BY sort_index, name"),
     env.DB.prepare("SELECT id, name, sort_index FROM tags ORDER BY sort_index, name"),
@@ -44,13 +44,20 @@ export async function getLibrary(request, env) {
     env.DB.prepare(
       "SELECT project_id, dance_id, MIN(start_sec) AS first FROM tempo_sections WHERE dance_id IS NOT NULL GROUP BY project_id, dance_id ORDER BY first"
     ),
+    env.DB.prepare("SELECT project_id, dance_id, bpm, time_signature FROM tempo_sections ORDER BY project_id, start_sec"),
   ]);
+  // Tempo je Abschnitt (für die Anzeige „Standard 120 · 4/4“), in Reihenfolge der Musik
+  const sectionsOf = (projectId) => sections.results
+    .filter((s) => s.project_id === projectId)
+    .map(({ dance_id, bpm, time_signature }) => ({ dance_id, bpm, time_signature }));
   // Tänze einer Audio in der Reihenfolge, in der sie in der Musik vorkommen
   const dancesOf = (projectId) => links.results.filter((l) => l.project_id === projectId).map((l) => l.dance_id);
   return json({
     choreos: choreos.results.map((c) => ({ ...c, dances: dances.results.filter((d) => d.choreo_id === c.id) })),
     tags: tags.results,
-    audios: audios.results.map((a) => ({ ...a, is_private: Boolean(a.is_private), dance_ids: dancesOf(a.id) })),
+    audios: audios.results.map((a) => ({
+      ...a, is_private: Boolean(a.is_private), dance_ids: dancesOf(a.id), sections: sectionsOf(a.id),
+    })),
   });
 }
 

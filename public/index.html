@@ -559,7 +559,12 @@
             <div class="project-item" :class="{ active: p.id === selectedProjectId }" @click="selectProject(p)">
               <div class="pi-main">
                 <div class="pi-title"><span class="pi-main-mark" x-show="isMainAudio(p)" title="Hauptaudio">★</span><span x-text="p.title"></span></div>
-                <div class="pi-meta" x-text="(audioDances(p) ? audioDances(p) + ' · ' : '') + `${p.bpm} BPM · ${p.time_signature}` + (p.is_private ? ' · privat' : '')"></div>
+                <div class="pi-pills">
+                  <template x-for="pill in audioPills(p)" :key="pill.label">
+                    <span class="pill" :class="{ dance: pill.dance }" x-text="pill.label"></span>
+                  </template>
+                  <span class="pill private" x-show="p.is_private">privat</span>
+                </div>
               </div>
             </div>
           </template>
@@ -831,21 +836,6 @@
             <label>Titel</label>
             <input type="text" x-model="form.title" placeholder="z.B. Kür 2026" />
           </div>
-          <div class="field two">
-            <div style="flex:1">
-              <label>BPM</label>
-              <input type="number" min="20" max="400" step="0.01" x-model.number="form.bpm" />
-            </div>
-            <div style="flex:1">
-              <label>Taktart</label>
-              <select x-model="form.time_signature">
-                <option>4/4</option>
-                <option>3/4</option>
-                <option>2/4</option>
-                <option>6/8</option>
-              </select>
-            </div>
-          </div>
           <div class="field">
             <label>Audio-Datei (MP3 / WAV)</label>
             <label class="filedrop">
@@ -854,7 +844,7 @@
               <template x-if="form.file"><span><strong x-text="form.file.name"></strong><br><span x-text="prettySize(form.file.size)"></span></span></template>
             </label>
           </div>
-          <p class="hint">Tänze, BPM und Taktart je Abschnitt stellst du danach unter „Tänze &amp; Takt“ ein.</p>
+          <p class="hint">BPM und Taktart gehören zu den Tänzen: Nach dem Hochladen unter „Tänze &amp; Takt“ die Abschnitte anlegen (von–bis, Tanz, BPM, Taktart). Bis dahin gilt 120 BPM · 4/4.</p>
 
           <template x-if="uploading">
             <div class="field">

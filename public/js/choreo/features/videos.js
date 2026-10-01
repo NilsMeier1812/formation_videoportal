@@ -68,10 +68,14 @@ export function videos() {
       const audio = this.libraryData.audios.find((a) => a.id === this.project.id);
       return this.libraryData.choreos.find((c) => c.id === audio?.choreo_id)?.dances || [];
     },
-    /** „Standard & Latein“ – Tänze einer Audio. */
-    audioDances(p) {
-      const audio = this.libraryData.audios.find((a) => a.id === p.id);
-      return (audio?.dance_ids || []).map((id) => library.dance(id)?.name).filter(Boolean).join(" & ");
+    /**
+     * Pillen fürs Menü: Tanz · BPM · Taktart aus den Abschnitten (siehe library.tempoPills).
+     * Ohne Bibliothek (offline, noch nicht geladen): BPM/Taktart des Projekts.
+     */
+    audioPills(p) {
+      const audio = this.libraryData.audios.find((a) => a.id === p.id); // reaktiv: neu bei librarychange
+      const pills = audio ? library.tempoPills(audio) : [];
+      return pills.length ? pills : [{ label: `${p.bpm || 120} BPM · ${p.time_signature || "4/4"}`, dance: false }];
     },
 
     // ---------------- Tab „Videos“ ----------------
