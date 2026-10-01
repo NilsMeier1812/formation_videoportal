@@ -698,6 +698,65 @@
 
           <button class="primary" style="width:100%;margin-top:4px" @click="addTempoSection()">＋ Abschnitt hinzufügen</button>
 
+          <!-- Audio austauschen / alles verschieben -->
+          <details class="tool-box">
+            <summary>Audio austauschen / alles verschieben</summary>
+            <p class="hint">Neue Fassung der Musik, z. B. mit Intro davor oder etwas hinten dran: Datei wählen und angeben, wie viel Musik <strong>vorne</strong> dazugekommen ist (vorne gekürzt = negativ, nur hinten angehängt = 0). Abschnitte, Schritte, Notizen, Sprungmarken, Gruppen und die Stellen der Videos wandern mit.</p>
+            <div class="field">
+            <label class="filedrop">
+              <input type="file" accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav" style="display:none" @change="onSwapFile($event)" />
+              <template x-if="!swapForm.file"><span>Neue Audio-Datei wählen (MP3 / WAV)</span></template>
+              <template x-if="swapForm.file"><span><strong x-text="swapForm.file.name"></strong><br><span x-text="prettySize(swapForm.file.size)"></span></span></template>
+            </label>
+            </div>
+            <div class="field">
+              <label>Vorne dazugekommen (s)</label>
+              <input type="number" step="0.01" x-model.number="swapForm.shift" class="swap-shift" />
+            </div>
+            <template x-if="swapForm.busy && swapForm.file">
+              <div class="progress"><div :style="`width:${swapForm.progress*100}%`"></div></div>
+            </template>
+            <button class="primary" style="width:100%" :disabled="!swapForm.file || swapForm.busy || !online" @click="swapAudio()"
+                    x-text="swapForm.busy && swapForm.file ? 'Tausche aus …' : 'Audio austauschen'"></button>
+
+            <label class="mini-label" style="margin-top:14px">Alles verschieben (Feinjustieren) <span x-show="swapForm.nudged" x-text="`· bisher ${swapForm.nudged > 0 ? '+' : ''}${swapForm.nudged.toFixed(2)} s`"></span></label>
+            <div class="calib-row nudge-all">
+              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(-0.1)">−0,1 s</button>
+              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(-0.01)">−0,01</button>
+              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(0.01)">+0,01</button>
+              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(0.1)">+0,1 s</button>
+            </div>
+            <div x-show="swapForm.error" class="tool-error" x-text="swapForm.error"></div>
+          </details>
+
+          <!-- Aus einer anderen Audio übernehmen -->
+          <details class="tool-box">
+            <summary>Aus anderer Audio übernehmen</summary>
+            <p class="hint">Schritte, Notizen, Sprungmarken und Paare/Gruppen einer anderen Audio hierher kopieren. Zeiten werden über die Abschnitte umgerechnet: <em>Zeit hier = Zeit dort + Versatz</em>, dann aufs Raster dieser Audio gelegt.</p>
+            <div class="field">
+              <label>Übernehmen aus</label>
+              <select x-model="copyForm.sourceId" class="copy-source">
+                <option value="">– Audio wählen –</option>
+                <template x-for="s in copySources" :key="s.id"><option :value="s.id" x-text="s.label"></option></template>
+              </select>
+            </div>
+            <div class="field two">
+              <div style="flex:1"><label>Versatz (s)</label><input type="number" step="0.01" x-model="copyForm.shift" class="copy-shift" /></div>
+              <div style="flex:1"><label>dort von (s)</label><input type="number" step="0.1" min="0" x-model="copyForm.from" placeholder="Anfang" class="copy-from" /></div>
+              <div style="flex:1"><label>bis (s)</label><input type="number" step="0.1" min="0" x-model="copyForm.to" placeholder="Schluss" class="copy-to" /></div>
+            </div>
+            <div class="check-grid">
+              <label><input type="checkbox" x-model="copyForm.steps"> Schritte (L/F)</label>
+              <label><input type="checkbox" x-model="copyForm.notes"> Notizen</label>
+              <label><input type="checkbox" x-model="copyForm.segments"> Sprungmarken</label>
+              <label><input type="checkbox" x-model="copyForm.pairs"> Paare &amp; Gruppen</label>
+            </div>
+            <label class="check-line"><input type="checkbox" x-model="copyForm.replace"> Vorhandenes derselben Art hier vorher löschen</label>
+            <button class="primary" style="width:100%;margin-top:8px" :disabled="!copyForm.sourceId || copyForm.busy || !online" @click="copyFromAudio()"
+                    x-text="copyForm.busy ? 'Übernehme …' : 'Übernehmen'"></button>
+            <div x-show="copyForm.error" class="tool-error" x-text="copyForm.error"></div>
+          </details>
+
           <div class="calib-row" style="margin-top:16px">
             <button @click="togglePlay()" x-text="isPlaying ? 'Pause' : 'Abspielen'"></button>
             <button class="primary" style="flex:1" @click="closeSettings()">Fertig</button>

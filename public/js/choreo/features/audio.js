@@ -28,10 +28,13 @@ export function audio() {
         }
       }, AUDIO_TIMEOUT_MS);
 
-      // 1. lokal vorhanden? → direkt an Wavesurfer
+      // 1. lokal vorhanden (und dieselbe Datei)? → direkt an Wavesurfer.
+      //    Nach „Audio austauschen“ hat das Projekt eine neue URL → neu laden. Ältere
+      //    Einträge ohne URL werden einmal frisch geladen; offline gilt, was da ist.
       const cached = await local.getAudio(project.id);
       if (token !== rt.loadToken) return;
-      if (cached?.blob) {
+      const sameFile = cached?.url === project.audio_url || !navigator.onLine;
+      if (cached?.blob && sameFile) {
         rt.audioSource = "cache";
         this.wsLoadBlob(cached.blob).catch((e) => this.handleAudioError(e));
         return;
@@ -46,7 +49,7 @@ export function audio() {
         const res = await fetch(project.audio_url);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const blob = await res.blob();
-        await local.putAudio(project.id, blob);
+        await local.putAudio(project.id, blob, project.audio_url);
         if (token !== rt.loadToken) return;
         this.wsLoadBlob(blob).catch((e) => this.handleAudioError(e));
       } catch (e) {
