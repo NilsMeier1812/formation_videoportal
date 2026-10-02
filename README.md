@@ -47,6 +47,10 @@ braucht mindestens den Gruppen-Code. Höchstens 10 Anmeldeversuche pro Minute un
 **Choreo-Planer:** vom alten Repo `choreoplanner` übernommen und in Module zerlegt, Funktionen unverändert
 (Taktraster, Schritte, Gruppen, Sprungmarken, Bearbeitungssperre, Offline-Betrieb). Daten in D1, Musik in R2,
 API unter `/api/choreo/…`. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
+Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; Bearbeiten mit
+Unter-Reitern *Schritte* – Gruppe für neue Schritte direkt wählen –, *Gruppen* – Zeitstrahl, „Abschnitt hier“,
+Gruppen als Chips, Paare antippen zum Zuteilen – und *Paare*) und **Sprungmarken** (antippen springt hin,
+optional mit 1 Takt Vorlauf; Bearbeiten: „Marke hier“, Beschreibung bei der aktuellen Marke).
 
 **Choreos, Tänze, Audios, Tags:**
 ```
