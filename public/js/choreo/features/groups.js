@@ -8,6 +8,8 @@ export const GROUP_MAX = 8;
 export function groups() {
   return {
     GROUP_MAX,
+    stepsView: "steps", // Unter-Reiter im Bearbeiten: steps | groups | pairs
+    openPartId: null, // aufgeklappter Gruppen-Abschnitt
 
     // ---------------- Paare ----------------
     async loadPersons(projectId) {
@@ -43,24 +45,50 @@ export function groups() {
       this.parts = await repo.loadRows("parts", projectId, "start_sec");
       this.memberships = await repo.loadMemberships(this.parts.map((p) => p.id));
     },
-    addPart() {
+    /**
+     * Gruppen-Abschnitt ab der Abspielposition – bis zum nächsten Abschnitt (höchstens 8 s).
+     * Liegt die Position schon in einem, wird der aufgeklappt.
+     */
+    addPartHere() {
       if (!this.project) return;
-      const list = this.sortedParts;
-      const last = list[list.length - 1];
-      let start = 0;
-      if (last) {
-        start = last.end_sec == null
-          ? Math.min(this.duration || 0, (Number(last.start_sec) || 0) + 1)
-          : Number(last.end_sec);
-      }
-      if (last && last.end_sec == null) this.patchPart(last, { end_sec: round3(start) });
+      const t = rt.ws ? round3(rt.ws.getCurrentTime()) : 0;
+      const inside = this.partAt(t);
+      if (inside) { this.openPartId = inside.id; this.setStatus("Hier gibt es schon einen Gruppen-Abschnitt"); return; }
+      const next = this.sortedParts.find((p) => Number(p.start_sec) > t);
+      const end = round3(Math.min(next ? Number(next.start_sec) : Infinity, t + 8, this.duration || Infinity));
       const row = {
         id: uuid(), project_id: this.project.id, sort_index: this.parts.length,
         label: "Abschnitt " + (this.parts.length + 1),
-        start_sec: round3(start), end_sec: null,
+        start_sec: t, end_sec: end > t ? end : null, group_names: { 1: "", 2: "" },
       };
       this.parts.push(row);
       repo.insert("parts", row);
+      this.openPartId = row.id;
+      this.scheduleDraw();
+    },
+    togglePart(part) {
+      this.openPartId = this.openPartId === part.id ? null : part.id;
+      if (this.openPartId) this.seekTo(Number(part.start_sec) || 0);
+    },
+    partRange(part) {
+      const end = part.end_sec == null ? "Schluss" : this.fmt(part.end_sec).slice(0, -3);
+      return `${this.fmt(part.start_sec).slice(0, -3)}–${end}`;
+    },
+    partSummary(part) {
+      const nums = this.groupNumbersOf(part);
+      if (!nums.length) return "noch keine Gruppen";
+      const assigned = this.memberships.filter((m) => m.part_id === part.id && Number(m.group_number)).length;
+      return nums.map((n) => this.groupNameOf(part, n)).join(" · ") + ` · ${assigned}/${this.persons.length} zugeteilt`;
+    },
+    /** Zeitstrahl der Gruppen-Abschnitte (Lücken = alle gleich). */
+    get partBlocks() {
+      const dur = this.duration || 0;
+      if (!dur) return [];
+      return this.sortedParts.map((p) => {
+        const start = Math.max(0, Number(p.start_sec) || 0);
+        const end = Math.min(dur, p.end_sec == null ? dur : Number(p.end_sec));
+        return { p, left: (start / dur) * 100, width: Math.max(0.6, ((end - start) / dur) * 100) };
+      });
     },
     patchPart(part, changes) {
       Object.assign(part, changes);
@@ -78,7 +106,8 @@ export function groups() {
       this.patchPart(part, { [field]: rt.ws ? round3(rt.ws.getCurrentTime()) : 0 });
     },
     removePart(part) {
-      if (!confirm(`„${part.label || "Abschnitt"}“ löschen?`)) return;
+      if (!confirm(`Gruppen-Abschnitt „${part.label || "Abschnitt"}“ löschen? Die Zuteilungen gehen verloren.`)) return;
+      if (this.openPartId === part.id) this.openPartId = null;
       this.parts = this.parts.filter((x) => x.id !== part.id);
       this.memberships = this.memberships.filter((m) => m.part_id !== part.id); // DB: ON DELETE CASCADE
       repo.remove("parts", part, { offlineMessage: "Offline – gespeichert, wird synchronisiert" });

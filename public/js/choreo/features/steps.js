@@ -143,13 +143,15 @@ export function steps() {
 
     // ---- Anzeige ----
     setStepDisplay(mode) { this.stepDisplay = mode; this.scheduleDraw(); },
-    /** Nur durch die im aktuellen Abschnitt definierten Gruppen schalten (+ „alle"). */
-    nudgeEditGroup(direction) {
-      const seq = [0, ...this.groupNumbersOf(this.activePart)];
-      let idx = seq.indexOf(Number(this.editGroup));
-      if (idx < 0) idx = 0;
-      this.editGroup = seq[(idx + (direction > 0 ? 1 : -1) + seq.length) % seq.length];
+    /** Gruppe für neue Schritte direkt wählen (0 = alle). */
+    setEditGroup(n) {
+      this.editGroup = Number(n) || 0;
       this.scheduleDraw();
+    },
+    /** Wählbare Gruppen an der aktuellen Stelle: alle + die des Gruppen-Abschnitts. */
+    get editGroupChoices() {
+      const part = this.activePart;
+      return [{ n: 0, name: "Alle" }, ...this.groupNumbersOf(part).map((n) => ({ n, name: this.groupNameOf(part, n) }))];
     },
   };
 }
