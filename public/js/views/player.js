@@ -88,7 +88,8 @@ let lastMediaTime = null;
 function watchFrames(video) {
   if (!video.requestVideoFrameCallback) return;
   const onFrame = (_now, meta) => {
-    const delta = lastMediaTime == null ? 0 : meta.mediaTime - lastMediaTime;
+    // nur beim echten Abspielen schätzen – beim Springen kommen beliebige Abstände
+    const delta = lastMediaTime == null || video.paused ? 0 : meta.mediaTime - lastMediaTime;
     // kleinster plausibler Abstand zweier Bilder (120 bis 10 Bilder/s)
     if (delta > 1 / 125 && delta < 1 / 9 && (frameSec === DEFAULT_FRAME || delta < frameSec - 0.0005)) frameSec = delta;
     lastMediaTime = meta.mediaTime;

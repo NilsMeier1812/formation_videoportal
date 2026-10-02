@@ -597,179 +597,193 @@
     </div>
   </template>
 
-  <!-- ===== Projekt-Einstellungen / Tempo-Abschnitte ===== -->
+  <!-- ===== „Tänze & Takt“: Blatt unten, Welle und Raster bleiben oben sichtbar ===== -->
   <template x-if="settingsOpen && project">
-    <div>
-      <div class="scrim" @click="closeSettings()"></div>
-      <div class="modal modal-lg">
-        <header>
-          <h2>Tänze &amp; Takt</h2>
-          <button class="icon" @click="closeSettings()" aria-label="Schließen">✕</button>
-        </header>
-        <div class="body">
-          <div class="field">
-            <label>Titel</label>
-            <input type="text" :value="project.title" @input="patchProject({ title: $event.target.value })" />
+    <section class="tsheet" role="dialog" aria-label="Tänze &amp; Takt" @resize.window="placeSheet()">
+      <header class="ts-head">
+        <button type="button" class="ts-play" @click="togglePlay()" :aria-label="isPlaying ? 'Pause' : 'Abspielen'"><svg x-show="!isPlaying" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><svg x-show="isPlaying" x-cloak viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg></button>
+        <div class="ts-title">
+          <strong>Tänze &amp; Takt</strong>
+          <span><span x-text="project.title"></span> · <span class="ts-time" x-text="fmt(currentTime)"></span></span>
+        </div>
+        <button type="button" class="primary ts-done" @click="closeSettings()">Fertig</button>
+      </header>
+
+      <div class="ts-tabs seg" role="tablist">
+        <button type="button" role="tab" :aria-selected="settingsTab === 'sections'" @click="settingsTab = 'sections'">Abschnitte</button>
+        <button type="button" role="tab" :aria-selected="settingsTab === 'audio'" @click="settingsTab = 'audio'">Audio</button>
+        <button type="button" role="tab" :aria-selected="settingsTab === 'copy'" @click="settingsTab = 'copy'">Übernehmen</button>
+      </div>
+
+      <div class="ts-body">
+        <!-- ---------- Abschnitte ---------- -->
+        <div x-show="settingsTab === 'sections'">
+          <div class="ts-strip" aria-hidden="true">
+            <template x-for="b in sectionBlocks" :key="b.s.id">
+              <button type="button" class="ts-block" tabindex="-1" @click="toggleSection(b.s)"
+                      :class="{ open: openSectionId === b.s.id }"
+                      :style="`left:${b.left}%;width:${b.width}%;--c:${sectionColor(b.s)}`"
+                      :title="sectionTitle(b.s)"><span x-text="b.width > 12 ? sectionTitle(b.s) : ''"></span></button>
+            </template>
+            <span class="ts-ph" :style="`left:${playheadPct}%`"></span>
+          </div>
+          <div class="ts-actions">
+            <button type="button" class="ts-split" @click="splitSectionHere()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/></svg> Hier teilen</button>
+            <span class="hint">Abspielen, an der Grenze tippen.</span>
           </div>
 
-          <div class="field">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-              <input type="checkbox" :checked="!!project.is_private"
-                     @change="patchProject({ is_private: $event.target.checked })"
-                     style="width:auto;margin:0" />
-              <span>Privat – nur für Angemeldete sichtbar</span>
-            </label>
+          <div class="ts-list">
+            <template x-for="sec in sortedTempo" :key="sec.id">
+              <div class="ts-sec" :class="{ open: openSectionId === sec.id, now: activeTempo && activeTempo.id === sec.id }" :style="`--c:${sectionColor(sec)}`">
+                <button type="button" class="ts-row" @click="toggleSection(sec)" :aria-expanded="String(openSectionId === sec.id)">
+                  <span class="ts-dot"></span>
+                  <span class="ts-row-main">
+                    <span class="ts-name" x-text="sectionTitle(sec)"></span>
+                    <span class="ts-meta" x-text="sectionRange(sec) + ' · ' + String(Number(sec.bpm)).replace('.', ',') + ' BPM · ' + sec.time_signature"></span>
+                  </span>
+                  <svg class="ts-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                </button>
+
+                <template x-if="openSectionId === sec.id">
+                  <div class="ts-edit">
+                    <div class="ts-grid2">
+                      <label class="ts-field">Tanz
+                        <select class="tc-dance" :disabled="!projectDances.length" @change="setSectionDance(sec, $event.target.value)">
+                          <option value="" :selected="!sec.dance_id" x-text="projectDances.length ? 'kein Tanz (Intro …)' : 'erst Choreo zuordnen'"></option>
+                          <template x-for="d in projectDances" :key="d.id">
+                            <option :value="d.id" :selected="sec.dance_id === d.id" x-text="d.name"></option>
+                          </template>
+                        </select>
+                      </label>
+                      <label class="ts-field">Name
+                        <input class="tc-label" type="text" :value="sec.label || ''" :placeholder="sectionDanceName(sec) || 'z. B. Intro'"
+                               @change="patchTempo(sec, { label: $event.target.value.trim() || null })" />
+                      </label>
+                    </div>
+
+                    <div class="ts-group">
+                      <div class="ts-label">Tempo</div>
+                      <div class="ts-tempo">
+                        <div class="ts-stepper">
+                          <button type="button" @click="setBpmStep(sec, -0.1)" aria-label="0,1 BPM langsamer">−</button>
+                          <input class="ts-bpm" type="number" step="0.01" min="20" max="400" inputmode="decimal"
+                                 :value="Number(sec.bpm).toFixed(2)" @change="onBpmInput(sec, $event.target.value)" aria-label="BPM" />
+                          <button type="button" @click="setBpmStep(sec, 0.1)" aria-label="0,1 BPM schneller">+</button>
+                        </div>
+                        <div class="seg ts-sig" role="radiogroup" aria-label="Taktart">
+                          <template x-for="sig in ['4/4','3/4','2/4','6/8']" :key="sig">
+                            <button type="button" role="radio" :aria-checked="sec.time_signature === sig" @click="setTimeSig(sec, sig)" x-text="sig"></button>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="ts-group">
+                      <div class="ts-label">Raster <span class="muted" x-text="'· Takt 1 bei ' + fmt(sec.offset_sec) + ' · Takt = ' + barLengthOf(sec).toFixed(3).replace('.', ',') + ' s'"></span></div>
+                      <div class="ts-btns">
+                        <button type="button" class="ts-btn" @click="beatOneHere(sec)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> Takt 1 hier</button>
+                        <button type="button" class="ts-btn" @click="barStartHere(sec)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> Taktanfang hier</button>
+                      </div>
+                      <div class="ts-fine">
+                        <span class="muted">Takt 1 fein</span>
+                        <button type="button" @click="nudgeOffset(sec, -0.005)">−5 ms</button>
+                        <button type="button" @click="nudgeOffset(sec, 0.005)">+5 ms</button>
+                      </div>
+                      <p class="hint">„Takt 1 hier“ am ersten Schlag tippen, „Taktanfang hier“ an einem späteren Taktanfang – die BPM rechnet die App aus.</p>
+                    </div>
+
+                    <div class="ts-group">
+                      <div class="ts-label">Bereich</div>
+                      <div class="ts-grid2">
+                        <label class="ts-field">Start (s)
+                          <span class="ts-inline"><input type="number" step="0.01" min="0" :value="sec.start_sec" @change="setTempoBound(sec,'start_sec',$event.target.value)" />
+                          <button type="button" class="icon" @click="boundToCursor(sec,'start_sec')" title="auf Abspielposition" aria-label="Start auf Abspielposition"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button></span>
+                        </label>
+                        <label class="ts-field">Ende (s)
+                          <span class="ts-inline"><input type="number" step="0.01" min="0" :value="sec.end_sec ?? ''" placeholder="Schluss" @change="setTempoBound(sec,'end_sec',$event.target.value)" />
+                          <button type="button" class="icon" @click="boundToCursor(sec,'end_sec')" title="auf Abspielposition" aria-label="Ende auf Abspielposition"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button></span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <button type="button" class="ts-remove" x-show="sortedTempo.length > 1" @click="deleteTempoSection(sec)">Abschnitt entfernen</button>
+                  </div>
+                </template>
+              </div>
+            </template>
           </div>
+        </div>
 
-          <div class="section-title">Abschnitte (Tänze &amp; Tempo)</div>
-          <p class="hint">Pro Abschnitt: von–bis, welcher Tanz (oder keiner, z. B. Intro), BPM, Taktart und Raster-Start. Ein Tanz darf mehrere Abschnitte haben, wenn sich das Tempo ändert. Abschnitte dürfen sich nicht überlappen. „Ende" leer = bis zum Schluss.</p>
+        <!-- ---------- Audio ---------- -->
+        <div x-show="settingsTab === 'audio'" class="ts-pane">
+          <label class="ts-field">Titel
+            <input type="text" :value="project.title" @change="patchProject({ title: $event.target.value.trim() || project.title })" />
+          </label>
+          <label class="check-line ts-private">
+            <input type="checkbox" :checked="!!project.is_private" @change="patchProject({ is_private: $event.target.checked })" />
+            Privat – nur Trainer sehen diese Audio
+          </label>
 
-          <template x-for="sec in sortedTempo" :key="sec.id">
-            <div class="tempo-card">
-              <div class="tc-head">
-                <input class="tc-label" type="text" :value="sec.label || ''" placeholder="Abschnitt-Name"
-                       @input="patchTempo(sec, { label: $event.target.value })" />
-                <button class="icon danger" x-show="sortedTempo.length > 1" @click="deleteTempoSection(sec)" aria-label="Abschnitt löschen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></button>
-              </div>
-
-              <div class="field" style="margin-bottom:8px">
-                <label>Tanz</label>
-                <select class="tc-dance" :disabled="!projectDances.length" @change="setSectionDance(sec, $event.target.value)">
-                  <option value="" :selected="!sec.dance_id" x-text="projectDances.length ? '– kein Tanz (z. B. Intro) –' : 'Audio erst einer Choreo zuordnen'"></option>
-                  <template x-for="d in projectDances" :key="d.id">
-                    <option :value="d.id" :selected="sec.dance_id === d.id" x-text="d.name"></option>
-                  </template>
-                </select>
-              </div>
-
-              <div class="field two" style="margin-bottom:8px">
-                <div style="flex:1">
-                  <label>Start (s)</label>
-                  <div class="calib-row" style="margin:0;gap:6px">
-                    <input type="number" step="0.001" min="0" :value="sec.start_sec"
-                           @change="setTempoBound(sec,'start_sec',$event.target.value)" />
-                    <button class="icon" @click="boundToCursor(sec,'start_sec')" title="auf Abspielposition"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
-                  </div>
-                </div>
-                <div style="flex:1">
-                  <label>Ende (s)</label>
-                  <div class="calib-row" style="margin:0;gap:6px">
-                    <input type="number" step="0.001" min="0" :value="sec.end_sec ?? ''" placeholder="Schluss"
-                           @change="setTempoBound(sec,'end_sec',$event.target.value)" />
-                    <button class="icon" @click="boundToCursor(sec,'end_sec')" title="auf Abspielposition"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="field" style="margin-bottom:8px">
-                <label>Taktart</label>
-                <select :value="sec.time_signature" @change="setTimeSig(sec,$event.target.value)">
-                  <option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option>
-                </select>
-              </div>
-
-              <label class="mini-label">BPM</label>
-              <div class="calib-row">
-                <button class="icon" @click="nudgeBpm(sec,-1)">−1</button>
-                <button class="icon" @click="nudgeBpm(sec,-0.1)">−.1</button>
-                <input class="calib-val" type="number" step="0.01" min="20" max="400"
-                       :value="Number(sec.bpm).toFixed(2)" @change="onBpmInput(sec,$event.target.value)" />
-                <button class="icon" @click="nudgeBpm(sec,0.1)">+.1</button>
-                <button class="icon" @click="nudgeBpm(sec,1)">+1</button>
-              </div>
-
-              <label class="mini-label">Takt-Abstand · <strong x-text="barLengthOf(sec).toFixed(3) + ' s'"></strong></label>
-              <div class="calib-row">
-                <button class="icon" @click="nudgeBarLength(sec,-0.01)">−10ms</button>
-                <button class="icon" @click="nudgeBarLength(sec,-0.001)">−1ms</button>
-                <button class="icon" @click="nudgeBarLength(sec,0.001)">+1ms</button>
-                <button class="icon" @click="nudgeBarLength(sec,0.01)">+10ms</button>
-              </div>
-
-              <label class="mini-label">Raster-Start (Intro-Offset)</label>
-              <div class="calib-row">
-                <button class="icon" @click="nudgeOffset(sec,-0.05)">−50ms</button>
-                <button class="icon" @click="nudgeOffset(sec,-0.005)">−5ms</button>
-                <span class="calib-val" x-text="(Number(sec.offset_sec)||0).toFixed(3) + ' s'"></span>
-                <button class="icon" @click="nudgeOffset(sec,0.005)">+5ms</button>
-                <button class="icon" @click="nudgeOffset(sec,0.05)">+50ms</button>
-              </div>
-              <div class="calib-row">
-                <button style="flex:1" @click="offsetToCursor(sec)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> auf Abspielposition</button>
-                <button @click="resetOffset(sec)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset</button>
-              </div>
-            </div>
-          </template>
-
-          <button class="primary" style="width:100%;margin-top:4px" @click="addTempoSection()">＋ Abschnitt hinzufügen</button>
-
-          <!-- Audio austauschen / alles verschieben -->
-          <details class="tool-box">
-            <summary>Audio austauschen / alles verschieben</summary>
-            <p class="hint">Neue Fassung der Musik, z. B. mit Intro davor oder etwas hinten dran: Datei wählen und angeben, wie viel Musik <strong>vorne</strong> dazugekommen ist (vorne gekürzt = negativ, nur hinten angehängt = 0). Abschnitte, Schritte, Notizen, Sprungmarken, Gruppen und die Stellen der Videos wandern mit.</p>
-            <div class="field">
+          <div class="ts-card">
+            <div class="ts-label">Neue Fassung der Musik</div>
+            <p class="hint">Z. B. mit Intro davor oder etwas hinten dran. Alles wandert mit: Abschnitte, Schritte, Notizen, Sprungmarken, Gruppen und die Stellen der Videos.</p>
             <label class="filedrop">
               <input type="file" accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav" style="display:none" @change="onSwapFile($event)" />
-              <template x-if="!swapForm.file"><span>Neue Audio-Datei wählen (MP3 / WAV)</span></template>
-              <template x-if="swapForm.file"><span><strong x-text="swapForm.file.name"></strong><br><span x-text="prettySize(swapForm.file.size)"></span></span></template>
+              <template x-if="!swapForm.file"><span>Datei wählen (MP3 / WAV)</span></template>
+              <template x-if="swapForm.file"><span><strong x-text="swapForm.file.name"></strong> · <span x-text="prettySize(swapForm.file.size)"></span></span></template>
             </label>
-            </div>
-            <div class="field">
-              <label>Vorne dazugekommen (s)</label>
+            <label class="ts-field">Vorne dazugekommen (s) <span class="muted">– vorne gekürzt: negativ, nur hinten dran: 0</span>
               <input type="number" step="0.01" x-model.number="swapForm.shift" class="swap-shift" />
-            </div>
+            </label>
             <template x-if="swapForm.busy && swapForm.file">
               <div class="progress"><div :style="`width:${swapForm.progress*100}%`"></div></div>
             </template>
-            <button class="primary" style="width:100%" :disabled="!swapForm.file || swapForm.busy || !online" @click="swapAudio()"
+            <button class="primary" :disabled="!swapForm.file || swapForm.busy || !online" @click="swapAudio()"
                     x-text="swapForm.busy && swapForm.file ? 'Tausche aus …' : 'Audio austauschen'"></button>
-
-            <label class="mini-label" style="margin-top:14px">Alles verschieben (Feinjustieren) <span x-show="swapForm.nudged" x-text="`· bisher ${swapForm.nudged > 0 ? '+' : ''}${swapForm.nudged.toFixed(2)} s`"></span></label>
-            <div class="calib-row nudge-all">
-              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(-0.1)">−0,1 s</button>
-              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(-0.01)">−0,01</button>
-              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(0.01)">+0,01</button>
-              <button class="icon" :disabled="swapForm.busy" @click="nudgeAll(0.1)">+0,1 s</button>
-            </div>
-            <div x-show="swapForm.error" class="tool-error" x-text="swapForm.error"></div>
-          </details>
-
-          <!-- Aus einer anderen Audio übernehmen -->
-          <details class="tool-box">
-            <summary>Aus anderer Audio übernehmen</summary>
-            <p class="hint">Schritte, Notizen, Sprungmarken und Paare/Gruppen einer anderen Audio hierher kopieren. Zeiten werden über die Abschnitte umgerechnet: <em>Zeit hier = Zeit dort + Versatz</em>, dann aufs Raster dieser Audio gelegt.</p>
-            <div class="field">
-              <label>Übernehmen aus</label>
-              <select x-model="copyForm.sourceId" class="copy-source">
-                <option value="">– Audio wählen –</option>
-                <template x-for="s in copySources" :key="s.id"><option :value="s.id" x-text="s.label"></option></template>
-              </select>
-            </div>
-            <div class="field two">
-              <div style="flex:1"><label>Versatz (s)</label><input type="number" step="0.01" x-model="copyForm.shift" class="copy-shift" /></div>
-              <div style="flex:1"><label>dort von (s)</label><input type="number" step="0.1" min="0" x-model="copyForm.from" placeholder="Anfang" class="copy-from" /></div>
-              <div style="flex:1"><label>bis (s)</label><input type="number" step="0.1" min="0" x-model="copyForm.to" placeholder="Schluss" class="copy-to" /></div>
-            </div>
-            <div class="check-grid">
-              <label><input type="checkbox" x-model="copyForm.steps"> Schritte (L/F)</label>
-              <label><input type="checkbox" x-model="copyForm.notes"> Notizen</label>
-              <label><input type="checkbox" x-model="copyForm.segments"> Sprungmarken</label>
-              <label><input type="checkbox" x-model="copyForm.pairs"> Paare &amp; Gruppen</label>
-            </div>
-            <label class="check-line"><input type="checkbox" x-model="copyForm.replace"> Vorhandenes derselben Art hier vorher löschen</label>
-            <button class="primary" style="width:100%;margin-top:8px" :disabled="!copyForm.sourceId || copyForm.busy || !online" @click="copyFromAudio()"
-                    x-text="copyForm.busy ? 'Übernehme …' : 'Übernehmen'"></button>
-            <div x-show="copyForm.error" class="tool-error" x-text="copyForm.error"></div>
-          </details>
-
-          <div class="calib-row" style="margin-top:16px">
-            <button @click="togglePlay()" x-text="isPlaying ? 'Pause' : 'Abspielen'"></button>
-            <button class="primary" style="flex:1" @click="closeSettings()">Fertig</button>
           </div>
-          <p class="hint" x-show="!online">Offline – Änderungen werden synchronisiert, sobald wieder Netz da ist.</p>
+
+          <div class="ts-card">
+            <div class="ts-label">Alles verschieben <span class="muted" x-show="swapForm.nudged" x-text="`· bisher ${swapForm.nudged > 0 ? '+' : ''}${swapForm.nudged.toFixed(2).replace('.', ',')} s`"></span></div>
+            <p class="hint">Wenn nach dem Austausch alles ein Stück daneben liegt.</p>
+            <div class="ts-fine nudge-all">
+              <button type="button" :disabled="swapForm.busy" @click="nudgeAll(-0.1)">−0,1 s</button>
+              <button type="button" :disabled="swapForm.busy" @click="nudgeAll(-0.01)">−0,01</button>
+              <button type="button" :disabled="swapForm.busy" @click="nudgeAll(0.01)">+0,01</button>
+              <button type="button" :disabled="swapForm.busy" @click="nudgeAll(0.1)">+0,1 s</button>
+            </div>
+          </div>
+          <div x-show="swapForm.error" class="tool-error" x-text="swapForm.error"></div>
         </div>
+
+        <!-- ---------- Übernehmen ---------- -->
+        <div x-show="settingsTab === 'copy'" class="ts-pane">
+          <p class="hint">Aus einer anderen Audio hierher kopieren. Zeit hier = Zeit dort + Versatz, dann aufs Raster dieser Audio gelegt.</p>
+          <label class="ts-field">Aus
+            <select x-model="copyForm.sourceId" class="copy-source">
+              <option value="">Audio wählen …</option>
+              <template x-for="s in copySources" :key="s.id"><option :value="s.id" x-text="s.label"></option></template>
+            </select>
+          </label>
+          <div class="ts-grid3">
+            <label class="ts-field">Versatz (s)<input type="number" step="0.01" x-model="copyForm.shift" class="copy-shift" /></label>
+            <label class="ts-field">dort ab (s)<input type="number" step="0.1" min="0" x-model="copyForm.from" placeholder="Anfang" class="copy-from" /></label>
+            <label class="ts-field">bis (s)<input type="number" step="0.1" min="0" x-model="copyForm.to" placeholder="Schluss" class="copy-to" /></label>
+          </div>
+          <div class="ts-label">Was</div>
+          <div class="ts-chips">
+            <button type="button" :aria-pressed="String(copyForm.steps)" @click="copyForm.steps = !copyForm.steps">Schritte</button>
+            <button type="button" :aria-pressed="String(copyForm.notes)" @click="copyForm.notes = !copyForm.notes">Notizen</button>
+            <button type="button" :aria-pressed="String(copyForm.segments)" @click="copyForm.segments = !copyForm.segments">Sprungmarken</button>
+            <button type="button" :aria-pressed="String(copyForm.pairs)" @click="copyForm.pairs = !copyForm.pairs">Paare &amp; Gruppen</button>
+          </div>
+          <label class="check-line"><input type="checkbox" x-model="copyForm.replace"> Vorhandenes hier vorher ersetzen</label>
+          <button class="primary ts-copy" :disabled="!copyForm.sourceId || copyForm.busy || !online" @click="copyFromAudio()"
+                  x-text="copyForm.busy ? 'Übernehme …' : 'Übernehmen'"></button>
+          <div x-show="copyForm.error" class="tool-error" x-text="copyForm.error"></div>
+        </div>
+        <p class="hint" x-show="!online">Offline – Änderungen werden synchronisiert, sobald wieder Netz da ist.</p>
       </div>
-    </div>
+    </section>
   </template>
 
   <!-- ===== Anmeldebildschirm: die App ist privat (ohne Code nur dieser Bildschirm) ===== -->

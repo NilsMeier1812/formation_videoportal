@@ -88,6 +88,10 @@ export function projects() {
       if (!this.project) return;
       if (!this.isEditor) { this.openLogin(); return; }
       this.settingsOpen = true;
+      this.settingsTab = "sections";
+      // aufgeklappt: der Abschnitt an der aktuellen Stelle
+      this.openSectionId = this.activeTempo?.id || null;
+      requestAnimationFrame(() => this.placeSheet());
     },
     async openSettingsFor(projectId) {
       const p = this.projects.find((x) => x.id === projectId);
