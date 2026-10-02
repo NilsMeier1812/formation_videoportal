@@ -67,6 +67,9 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   Tags verwalten, **Audios hochladen, duplizieren und löschen** (Löschen mit Trainer-Code), Videos in den
   Papierkorb legen. **Tänze & Takt** einer Audio (Titel, privat, Abschnitte mit Tanz, BPM, Taktart) öffnet sich
   von hier aus im Planer, weil das Einstellen des Takts Welle und Raster braucht; „Fertig“ führt zurück.
+  „Tänze & Takt“ ist ein Blatt unten (Welle und Raster bleiben oben sichtbar) mit drei Reitern:
+  **Abschnitte** (Zeitstrahl, „Hier teilen“, je Abschnitt Tanz, BPM, Taktart, „Takt 1 hier“ und
+  „Taktanfang hier“ – die BPM rechnet die App aus), **Audio** und **Übernehmen**.
   Dort außerdem: **Audio austauschen** (neue Fassung, z. B. mit Intro: Datei + wie viel vorne dazugekommen
   ist; alles wandert mit, danach „Alles verschieben“ zum Feinjustieren) und **Aus anderer Audio übernehmen**
   (Schritte, Notizen, Sprungmarken, Paare/Gruppen; Zeit hier = Zeit dort + Versatz, optional nur ein Bereich).
