@@ -76,7 +76,8 @@ export function projects() {
       await this.loadParts(p.id);
       await this.loadSteps(p.id);
       this.myPersonNumber = Number(localStorage.getItem("choreo_person_" + p.id)) || 0;
-      if (token !== rt.loadToken) return; // inzwischen wurde ein anderes Projekt gewählt
+      if (token !== rt.loadToken) return;
+      this.autoPickPair(); // nur ein Paar → automatisch gewählt // inzwischen wurde ein anderes Projekt gewählt
       this.createWs();
       await this.loadAudio(p);
     },

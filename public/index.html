@@ -253,7 +253,7 @@
           <template x-if="currentMode !== 'editor'">
             <div class="pane-stack">
               <label class="ts-field">Ich tanze
-                <select :value="myPersonNumber" @change="setMyPerson($event.target.value)">
+                <select class="pair-select" :value="myPersonNumber" @change="setMyPerson($event.target.value)">
                   <option value="0">Paar wählen …</option>
                   <template x-for="p in sortedPersons" :key="p.id">
                     <option :value="p.number" x-text="'Paar ' + p.number + (p.name ? ' · ' + p.name : '')"></option>

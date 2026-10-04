@@ -292,7 +292,7 @@ export function canvas() {
       const [lead, follow, notes] = laneRows(h);
 
       // Ohne gewähltes Paar (außerhalb des Editors) nur der Hinweis
-      if (!this.isEditingSteps && !this.myPersonNumber) { this.drawLanePlaceholder(w, h); return; }
+      if (this.needsPairChoice) { this.drawLanePlaceholder(w, h); return; }
 
       // schwache Taktlinien zur Ausrichtung mit der Welle
       ctx.strokeStyle = rt.palette.laneGrid;
@@ -331,7 +331,7 @@ export function canvas() {
       ctx.font = "13px -apple-system, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      const msg = "Bitte unten Paar auswählen";
+      const msg = "Bitte hier klicken, um Paar auszuwählen";
       const gap = ctx.measureText(msg + "      ").width;
       for (const { y0, h: rowH } of laneRows(h)) {
         const cy = y0 + rowH / 2;
@@ -476,6 +476,7 @@ export function canvas() {
       if (lp.handled) { lp.handled = false; return; } // Halten hat schon gehandelt
       if (lp.moved) return;
       if (this.isEditingSteps) { this.laneTap(lp.role, lp.time); return; }
+      if (this.needsPairChoice) { this.openPairChoice(); return; } // Hinweis „hier klicken“
       rt.ws?.setTime(Math.max(0, lp.time)); // sonst: nur springen
     },
   };

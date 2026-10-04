@@ -21,6 +21,7 @@ export function groups() {
       const row = { id: uuid(), project_id: this.project.id, number, name: "" };
       this.persons.push(row);
       repo.insert("persons", row);
+      this.autoPickPair();
     },
     renamePerson(person, name) {
       person.name = name;
@@ -32,6 +33,34 @@ export function groups() {
       this.memberships = this.memberships.filter((m) => Number(m.person_number) !== Number(person.number));
       repo.remove("persons", person, { offlineMessage: "Offline – gespeichert, wird synchronisiert" });
       if (Number(this.myPersonNumber) === Number(person.number)) this.setMyPerson(0);
+      this.autoPickPair();
+    },
+    /**
+     * Ohne gewähltes Paar zeigen die Spuren nur den Hinweis „hier klicken“ – außer es gibt
+     * gar keine Paare (dann gelten alle Schritte für alle) oder es wird gerade bearbeitet.
+     */
+    get needsPairChoice() {
+      return !this.isEditingSteps && !this.myPersonNumber && this.persons.length > 0;
+    },
+    /** Paar-Wahl öffnen: Reiter „Schritte & Gruppen“, Auswahl aufklappen (wo der Browser es erlaubt). */
+    openPairChoice() {
+      this.setTab("steps");
+      if (this.currentMode === "editor") return; // im Bearbeiten sieht man ohnehin alle Schritte
+      this.$nextTick(() => {
+        const select = document.querySelector(".pair-select");
+        if (!select) return;
+        select.scrollIntoView({ block: "nearest" });
+        select.focus();
+        try { select.showPicker?.(); } catch { /* manche Browser lassen das nicht zu – dann bleibt der Fokus */ }
+        select.classList.add("attention");
+        setTimeout(() => select.classList.remove("attention"), 1600);
+      });
+    },
+    /** Gibt es genau ein Paar, ist es automatisch gewählt; ein gelöschtes Paar ist nicht mehr gewählt. */
+    autoPickPair() {
+      const numbers = this.persons.map((p) => Number(p.number));
+      if (this.myPersonNumber && !numbers.includes(Number(this.myPersonNumber))) this.setMyPerson(0);
+      if (!this.myPersonNumber && numbers.length === 1) this.setMyPerson(numbers[0]);
     },
     /** „Ich bin Paar X" – merkt sich die Wahl pro Projekt. */
     setMyPerson(n) {
