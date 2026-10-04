@@ -311,6 +311,9 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .chip-x svg, .grp-add svg { display: block; }
 .grp-add { display: inline-flex; align-items: center; gap: 4px; border-style: dashed; border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
 
+/* Paar-Auswahl: kurz hervorheben, wenn man aus der Spur-Leiste kommt */
+.pair-select.attention { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+
 /* Paare */
 .pair-list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--panel); }
 .pair-row { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; }
