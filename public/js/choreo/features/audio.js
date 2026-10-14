@@ -1,8 +1,15 @@
-// Musik: laden (mit lokalem Cache), Wellenform, Wiedergabe und Zoom.
+// Musik: laden (mit lokalem Cache), Wellenform, Wiedergabe, Tempo und Zoom.
+//
+// Tempo (langsamer üben): Bei 1× spielt WebAudio den dekodierten Puffer (sample-genau).
+// Langsamer würde WebAudio auch tiefer klingen (wie ein Tonband). Deshalb wird dann aus
+// GENAU diesem dekodierten Puffer eine WAV erzeugt und über ein <audio> mit „Tonhöhe
+// beibehalten“ abgespielt – gleiche Samples, gleiche Zeitachse, Raster passt weiter.
+// Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr kennt den Faktor.
 import RegionsPlugin from "/vendor/wavesurfer-regions.esm.js";
 import WaveSurfer from "/vendor/wavesurfer.esm.js";
 import { AUDIO_TIMEOUT_MS } from "../config.js";
 import { local } from "../data/index.js";
+import { SPEEDS, advance, encodeWav, formatSpeed, normalizeSpeed } from "../lib/speed.js";
 import { segmentAt } from "../lib/timeline.js";
 import { rt } from "../runtime.js";
 
@@ -10,6 +17,20 @@ export function audio() {
   return {
     audioLoading: false,
     audioError: null,
+
+    // ---- Tempo (nur für diese Sitzung gemerkt – sonst wundert man sich morgen) ----
+    SPEEDS,
+    playbackRate: (() => { try { return normalizeSpeed(sessionStorage.getItem("choreo_speed")); } catch { return 1; } })(),
+    speedMenuOpen: false,
+    fmtSpeed(rate) { return formatSpeed(rate); },
+    /** Welche Wiedergabe läuft: „webaudio“ (1×), „slow“ (<audio>, Tonhöhe beibehalten) – auch für Tests. */
+    get audioEngine() {
+      if (!rt.ws) return null;
+      return rt.slowMedia ? "slow" : rt.webAudioFailed ? "element" : "webaudio";
+    },
+    /** Zeit, die die Audio selbst meldet (zum Abgleich mit dem Playhead). */
+    mediaTime() { return rt.ws ? rt.ws.getCurrentTime() : 0; },
+    get preservesPitch() { return rt.slowMedia ? rt.slowMedia.preservesPitch !== false : null; },
 
     // ---------------- Laden ----------------
     // Spinner/Status hängen an den Wavesurfer-Events 'ready'/'decode'/'error',
@@ -66,7 +87,18 @@ export function audio() {
       clearTimeout(rt.audioTimeout);
       this.audioLoading = false;
       this.audioError = null;
-      if (rt.ws) this.duration = rt.ws.getDuration();
+      if (rt.ws) {
+        this.duration = rt.ws.getDuration();
+        if (rt.ws.getPlaybackRate?.() !== this.playbackRate) rt.ws.setPlaybackRate(this.playbackRate, true);
+        // nach dem Tempo-Wechsel: gleiche Stelle, ggf. weiterspielen
+        const restore = rt.restore;
+        rt.restore = null;
+        if (restore) {
+          rt.ws.setTime(restore.t);
+          this.currentTime = restore.t;
+          if (restore.play) rt.ws.play()?.catch?.(() => {});
+        }
+      }
       this.renderRegions();
       this.recalibrate();
     },
@@ -96,9 +128,73 @@ export function audio() {
     },
 
     wsLoadBlob(blob) {
+      if (rt.audioBlob !== blob) this.dropSlowSource(); // andere Musik → alte WAV weg
+      rt.audioBlob = blob; // für den Wechsel 1× ↔ langsamer
+      if (rt.slowMedia) return this.loadSlow(blob);
       if (rt.currentObjectUrl) URL.revokeObjectURL(rt.currentObjectUrl);
       rt.currentObjectUrl = URL.createObjectURL(blob);
       return rt.ws.load(rt.currentObjectUrl);
+    },
+
+    /** Langsamer: Musik dekodieren (wie WebAudio), als WAV ans <audio>, Welle aus den Samples. */
+    async loadSlow(blob) {
+      const ws = rt.ws;
+      try {
+        if (!rt.slowSource || rt.slowSource.blob !== blob) {
+          const data = await blob.arrayBuffer();
+          const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+          const buffer = await new Offline(1, 1, 44100).decodeAudioData(data);
+          const channels = [];
+          for (let c = 0; c < Math.min(2, buffer.numberOfChannels); c++) channels.push(buffer.getChannelData(c));
+          this.dropSlowSource();
+          rt.slowSource = { blob, url: URL.createObjectURL(encodeWav(buffer)), peaks: channels, duration: buffer.duration };
+        }
+        if (ws !== rt.ws) return; // inzwischen neu aufgebaut
+        const { url, peaks, duration } = rt.slowSource;
+        return rt.ws.load(url, peaks, duration);
+      } catch (e) {
+        // Dekodieren klappt hier nicht: Tempo zurück auf 1×, normal laden
+        this.setStatus("Langsamer abspielen geht mit dieser Datei nicht");
+        this.playbackRate = 1;
+        this.saveSpeed();
+        this.destroyWs();
+        this.createWs();
+        return this.wsLoadBlob(blob);
+      }
+    },
+    dropSlowSource() {
+      if (rt.slowSource) URL.revokeObjectURL(rt.slowSource.url);
+      rt.slowSource = null;
+    },
+
+    // ---------------- Tempo ----------------
+    saveSpeed() { try { sessionStorage.setItem("choreo_speed", String(this.playbackRate)); } catch { /* egal */ } },
+    /**
+     * Tempo wählen. Innerhalb derselben Art (1× WebAudio / langsamer <audio>) nur die Rate;
+     * beim Wechsel zwischen beiden wird die Welle neu aufgebaut – Position und Wiedergabe bleiben.
+     */
+    async setSpeed(value) {
+      const rate = normalizeSpeed(value);
+      this.speedMenuOpen = false;
+      if (rate === this.playbackRate) return;
+      const wasSlow = Boolean(rt.slowMedia);
+      this.playbackRate = rate;
+      this.saveSpeed();
+      if (!rt.ws || !this.project || !rt.audioBlob) return; // gilt beim nächsten Laden
+      const wantSlow = rate !== 1 && !rt.webAudioFailed;
+      if (wantSlow === wasSlow) {
+        rt.ws.setPlaybackRate(rate, true);
+        if (this.isPlaying) { rt.clockP = null; this.syncClock(rt.ws.getCurrentTime()); }
+        this.setStatus(`Tempo ${formatSpeed(rate)}`);
+        return;
+      }
+      rt.restore = { t: rt.ws.getCurrentTime(), play: this.isPlaying };
+      if (this.isPlaying) rt.ws.pause();
+      this.audioLoading = true;
+      this.destroyWs();
+      this.createWs();
+      await this.wsLoadBlob(rt.audioBlob);
+      this.setStatus(`Tempo ${formatSpeed(rate)}`);
     },
 
     // ---------------- Wavesurfer ----------------
@@ -107,6 +203,16 @@ export function audio() {
       const height = Math.max(60, container.clientHeight - 6);
 
       const palette = this.refreshPalette();
+      // Langsamer als 1× (und WebAudio verfügbar): eigenes <audio> mit Tonhöhe beibehalten
+      rt.slowMedia = null;
+      if (this.playbackRate !== 1 && !rt.webAudioFailed) {
+        const media = document.createElement("audio");
+        media.preservesPitch = true;
+        media.webkitPreservesPitch = true;
+        media.mozPreservesPitch = true;
+        media.preload = "auto";
+        rt.slowMedia = media;
+      }
       rt.ws = WaveSurfer.create({
         container,
         height,
@@ -123,7 +229,7 @@ export function audio() {
         // (v. a. VBR) landet es nach einem Seek woanders, als currentTime meldet –
         // die Musik läuft dem Raster dann hörbar voraus. WebAudio spielt denselben
         // dekodierten Puffer, aus dem auch die Welle gezeichnet wird.
-        backend: rt.webAudioFailed ? "MediaElement" : "WebAudio",
+        ...(rt.slowMedia ? { media: rt.slowMedia } : { backend: rt.webAudioFailed ? "MediaElement" : "WebAudio" }),
       });
       rt.wsRegions = rt.ws.registerPlugin(RegionsPlugin.create());
 
@@ -169,6 +275,7 @@ export function audio() {
         rt.wsRegions = null;
       }
       this.removeOverlays();
+      if (rt.slowMedia) { rt.slowMedia.pause(); rt.slowMedia.removeAttribute("src"); rt.slowMedia = null; }
       if (rt.currentObjectUrl) { URL.revokeObjectURL(rt.currentObjectUrl); rt.currentObjectUrl = null; }
     },
 
@@ -192,7 +299,7 @@ export function audio() {
     // zwischen den groben Werten mit performance.now() interpoliert.
     syncClock(mediaTime) {
       const now = performance.now();
-      const estimate = rt.clockP != null ? rt.clockT + (now - rt.clockP) / 1000 : mediaTime;
+      const estimate = rt.clockP != null ? advance(rt.clockT, now - rt.clockP, this.playbackRate) : mediaTime;
       if (rt.clockP == null || mediaTime < rt.clockT - 1e-3 || Math.abs(estimate - mediaTime) > 0.15) {
         rt.clockT = mediaTime; // Seek / großer Sprung → hart neu
       } else {
@@ -202,7 +309,7 @@ export function audio() {
     },
     clockNow() {
       if (rt.clockP == null) return this.currentTime;
-      const pos = rt.clockT + (performance.now() - rt.clockP) / 1000;
+      const pos = advance(rt.clockT, performance.now() - rt.clockP, this.playbackRate); // Musik-Zeit, nicht Echtzeit
       const dur = this.duration || rt.ws?.getDuration() || 0;
       return dur ? Math.min(pos, dur) : pos;
     },

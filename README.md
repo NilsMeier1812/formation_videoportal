@@ -47,6 +47,10 @@ braucht mindestens den Gruppen-Code. Höchstens 10 Anmeldeversuche pro Minute un
 **Choreo-Planer:** vom alten Repo `choreoplanner` übernommen und in Module zerlegt, Funktionen unverändert
 (Taktraster, Schritte, Gruppen, Sprungmarken, Bearbeitungssperre, Offline-Betrieb). Daten in D1, Musik in R2,
 API unter `/api/choreo/…`. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
+**Langsamer üben:** Tempo-Knopf in der Steuerleiste (0,5× – 1×, gilt für die Sitzung). Bei 1× spielt WebAudio wie
+bisher; langsamer wird aus denselben dekodierten Samples eine WAV erzeugt und über `<audio>` mit „Tonhöhe
+beibehalten“ abgespielt (gleiche Zeitachse). Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr
+rechnet mit dem Faktor (`lib/speed.js`).
 Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; Bearbeiten mit
 Unter-Reitern *Schritte* – Gruppe für neue Schritte direkt wählen –, *Gruppen* – Zeitstrahl, „Abschnitt hier“,
 Gruppen als Chips, Paare antippen zum Zuteilen – und *Paare*) und **Sprungmarken** (antippen springt hin,
