@@ -1,15 +1,18 @@
 // Musik: laden (mit lokalem Cache), Wellenform, Wiedergabe, Tempo und Zoom.
 //
-// Tempo (langsamer üben): Bei 1× spielt WebAudio den dekodierten Puffer (sample-genau).
-// Langsamer würde WebAudio auch tiefer klingen (wie ein Tonband). Deshalb wird dann aus
-// GENAU diesem dekodierten Puffer eine WAV erzeugt und über ein <audio> mit „Tonhöhe
-// beibehalten“ abgespielt – gleiche Samples, gleiche Zeitachse, Raster passt weiter.
-// Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr kennt den Faktor.
+// Wiedergabe – EINE für jedes Tempo: Die Musik wird einmal dekodiert und als verlustfreie
+// WAV (16 Bit PCM, exakt die dekodierten Samples) über ein <audio> mit „Tonhöhe beibehalten“
+// abgespielt. Tempo ändern ist dadurch sofort da, ohne neu zu laden.
+// Warum nicht die Original-MP3 im <audio>? Dessen Decoder schätzt bei MP3 (v. a. VBR) die
+// Zeitachse – nach einem Seek läuft die Musik dem Raster davon. Bei PCM gibt es nichts zu
+// schätzen: Welle, Raster und Ton haben dieselbe Zeitachse (früher dafür WebAudio, das aber
+// beim Verlangsamen tiefer klingt).
+// Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr kennt den Tempo-Faktor.
 import RegionsPlugin from "/vendor/wavesurfer-regions.esm.js";
 import WaveSurfer from "/vendor/wavesurfer.esm.js";
 import { AUDIO_TIMEOUT_MS } from "../config.js";
 import { local } from "../data/index.js";
-import { SPEED_MAX, SPEED_MIN, advance, encodeWav, formatBpm, formatSpeed, normalizeSpeed, stepSpeed, tempoLines } from "../lib/speed.js";
+import { SPEED_MAX, SPEED_MIN, advance, encodeWav, peaksFrom, formatBpm, formatSpeed, normalizeSpeed, stepSpeed, tempoLines } from "../lib/speed.js";
 import { segmentAt } from "../lib/timeline.js";
 import { rt } from "../runtime.js";
 
@@ -47,14 +50,17 @@ export function audio() {
     releaseSpeed() {
       if (rt.speedHold) { clearTimeout(rt.speedHold); clearInterval(rt.speedHold); rt.speedHold = null; }
     },
-    /** Welche Wiedergabe läuft: „webaudio“ (1×), „slow“ (<audio>, Tonhöhe beibehalten) – auch für Tests. */
+    /** Welche Wiedergabe läuft: „pcm“ (WAV aus den dekodierten Samples) oder „element“ (Notlösung: Originaldatei). */
     get audioEngine() {
       if (!rt.ws) return null;
-      return rt.slowMedia ? "slow" : rt.webAudioFailed ? "element" : "webaudio";
+      return rt.pcmMedia ? "pcm" : "element";
     },
     /** Zeit, die die Audio selbst meldet (zum Abgleich mit dem Playhead). */
     mediaTime() { return rt.ws ? rt.ws.getCurrentTime() : 0; },
-    get preservesPitch() { return rt.slowMedia ? rt.slowMedia.preservesPitch !== false : null; },
+    get preservesPitch() {
+      const media = rt.ws?.getMediaElement?.();
+      return media ? media.preservesPitch !== false : null;
+    },
 
     // ---------------- Laden ----------------
     // Spinner/Status hängen an den Wavesurfer-Events 'ready'/'decode'/'error',
@@ -113,15 +119,7 @@ export function audio() {
       this.audioError = null;
       if (rt.ws) {
         this.duration = rt.ws.getDuration();
-        if (rt.ws.getPlaybackRate?.() !== this.playbackRate) rt.ws.setPlaybackRate(this.playbackRate, true);
-        // nach dem Tempo-Wechsel: gleiche Stelle, ggf. weiterspielen
-        const restore = rt.restore;
-        rt.restore = null;
-        if (restore) {
-          rt.ws.setTime(restore.t);
-          this.currentTime = restore.t;
-          if (restore.play) rt.ws.play()?.catch?.(() => {});
-        }
+        rt.ws.setPlaybackRate(this.playbackRate, true); // Tonhöhe beibehalten, auch bei 100 %
       }
       this.renderRegions();
       this.recalibrate();
@@ -135,10 +133,10 @@ export function audio() {
         this.loadAudioFromNetwork(this.project, rt.loadToken);
         return;
       }
-      // WebAudio konnte das Format nicht dekodieren: einmalig auf <audio>
-      // zurückfallen (mehr Formate, dafür ohne sample-genaue Zeitachse)
-      if (!rt.webAudioFailed && this.project) {
-        rt.webAudioFailed = true;
+      // Dekodieren klappt nicht: einmalig die Originaldatei direkt im <audio>
+      // (mehr Formate, dafür ohne sample-genaue Zeitachse)
+      if (!rt.decodeFailed && this.project) {
+        rt.decodeFailed = true;
         this.destroyWs();
         this.createWs();
         this.loadAudio(this.project);
@@ -152,71 +150,52 @@ export function audio() {
     },
 
     wsLoadBlob(blob) {
-      if (rt.audioBlob !== blob) this.dropSlowSource(); // andere Musik → alte WAV weg
-      rt.audioBlob = blob; // für den Wechsel 1× ↔ langsamer
-      if (rt.slowMedia) return this.loadSlow(blob);
+      if (rt.audioBlob !== blob) this.dropPcmSource(); // andere Musik → alte WAV weg
+      rt.audioBlob = blob;
+      if (rt.pcmMedia) return this.loadPcm(blob);
       if (rt.currentObjectUrl) URL.revokeObjectURL(rt.currentObjectUrl);
       rt.currentObjectUrl = URL.createObjectURL(blob);
       return rt.ws.load(rt.currentObjectUrl);
     },
 
-    /** Langsamer: Musik dekodieren (wie WebAudio), als WAV ans <audio>, Welle aus den Samples. */
-    async loadSlow(blob) {
+    /** Musik dekodieren → WAV fürs <audio>, verkleinerte Welle; einmal je Datei. */
+    async loadPcm(blob) {
       const ws = rt.ws;
       try {
-        if (!rt.slowSource || rt.slowSource.blob !== blob) {
+        if (!rt.pcmSource || rt.pcmSource.blob !== blob) {
           const data = await blob.arrayBuffer();
           const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
           const buffer = await new Offline(1, 1, 44100).decodeAudioData(data);
-          const channels = [];
-          for (let c = 0; c < Math.min(2, buffer.numberOfChannels); c++) channels.push(buffer.getChannelData(c));
-          this.dropSlowSource();
-          rt.slowSource = { blob, url: URL.createObjectURL(encodeWav(buffer)), peaks: channels, duration: buffer.duration };
+          const peaks = [];
+          for (let c = 0; c < Math.min(2, buffer.numberOfChannels); c++) peaks.push(peaksFrom(buffer.getChannelData(c), buffer.sampleRate));
+          this.dropPcmSource();
+          // den dekodierten Puffer nicht behalten – WAV + verkleinerte Welle reichen
+          rt.pcmSource = { blob, url: URL.createObjectURL(encodeWav(buffer)), peaks, duration: buffer.duration };
         }
         if (ws !== rt.ws) return; // inzwischen neu aufgebaut
-        const { url, peaks, duration } = rt.slowSource;
+        const { url, peaks, duration } = rt.pcmSource;
         return rt.ws.load(url, peaks, duration);
-      } catch (e) {
-        // Dekodieren klappt hier nicht: Tempo zurück auf 1×, normal laden
-        this.setStatus("Langsamer abspielen geht mit dieser Datei nicht");
-        this.playbackRate = 1;
-        this.saveSpeed();
-        this.destroyWs();
-        this.createWs();
-        return this.wsLoadBlob(blob);
+      } catch {
+        if (ws !== rt.ws) return;
+        this.handleAudioError(); // → Originaldatei direkt abspielen
       }
     },
-    dropSlowSource() {
-      if (rt.slowSource) URL.revokeObjectURL(rt.slowSource.url);
-      rt.slowSource = null;
+    dropPcmSource() {
+      if (rt.pcmSource) URL.revokeObjectURL(rt.pcmSource.url);
+      rt.pcmSource = null;
     },
 
     // ---------------- Tempo ----------------
     saveSpeed() { try { sessionStorage.setItem("choreo_speed", String(this.playbackRate)); } catch { /* egal */ } },
-    /**
-     * Tempo wählen. Innerhalb derselben Art (1× WebAudio / langsamer <audio>) nur die Rate;
-     * beim Wechsel zwischen beiden wird die Welle neu aufgebaut – Position und Wiedergabe bleiben.
-     */
-    async setSpeed(value) {
+    /** Tempo wählen – sofort, ohne neu zu laden (alle Tempi laufen über dieselbe Wiedergabe). */
+    setSpeed(value) {
       const rate = normalizeSpeed(value);
       if (rate === this.playbackRate) return;
-      const wasSlow = Boolean(rt.slowMedia);
       this.playbackRate = rate;
       this.saveSpeed();
-      if (!rt.ws || !this.project || !rt.audioBlob) return; // gilt beim nächsten Laden
-      const wantSlow = rate !== 1 && !rt.webAudioFailed;
-      if (wantSlow === wasSlow) {
-        rt.ws.setPlaybackRate(rate, true);
-        if (this.isPlaying) { rt.clockP = null; this.syncClock(rt.ws.getCurrentTime()); }
-        return;
-      }
-      // Wird gerade noch neu aufgebaut, gilt die Stelle von vorher (die neue Welle steht noch bei 0)
-      rt.restore = rt.restore || { t: rt.ws.getCurrentTime(), play: this.isPlaying };
-      if (this.isPlaying) rt.ws.pause();
-      this.audioLoading = true;
-      this.destroyWs();
-      this.createWs();
-      await this.wsLoadBlob(rt.audioBlob);
+      if (!rt.ws) return; // gilt beim nächsten Laden
+      rt.ws.setPlaybackRate(rate, true);
+      if (this.isPlaying) { rt.clockP = null; this.syncClock(rt.ws.getCurrentTime()); } // Uhr neu ansetzen
     },
 
     // ---------------- Wavesurfer ----------------
@@ -225,15 +204,15 @@ export function audio() {
       const height = Math.max(60, container.clientHeight - 6);
 
       const palette = this.refreshPalette();
-      // Langsamer als 1× (und WebAudio verfügbar): eigenes <audio> mit Tonhöhe beibehalten
-      rt.slowMedia = null;
-      if (this.playbackRate !== 1 && !rt.webAudioFailed) {
+      // <audio> für die WAV, Tonhöhe beim Tempo beibehalten (Notlösung ohne: Originaldatei)
+      rt.pcmMedia = null;
+      if (!rt.decodeFailed) {
         const media = document.createElement("audio");
         media.preservesPitch = true;
         media.webkitPreservesPitch = true;
         media.mozPreservesPitch = true;
         media.preload = "auto";
-        rt.slowMedia = media;
+        rt.pcmMedia = media;
       }
       rt.ws = WaveSurfer.create({
         container,
@@ -246,12 +225,8 @@ export function audio() {
         barRadius: 2,
         minPxPerSec: this.zoom || 1,
         fillParent: true,
-        // WICHTIG: Wiedergabe über WebAudio statt <audio>-Element. Das <audio>-
-        // Element hat einen eigenen Decoder mit geschätzter Zeitachse: bei MP3s
-        // (v. a. VBR) landet es nach einem Seek woanders, als currentTime meldet –
-        // die Musik läuft dem Raster dann hörbar voraus. WebAudio spielt denselben
-        // dekodierten Puffer, aus dem auch die Welle gezeichnet wird.
-        ...(rt.slowMedia ? { media: rt.slowMedia } : { backend: rt.webAudioFailed ? "MediaElement" : "WebAudio" }),
+        // Wiedergabe: siehe Kopf der Datei (WAV aus den dekodierten Samples im <audio>)
+        ...(rt.pcmMedia ? { media: rt.pcmMedia } : { backend: "MediaElement" }),
       });
       rt.wsRegions = rt.ws.registerPlugin(RegionsPlugin.create());
 
@@ -297,7 +272,7 @@ export function audio() {
         rt.wsRegions = null;
       }
       this.removeOverlays();
-      if (rt.slowMedia) { rt.slowMedia.pause(); rt.slowMedia.removeAttribute("src"); rt.slowMedia = null; }
+      if (rt.pcmMedia) { rt.pcmMedia.pause(); rt.pcmMedia.removeAttribute("src"); rt.pcmMedia = null; }
       if (rt.currentObjectUrl) { URL.revokeObjectURL(rt.currentObjectUrl); rt.currentObjectUrl = null; }
     },
 

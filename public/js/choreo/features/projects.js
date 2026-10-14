@@ -69,6 +69,7 @@ export function projects() {
       this.duration = 0;
 
       const token = ++rt.loadToken;
+      rt.decodeFailed = false; // Notlösung gilt nur für die Datei, bei der das Dekodieren scheiterte
       this.destroyWs();
       await this.loadSegments(p.id);
       await this.loadTempoSections(p.id);

@@ -48,9 +48,10 @@ braucht mindestens den Gruppen-Code. Höchstens 10 Anmeldeversuche pro Minute un
 (Taktraster, Schritte, Gruppen, Sprungmarken, Bearbeitungssperre, Offline-Betrieb). Daten in D1, Musik in R2,
 API unter `/api/choreo/…`. Übernahme der alten Daten aus Supabase: siehe `docs/zielbild.md`.
 **Langsamer üben:** Tempo-Knopf in der Steuerleiste (Menü: Prozent, BPM der Tänze umgerechnet, −/+ je 1 %, halten =
-schnell, 100 % = Reset; 50–100 %, gilt für die Sitzung). Bei 100 % spielt WebAudio wie
-bisher; langsamer wird aus denselben dekodierten Samples eine WAV erzeugt und über `<audio>` mit „Tonhöhe
-beibehalten“ abgespielt (gleiche Zeitachse). Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr
+schnell, 100 % = Reset; 75–125 %, gilt für die Sitzung). Beim Öffnen wird die Audio einmal dekodiert, daraus
+eine WAV erzeugt (exakte Zeitachse wie Welle und Raster, anders als MP3 im `<audio>`) und über `<audio>` mit
+„Tonhöhe beibehalten“ abgespielt – bei jedem Tempo derselbe Weg, Wechsel ohne Neuladen. Lässt sich die Datei
+nicht dekodieren, spielt die Originaldatei. Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr
 rechnet mit dem Faktor (`lib/speed.js`).
 Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; Bearbeiten mit
 Unter-Reitern *Schritte* – Gruppe für neue Schritte direkt wählen –, *Gruppen* – Zeitstrahl, „Abschnitt hier“,

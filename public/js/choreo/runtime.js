@@ -6,12 +6,11 @@ export const rt = {
   // Wavesurfer
   ws: null,
   wsRegions: null,
-  webAudioFailed: false, // WebAudio klappte nicht → Fallback auf <audio>
+  decodeFailed: false, // Dekodieren klappte nicht → Originaldatei direkt im <audio>
   currentObjectUrl: null,
-  audioBlob: null, // geladene Musik (für den Wechsel 1× ↔ langsamer)
-  slowMedia: null, // <audio> mit Tonhöhe beibehalten, wenn langsamer als 1×
-  slowSource: null, // { blob, url (WAV), peaks, duration } – einmal je Musik
-  restore: null, // { t, play } nach einem Tempo-Wechsel
+  audioBlob: null, // geladene Musik (Originaldatei)
+  pcmMedia: null, // <audio> für die WAV, Tonhöhe beibehalten
+  pcmSource: null, // { blob, url (WAV), peaks, duration } – einmal je Musik
   speedHold: null, // Timer für gedrückt gehaltenes +/−
 
   palette: null, // Farben aus theme.css, siehe canvas.refreshPalette()
