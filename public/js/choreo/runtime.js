@@ -12,6 +12,7 @@ export const rt = {
   slowMedia: null, // <audio> mit Tonhöhe beibehalten, wenn langsamer als 1×
   slowSource: null, // { blob, url (WAV), peaks, duration } – einmal je Musik
   restore: null, // { t, play } nach einem Tempo-Wechsel
+  speedHold: null, // Timer für gedrückt gehaltenes +/−
 
   palette: null, // Farben aus theme.css, siehe canvas.refreshPalette()
 

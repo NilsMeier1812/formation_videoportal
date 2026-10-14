@@ -9,7 +9,7 @@ import RegionsPlugin from "/vendor/wavesurfer-regions.esm.js";
 import WaveSurfer from "/vendor/wavesurfer.esm.js";
 import { AUDIO_TIMEOUT_MS } from "../config.js";
 import { local } from "../data/index.js";
-import { SPEEDS, advance, encodeWav, formatSpeed, normalizeSpeed } from "../lib/speed.js";
+import { SPEED_MAX, SPEED_MIN, advance, encodeWav, formatBpm, formatSpeed, normalizeSpeed, stepSpeed, tempoLines } from "../lib/speed.js";
 import { segmentAt } from "../lib/timeline.js";
 import { rt } from "../runtime.js";
 
@@ -19,10 +19,34 @@ export function audio() {
     audioError: null,
 
     // ---- Tempo (nur für diese Sitzung gemerkt – sonst wundert man sich morgen) ----
-    SPEEDS,
     playbackRate: (() => { try { return normalizeSpeed(sessionStorage.getItem("choreo_speed")); } catch { return 1; } })(),
     speedMenuOpen: false,
     fmtSpeed(rate) { return formatSpeed(rate); },
+    get speedAtMin() { return this.playbackRate <= SPEED_MIN; },
+    get speedAtMax() { return this.playbackRate >= SPEED_MAX; },
+    /** BPM der Tänze dieser Audio – original und beim gewählten Tempo. */
+    get speedLines() {
+      const name = (id) => (id ? this.projectDances.find((d) => d.id === id)?.name : null);
+      return tempoLines(this.sortedTempo, name, this.playbackRate);
+    },
+    /** BPM an der aktuellen Stelle beim gewählten Tempo (für die Kopfzeile). */
+    scaledBpm(bpm) { return formatBpm(bpm, this.playbackRate); },
+    /** +1 % / −1 %; gedrückt halten wiederholt (erst nach einer kurzen Pause). */
+    nudgeSpeed(direction) { this.setSpeed(stepSpeed(this.playbackRate, direction)); },
+    holdSpeed(direction) {
+      this.releaseSpeed();
+      this.nudgeSpeed(direction);
+      rt.speedHold = setTimeout(() => {
+        rt.speedHold = setInterval(() => {
+          const next = stepSpeed(this.playbackRate, direction);
+          if (next === this.playbackRate) { this.releaseSpeed(); return; }
+          this.setSpeed(next);
+        }, 90);
+      }, 450);
+    },
+    releaseSpeed() {
+      if (rt.speedHold) { clearTimeout(rt.speedHold); clearInterval(rt.speedHold); rt.speedHold = null; }
+    },
     /** Welche Wiedergabe läuft: „webaudio“ (1×), „slow“ (<audio>, Tonhöhe beibehalten) – auch für Tests. */
     get audioEngine() {
       if (!rt.ws) return null;
@@ -175,7 +199,6 @@ export function audio() {
      */
     async setSpeed(value) {
       const rate = normalizeSpeed(value);
-      this.speedMenuOpen = false;
       if (rate === this.playbackRate) return;
       const wasSlow = Boolean(rt.slowMedia);
       this.playbackRate = rate;
@@ -185,16 +208,15 @@ export function audio() {
       if (wantSlow === wasSlow) {
         rt.ws.setPlaybackRate(rate, true);
         if (this.isPlaying) { rt.clockP = null; this.syncClock(rt.ws.getCurrentTime()); }
-        this.setStatus(`Tempo ${formatSpeed(rate)}`);
         return;
       }
-      rt.restore = { t: rt.ws.getCurrentTime(), play: this.isPlaying };
+      // Wird gerade noch neu aufgebaut, gilt die Stelle von vorher (die neue Welle steht noch bei 0)
+      rt.restore = rt.restore || { t: rt.ws.getCurrentTime(), play: this.isPlaying };
       if (this.isPlaying) rt.ws.pause();
       this.audioLoading = true;
       this.destroyWs();
       this.createWs();
       await this.wsLoadBlob(rt.audioBlob);
-      this.setStatus(`Tempo ${formatSpeed(rate)}`);
     },
 
     // ---------------- Wavesurfer ----------------
