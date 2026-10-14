@@ -1,27 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { advance, encodeWav, formatBpm, formatSpeed, normalizeSpeed, stepSpeed, tempoLines } from "../../public/js/choreo/lib/speed.js";
+import { advance, encodeWav, formatBpm, formatSpeed, normalizeSpeed, peaksFrom, stepSpeed, tempoLines } from "../../public/js/choreo/lib/speed.js";
 import { stepTime } from "../../public/js/choreo/lib/timeline.js";
 
 describe("Langsamer üben", () => {
-  it("Tempo in ganzen Prozent zwischen 50 und 100, Unsinn → 100 %", () => {
+  it("Tempo in ganzen Prozent zwischen 75 und 125, Unsinn → 100 %", () => {
     expect(normalizeSpeed("0.93")).toBe(0.93);
     expect(normalizeSpeed(0.934)).toBe(0.93);
-    expect(normalizeSpeed(0.3)).toBe(0.5);
-    expect(normalizeSpeed(1.4)).toBe(1);
+    expect(normalizeSpeed(0.5)).toBe(0.75);
+    expect(normalizeSpeed(1.4)).toBe(1.25);
+    expect(normalizeSpeed(1.1)).toBe(1.1);
     expect(normalizeSpeed(null)).toBe(1);
     expect(normalizeSpeed("abc")).toBe(1);
     expect(formatSpeed(0.93)).toBe("93 %");
+    expect(formatSpeed(1.07)).toBe("107 %");
   });
 
-  it("+/− ändert um genau 1 %, an den Grenzen bleibt es stehen", () => {
+  it("+/− ändert um genau 1 %, auch über 100 % hinaus; an den Grenzen bleibt es stehen", () => {
     expect(stepSpeed(1, -1)).toBe(0.99);
-    expect(stepSpeed(0.93, 1)).toBe(0.94);
-    expect(stepSpeed(1, 1)).toBe(1);
-    expect(stepSpeed(0.5, -1)).toBe(0.5);
-    // 100 × −1 % hintereinander landet exakt (keine Rundungsfehler)
+    expect(stepSpeed(1, 1)).toBe(1.01);
+    expect(stepSpeed(1.25, 1)).toBe(1.25);
+    expect(stepSpeed(0.75, -1)).toBe(0.75);
     let r = 1;
     for (let i = 0; i < 7; i++) r = stepSpeed(r, -1);
     expect(r).toBe(0.93);
+    for (let i = 0; i < 17; i++) r = stepSpeed(r, 1);
+    expect(r).toBe(1.1);
+  });
+
+  it("verkleinerte Welle: größter Ausschlag je Abschnitt, mit Vorzeichen", () => {
+    const samples = new Float32Array([0.1, -0.9, 0.2, 0.3, 0.5, -0.4, 0, 0.05]);
+    expect(Array.from(peaksFrom(samples, 8, 2))).toEqual([Math.fround(-0.9), Math.fround(0.5)]);
+    expect(peaksFrom(new Float32Array(44100 * 2), 44100).length).toBe(8019); // 2 s, je 11 Samples → ~4000 je Sekunde
   });
 
   it("BPM der Tänze werden mitgerechnet", () => {

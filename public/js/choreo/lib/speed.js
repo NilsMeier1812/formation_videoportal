@@ -5,10 +5,10 @@
 // Zeit IN DER MUSIK. Langsamer abspielen ändert nur, wie schnell diese Zeit vergeht – nicht
 // die Zeit selbst. Deshalb muss nur die Playhead-Uhr (Echtzeit → Musik-Zeit) den Faktor kennen.
 
-export const SPEED_MIN = 0.5; // 50 %
-export const SPEED_MAX = 1; // 100 % = Original
+export const SPEED_MIN = 0.75; // 75 %
+export const SPEED_MAX = 1.25; // 125 %
 
-/** Auf ganze Prozent zwischen 50 und 100 bringen; Unsinn → 100 %. */
+/** Auf ganze Prozent zwischen 75 und 125 bringen; Unsinn → 100 %. */
 export function normalizeSpeed(value) {
   const n = Number(value);
   if (value === null || value === "" || !Number.isFinite(n) || n <= 0) return 1;
@@ -49,6 +49,22 @@ export function tempoLines(sections, nameOf, rate = 1) {
   return out;
 }
 
+/**
+ * Verkleinerte Welle: je Abschnitt (perSecond pro Sekunde) der Wert mit dem größten Ausschlag
+ * (mit Vorzeichen). Gleiche Hüllkurve wie aus allen Samples, ein Bruchteil des Speichers.
+ */
+export function peaksFrom(samples, sampleRate, perSecond = 4000) {
+  const step = Math.max(1, Math.floor(sampleRate / perSecond));
+  const out = new Float32Array(Math.ceil(samples.length / step));
+  for (let i = 0, k = 0; i < samples.length; i += step, k++) {
+    let peak = 0;
+    const end = Math.min(samples.length, i + step);
+    for (let j = i; j < end; j++) if (Math.abs(samples[j]) > Math.abs(peak)) peak = samples[j];
+    out[k] = peak;
+  }
+  return out;
+}
+
 /** Musik-Zeit nach `elapsedMs` Echtzeit, ausgehend von `musicTime`, bei Tempo `rate`. */
 export function advance(musicTime, elapsedMs, rate = 1) {
   return musicTime + (elapsedMs / 1000) * rate;
@@ -57,7 +73,7 @@ export function advance(musicTime, elapsedMs, rate = 1) {
 /**
  * AudioBuffer (oder { numberOfChannels, sampleRate, length, getChannelData(i) }) → WAV
  * (16 Bit PCM). Verlustfrei gegenüber dem, was WebAudio dekodiert hat: gleiche Samples,
- * gleiche Zeitachse – Raster und Welle passen genau wie bei 100 %.
+ * gleiche Zeitachse wie Welle und Raster.
  */
 export function encodeWav(buffer) {
   const channels = Math.min(2, buffer.numberOfChannels);
