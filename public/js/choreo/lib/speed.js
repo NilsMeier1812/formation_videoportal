@@ -1,21 +1,52 @@
-// Langsamer üben: Tempostufen, Uhr mit Tempo-Faktor und WAV-Kodierung (rein, testbar).
+// Langsamer üben: Tempo in Prozent, Uhr mit Tempo-Faktor, umgerechnete BPM und WAV-Kodierung
+// (rein, testbar).
 //
 // Alle Daten des Planers (Raster, Schritte, Sprungmarken, Abschnitte, Videos) hängen an der
 // Zeit IN DER MUSIK. Langsamer abspielen ändert nur, wie schnell diese Zeit vergeht – nicht
 // die Zeit selbst. Deshalb muss nur die Playhead-Uhr (Echtzeit → Musik-Zeit) den Faktor kennen.
 
-/** Wählbare Tempostufen (1 = Original). */
-export const SPEEDS = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1];
+export const SPEED_MIN = 0.5; // 50 %
+export const SPEED_MAX = 1; // 100 % = Original
 
-/** Nur bekannte Stufen zulassen; alles andere → 1. */
+/** Auf ganze Prozent zwischen 50 und 100 bringen; Unsinn → 100 %. */
 export function normalizeSpeed(value) {
   const n = Number(value);
-  return SPEEDS.includes(n) ? n : 1;
+  if (value === null || value === "" || !Number.isFinite(n) || n <= 0) return 1;
+  const pct = Math.round(n * 100);
+  return Math.min(SPEED_MAX * 100, Math.max(SPEED_MIN * 100, pct)) / 100;
 }
 
-/** „0,75×“ */
+/** Ein Prozent mehr (+1) oder weniger (−1). */
+export function stepSpeed(rate, direction) {
+  return normalizeSpeed((Math.round(rate * 100) + Math.sign(direction)) / 100);
+}
+
+/** „93 %“ */
 export function formatSpeed(rate) {
-  return `${String(rate).replace(".", ",")}×`;
+  return `${Math.round(rate * 100)} %`;
+}
+
+/** BPM bei diesem Tempo, auf eine Nachkommastelle („91,1“, ganze ohne „,0“). */
+export function formatBpm(bpm, rate = 1) {
+  const v = Math.round(Number(bpm) * rate * 10) / 10;
+  return String(v).replace(".", ",");
+}
+
+/**
+ * Tempo der Abschnitte für die Anzeige: [{ label, bpm, scaled }] in Reihenfolge der Musik.
+ * Gibt es Tänze, nur die Abschnitte mit Tanz; gleiche aufeinanderfolgende zusammengefasst.
+ */
+export function tempoLines(sections, nameOf, rate = 1) {
+  const named = sections.filter((s) => nameOf(s.dance_id));
+  const list = named.length ? named : sections;
+  const out = [];
+  for (const s of list) {
+    const label = nameOf(s.dance_id) || (list.length > 1 ? s.label || "Abschnitt" : "Musik");
+    const last = out[out.length - 1];
+    if (last && last.label === label && last.bpm === Number(s.bpm)) continue;
+    out.push({ label, bpm: Number(s.bpm), scaled: formatBpm(s.bpm, rate), original: formatBpm(s.bpm) });
+  }
+  return out;
 }
 
 /** Musik-Zeit nach `elapsedMs` Echtzeit, ausgehend von `musicTime`, bei Tempo `rate`. */
@@ -26,7 +57,7 @@ export function advance(musicTime, elapsedMs, rate = 1) {
 /**
  * AudioBuffer (oder { numberOfChannels, sampleRate, length, getChannelData(i) }) → WAV
  * (16 Bit PCM). Verlustfrei gegenüber dem, was WebAudio dekodiert hat: gleiche Samples,
- * gleiche Zeitachse – Raster und Welle passen genau wie bei 1×.
+ * gleiche Zeitachse – Raster und Welle passen genau wie bei 100 %.
  */
 export function encodeWav(buffer) {
   const channels = Math.min(2, buffer.numberOfChannels);

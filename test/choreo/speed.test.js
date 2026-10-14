@@ -1,14 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { SPEEDS, advance, encodeWav, formatSpeed, normalizeSpeed } from "../../public/js/choreo/lib/speed.js";
+import { advance, encodeWav, formatBpm, formatSpeed, normalizeSpeed, stepSpeed, tempoLines } from "../../public/js/choreo/lib/speed.js";
 import { stepTime } from "../../public/js/choreo/lib/timeline.js";
 
 describe("Langsamer üben", () => {
-  it("kennt nur feste Stufen, 1 = Original", () => {
-    expect(SPEEDS).toContain(1);
-    expect(normalizeSpeed("0.75")).toBe(0.75);
-    expect(normalizeSpeed(0.33)).toBe(1);
+  it("Tempo in ganzen Prozent zwischen 50 und 100, Unsinn → 100 %", () => {
+    expect(normalizeSpeed("0.93")).toBe(0.93);
+    expect(normalizeSpeed(0.934)).toBe(0.93);
+    expect(normalizeSpeed(0.3)).toBe(0.5);
+    expect(normalizeSpeed(1.4)).toBe(1);
     expect(normalizeSpeed(null)).toBe(1);
-    expect(formatSpeed(0.75)).toBe("0,75×");
+    expect(normalizeSpeed("abc")).toBe(1);
+    expect(formatSpeed(0.93)).toBe("93 %");
+  });
+
+  it("+/− ändert um genau 1 %, an den Grenzen bleibt es stehen", () => {
+    expect(stepSpeed(1, -1)).toBe(0.99);
+    expect(stepSpeed(0.93, 1)).toBe(0.94);
+    expect(stepSpeed(1, 1)).toBe(1);
+    expect(stepSpeed(0.5, -1)).toBe(0.5);
+    // 100 × −1 % hintereinander landet exakt (keine Rundungsfehler)
+    let r = 1;
+    for (let i = 0; i < 7; i++) r = stepSpeed(r, -1);
+    expect(r).toBe(0.93);
+  });
+
+  it("BPM der Tänze werden mitgerechnet", () => {
+    expect(formatBpm(98, 0.93)).toBe("91,1");
+    expect(formatBpm(120, 0.5)).toBe("60");
+    const names = { std: "Standard", lat: "Latein" };
+    const sections = [
+      { dance_id: null, bpm: 120, label: "Intro" },
+      { dance_id: "std", bpm: 120 },
+      { dance_id: "lat", bpm: 98 },
+      { dance_id: "lat", bpm: 98 },
+      { dance_id: "lat", bpm: 104 },
+    ];
+    const lines = tempoLines(sections, (id) => names[id], 0.9);
+    expect(lines.map((l) => `${l.label} ${l.original}→${l.scaled}`)).toEqual(["Standard 120→108", "Latein 98→88,2", "Latein 104→93,6"]);
+    // ohne Tänze: das Tempo der Musik
+    expect(tempoLines([{ dance_id: null, bpm: 120 }], () => null, 0.75)).toEqual([{ label: "Musik", bpm: 120, scaled: "90", original: "120" }]);
   });
 
   it("Playhead-Uhr: bei 0,75× vergeht in 1 s Echtzeit 0,75 s Musik", () => {

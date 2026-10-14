@@ -38,7 +38,7 @@
         <div class="title appbar-title" role="button" tabindex="0" @click="menuOpen = true" @keydown.enter="menuOpen = true" aria-label="Choreo wählen">
           <span x-text="project ? project.title : 'Kein Projekt'"></span>
           <template x-if="activeTempo">
-            <span class="meta" x-text="` · ${sectionDanceName(activeTempo) ? sectionDanceName(activeTempo) + ' · ' : ''}${activeTempo.bpm} BPM · ${activeTempo.time_signature}`"></span>
+            <span class="meta" x-text="` · ${sectionDanceName(activeTempo) ? sectionDanceName(activeTempo) + ' · ' : ''}${playbackRate !== 1 ? scaledBpm(activeTempo.bpm) : activeTempo.bpm} BPM · ${activeTempo.time_signature}`"></span>
           </template>
           <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </div>
@@ -88,19 +88,36 @@
       </button>
       <span class="time" x-text="fmt(currentTime)"></span>
       <!-- Tempo zum Üben: Musik-Zeit bleibt Bezug für alles (Raster, Schritte, Marken …) -->
-      <div class="speed" @click.outside="speedMenuOpen = false" @keydown.escape="speedMenuOpen = false">
+      <div class="speed" @click.outside="speedMenuOpen = false; releaseSpeed()" @keydown.escape="speedMenuOpen = false">
         <button type="button" class="speed-btn" :class="{ slow: playbackRate !== 1 }" :disabled="!project"
                 @click="speedMenuOpen = !speedMenuOpen" :aria-expanded="String(speedMenuOpen)"
                 :aria-label="'Tempo ' + fmtSpeed(playbackRate)" title="Tempo zum Üben" x-text="fmtSpeed(playbackRate)"></button>
-        <div class="speed-menu" x-show="speedMenuOpen" x-cloak role="menu" aria-label="Tempo">
-          <div class="speed-title">Tempo zum Üben</div>
-          <div class="speed-grid">
-            <template x-for="r in SPEEDS" :key="r">
-              <button type="button" role="menuitemradio" :aria-checked="String(r === playbackRate)" @click="setSpeed(r)"
-                      :class="{ orig: r === 1 }" x-text="r === 1 ? '1× Original' : fmtSpeed(r)"></button>
-            </template>
+        <div class="speed-menu" x-show="speedMenuOpen" x-cloak role="dialog" aria-label="Tempo zum Üben">
+          <div class="speed-head">
+            <span class="speed-pct" x-text="fmtSpeed(playbackRate)"></span>
+            <span class="speed-sub" x-text="playbackRate === 1 ? 'Originaltempo' : 'vom Originaltempo'"></span>
           </div>
-          <p class="speed-hint">Tonhöhe bleibt gleich. Raster, Schritte, Notizen, Marken und Abschnitte laufen mit.</p>
+          <ul class="speed-bpm" x-show="speedLines.length">
+            <template x-for="(l, i) in speedLines" :key="i">
+              <li>
+                <span class="sb-name" x-text="l.label"></span>
+                <span class="sb-val">
+                  <template x-if="playbackRate !== 1"><span class="sb-orig" x-text="l.original + ' →'"></span></template>
+                  <b x-text="l.scaled"></b> BPM
+                </span>
+              </li>
+            </template>
+          </ul>
+          <div class="speed-ctrl">
+            <button type="button" class="sc-step" :disabled="speedAtMin" aria-label="1 Prozent langsamer"
+                    @pointerdown.prevent="holdSpeed(-1)" @pointerup="releaseSpeed()" @pointerleave="releaseSpeed()" @pointercancel="releaseSpeed()"
+                    @keydown.enter.prevent="nudgeSpeed(-1)" @keydown.space.prevent="nudgeSpeed(-1)">−</button>
+            <button type="button" class="sc-reset" :disabled="playbackRate === 1" @click="setSpeed(1)">100 %</button>
+            <button type="button" class="sc-step" :disabled="speedAtMax" aria-label="1 Prozent schneller"
+                    @pointerdown.prevent="holdSpeed(1)" @pointerup="releaseSpeed()" @pointerleave="releaseSpeed()" @pointercancel="releaseSpeed()"
+                    @keydown.enter.prevent="nudgeSpeed(1)" @keydown.space.prevent="nudgeSpeed(1)">+</button>
+          </div>
+          <p class="speed-hint">Tonhöhe bleibt gleich. Raster, Schritte, Notizen, Marken und Abschnitte laufen mit. Gedrückt halten = schneller durchschalten.</p>
         </div>
       </div>
       <div class="disp-toggle">
