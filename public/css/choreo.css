@@ -141,6 +141,26 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   min-width: 42px;
 }
 #controls-bar .spacer { flex: 1; }
+#controls-bar { position: relative; }
+
+/* Tempo zum Üben */
+.speed { position: relative; flex-shrink: 0; }
+.speed-btn {
+  min-width: 46px; height: 34px; padding: 0 8px; border-radius: 9px;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.speed-btn.slow { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.speed-menu {
+  position: absolute; z-index: 30; top: calc(100% + 8px); left: -60px; width: 232px;
+  padding: 10px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.22);
+}
+.speed-title { font-size: 12px; font-weight: 700; margin: 0 2px 8px; }
+.speed-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.speed-grid button { padding: 8px 4px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.speed-grid button.orig { grid-column: 1 / -1; }
+.speed-grid button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.speed-hint { margin: 8px 2px 0; font-size: 11px; line-height: 1.35; color: var(--muted); }
 #controls-bar .icon { width: 34px; height: 34px; }
 .icon svg { display: block; }
 .play-btn {

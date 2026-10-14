@@ -87,6 +87,22 @@
         <svg x-show="isPlaying" x-cloak width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>
       </button>
       <span class="time" x-text="fmt(currentTime)"></span>
+      <!-- Tempo zum Üben: Musik-Zeit bleibt Bezug für alles (Raster, Schritte, Marken …) -->
+      <div class="speed" @click.outside="speedMenuOpen = false" @keydown.escape="speedMenuOpen = false">
+        <button type="button" class="speed-btn" :class="{ slow: playbackRate !== 1 }" :disabled="!project"
+                @click="speedMenuOpen = !speedMenuOpen" :aria-expanded="String(speedMenuOpen)"
+                :aria-label="'Tempo ' + fmtSpeed(playbackRate)" title="Tempo zum Üben" x-text="fmtSpeed(playbackRate)"></button>
+        <div class="speed-menu" x-show="speedMenuOpen" x-cloak role="menu" aria-label="Tempo">
+          <div class="speed-title">Tempo zum Üben</div>
+          <div class="speed-grid">
+            <template x-for="r in SPEEDS" :key="r">
+              <button type="button" role="menuitemradio" :aria-checked="String(r === playbackRate)" @click="setSpeed(r)"
+                      :class="{ orig: r === 1 }" x-text="r === 1 ? '1× Original' : fmtSpeed(r)"></button>
+            </template>
+          </div>
+          <p class="speed-hint">Tonhöhe bleibt gleich. Raster, Schritte, Notizen, Marken und Abschnitte laufen mit.</p>
+        </div>
+      </div>
       <div class="disp-toggle">
         <button :class="{ active: stepDisplay === 'numbers' }" @click="setStepDisplay('numbers')" title="Zahlen">123</button>
         <button :class="{ active: stepDisplay === 'dots' }" @click="setStepDisplay('dots')" title="Punkte"><i class="dd s"></i><i class="dd m"></i><i class="dd l"></i></button>

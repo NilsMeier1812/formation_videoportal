@@ -8,6 +8,10 @@ export const rt = {
   wsRegions: null,
   webAudioFailed: false, // WebAudio klappte nicht → Fallback auf <audio>
   currentObjectUrl: null,
+  audioBlob: null, // geladene Musik (für den Wechsel 1× ↔ langsamer)
+  slowMedia: null, // <audio> mit Tonhöhe beibehalten, wenn langsamer als 1×
+  slowSource: null, // { blob, url (WAV), peaks, duration } – einmal je Musik
+  restore: null, // { t, play } nach einem Tempo-Wechsel
 
   palette: null, // Farben aus theme.css, siehe canvas.refreshPalette()
 
