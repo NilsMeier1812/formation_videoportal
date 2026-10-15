@@ -56,7 +56,7 @@ rechnet mit dem Faktor (`lib/speed.js`).
 Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; Bearbeiten mit
 Unter-Reitern *Schritte* – Gruppe für neue Schritte direkt wählen –, *Gruppen* – Zeitstrahl, „Abschnitt hier“,
 Gruppen als Chips, Paare antippen zum Zuteilen – und *Paare*) und **Sprungmarken** (antippen springt hin,
-optional mit 1 Takt Vorlauf; Bearbeiten: „Marke hier“, Beschreibung bei der aktuellen Marke).
+Schalter „In der Welle zeigen“; Bearbeiten: „Marke hier“, Beschreibung bei der aktuellen Marke).
 
 **Choreos, Tänze, Audios, Tags:**
 ```

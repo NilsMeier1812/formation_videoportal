@@ -19,7 +19,6 @@ export function auth() {
     loginName: "",
     loginError: "",
     loggingIn: false,
-    showPw: false,
 
     get roleLabel() {
       const label = ROLE_LABELS[this.role];
@@ -62,7 +61,6 @@ export function auth() {
       this.loginError = "";
       this.loginPassword = "";
       this.loginName = this.userName || "";
-      this.showPw = false;
       this.loginOpen = true; // liegt über dem Menü – danach ist man wieder im Menü
     },
     closeLogin() { this.loginOpen = false; },
