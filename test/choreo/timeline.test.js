@@ -6,7 +6,9 @@ import {
   groupNameOf,
   groupNumbersOf,
   groupOf,
+  groupSpans,
   groupTimeline,
+  spanIndexAt,
   isOffbeat,
   rangeAt,
   segmentAt,
@@ -114,5 +116,17 @@ describe("Gruppen", () => {
     ]);
     expect(groupTimeline(parts, memberships, 0, 60)).toEqual([]);
     expect(groupTimeline([], [], 3, 60)).toEqual(["Alle gleich"]);
+  });
+
+  it("kennt die Startzeiten und den laufenden Eintrag", () => {
+    const spans = groupSpans(parts, memberships, 3, 60);
+    expect(spans.map((x) => x.name)).toEqual(groupTimeline(parts, memberships, 3, 60));
+    expect(spans[0].start).toBe(0);
+    for (let i = 1; i < spans.length; i++) expect(spans[i].start).toBeGreaterThan(spans[i - 1].start);
+    expect(spanIndexAt(spans, 0)).toBe(0);
+    expect(spanIndexAt(spans, spans[1].start)).toBe(1);
+    expect(spanIndexAt(spans, spans[1].start - 0.01)).toBe(0);
+    expect(spanIndexAt(spans, 999)).toBe(spans.length - 1);
+    expect(spanIndexAt([], 5)).toBe(-1);
   });
 });

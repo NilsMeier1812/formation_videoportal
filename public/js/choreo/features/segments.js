@@ -77,21 +77,10 @@ export function segments() {
       });
     },
 
-    // ---- Springen: mit „1 Takt Vorlauf“ einen Takt vor der Marke ----
-    preroll: (() => { try { return localStorage.getItem("choreo_preroll") === "1"; } catch { return false; } })(),
-    setPreroll(on) {
-      this.preroll = Boolean(on);
-      try { localStorage.setItem("choreo_preroll", on ? "1" : "0"); } catch { /* egal */ }
-    },
+    // ---- Springen ----
     jumpToSegment(seg) {
       this.activeSegmentId = seg.id;
-      if (this.preroll) this.seekBarBefore(seg.timestamp); else this.seekTo(seg.timestamp);
-    },
-
-    /** Einen Takt vor der Sprungmarke starten. */
-    seekBarBefore(timestamp) {
-      const t = Number(timestamp) || 0;
-      this.seekTo(Math.max(0, t - (this.barLengthOf(this.sectionAt(t)) || 0)));
+      this.seekTo(seg.timestamp);
     },
   };
 }

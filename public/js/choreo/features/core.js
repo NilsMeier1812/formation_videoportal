@@ -6,8 +6,10 @@ import {
   groupNameOf,
   groupNumbersOf,
   groupOf,
-  groupTimeline,
+  ALL_SAME,
+  groupSpans,
   rangeAt,
+  spanIndexAt,
   sortBy,
   tempoAt,
 } from "../lib/timeline.js";
@@ -69,9 +71,12 @@ export function core() {
       return this.groupOf(this.activePart, this.myPersonNumber);
     },
     /** Verlauf der Gruppen des gewählten Paares über das ganze Lied. */
-    get myGroupTimeline() {
-      return groupTimeline(this.sortedParts, this.memberships, this.myPersonNumber, this.duration || 0);
+    get myGroupSpans() {
+      return groupSpans(this.sortedParts, this.memberships, this.myPersonNumber, this.duration || 0);
     },
+    /** Index des gerade laufenden Eintrags in myGroupSpans. */
+    get myGroupNowIndex() { return spanIndexAt(this.myGroupSpans, this.currentTime); },
+    ALL_SAME,
 
     // ---- Helfer für die Oberfläche ----
     partAt(t) { return rangeAt(this.sortedParts, t); },

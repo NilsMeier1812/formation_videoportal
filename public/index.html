@@ -126,9 +126,6 @@
         <button :class="{ active: stepDisplay === 'letters' }" @click="setStepDisplay('letters')" title="Buchstaben">L u S</button>
       </div>
       <span class="spacer"></span>
-      <button class="icon" :class="{ on: showMarkers }" @click="toggleMarkers()" :disabled="!project" aria-label="Sprungmarken in der Welle ein/aus" title="Sprungmarken in der Welle">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
-      </button>
       <button class="icon" @click="zoomOut()" :disabled="!project" aria-label="Verkleinern">−</button>
       <button class="icon" @click="zoomIn()" :disabled="!project" aria-label="Vergrößern">+</button>
     </div>
@@ -225,11 +222,10 @@
           </template>
         </div>
 
-        <!-- Tab: Sprungmarken -->
-        <!-- Tab: Sprungmarken – antippen springt hin (optional 1 Takt Vorlauf) -->
+        <!-- Tab: Sprungmarken – antippen springt hin; Schalter: in der Welle zeigen -->
         <div x-show="bottomTab === 'notes'" class="tab-pane">
           <div class="pane-head">
-            <label class="switch-line"><input type="checkbox" :checked="preroll" @change="setPreroll($event.target.checked)"> 1 Takt Vorlauf</label>
+            <label class="switch-line"><input type="checkbox" :checked="showMarkers" @change="toggleMarkers()" :disabled="!project"> In der Welle zeigen</label>
             <span x-show="currentMode === 'editor' && lockOwned" class="badge lock">Du bearbeitest</span>
             <span x-show="currentMode === 'editor' && !lockOwned && !online" class="badge offline">Offline-Bearbeitung</span>
           </div>
@@ -293,12 +289,15 @@
                   </template>
                 </select>
               </label>
-              <template x-if="myPersonNumber && myGroupTimeline.length">
+              <!-- „Alle gleich“ nur als kleiner Punkt zwischen den Gruppen -->
+              <template x-if="myPersonNumber && myGroupSpans.some((x) => x.name !== ALL_SAME)">
                 <div>
                   <div class="ts-label">Meine Gruppen im Lied</div>
                   <div class="grp-flow">
-                    <template x-for="(g, i) in myGroupTimeline" :key="i">
-                      <span class="grp-step" :class="{ now: activePart && g === (myGroup ? groupNameOf(activePart, myGroup) : 'Alle gleich') }" x-text="g"></span>
+                    <template x-for="(x, i) in myGroupSpans" :key="i">
+                      <span :class="{ 'grp-step': x.name !== ALL_SAME, 'grp-gap': x.name === ALL_SAME, now: i === myGroupNowIndex }"
+                            :title="x.name === ALL_SAME ? x.name : null" :aria-label="x.name === ALL_SAME ? x.name : null"
+                            x-text="x.name === ALL_SAME ? '' : x.name"></span>
                     </template>
                   </div>
                 </div>
@@ -876,14 +875,8 @@
         <p class="hint">Die App ist nur für die Gruppe. Bitte einmal den <strong>Gruppen-Code</strong> eingeben –
           das Handy merkt ihn sich ein Jahr lang. Trainer nehmen ihren Trainer-Code.</p>
         <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name" />
-        <div class="pw-row">
-          <input :type="showPw ? 'text' : 'password'" x-model="loginPassword" placeholder="Code"
-                 autocomplete="current-password" required />
-          <button type="button" class="icon" @click="showPw = !showPw" :aria-label="showPw ? 'Code verbergen' : 'Code anzeigen'">
-              <svg x-show="!showPw" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg x-show="showPw" x-cloak viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
-            </button>
-        </div>
+        <input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore x-model="loginPassword" placeholder="Code"
+               aria-label="Code" required />
         <div x-show="loginError" class="gate-error" x-text="loginError"></div>
         <button type="submit" class="primary" :disabled="!loginPassword || loggingIn"
                 x-text="loggingIn ? 'Anmelden…' : 'Anmelden'"></button>
@@ -902,14 +895,8 @@
           <p class="hint">Mit dem <strong>Gruppen-Code</strong> siehst du alles und kannst Videos hochladen, mit dem <strong>Trainer-Code</strong> zusätzlich bearbeiten und zuordnen. Die Anmeldung wird ein Jahr lang gemerkt.</p>
           <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name"
                  @keydown.enter="doLogin()" style="margin-bottom:8px" />
-          <div class="pw-row">
-            <input :type="showPw ? 'text' : 'password'" x-model="loginPassword" placeholder="Code"
-                   autocomplete="current-password" @keydown.enter="doLogin()" />
-            <button type="button" class="icon" @click="showPw = !showPw" :aria-label="showPw ? 'Code verbergen' : 'Code anzeigen'">
-              <svg x-show="!showPw" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg x-show="showPw" x-cloak viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
-            </button>
-          </div>
+          <input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore x-model="loginPassword" placeholder="Code"
+                 aria-label="Code" @keydown.enter="doLogin()" />
           <div x-show="loginError" style="color:var(--danger);font-size:13px;margin-top:8px" x-text="loginError"></div>
           <button class="primary" style="width:100%;margin-top:12px"
                   :disabled="!loginPassword || loggingIn" @click="doLogin()"
@@ -969,14 +956,8 @@
         <header><h2>Audio löschen</h2><button class="icon" @click="cancelDeleteProject()" aria-label="Schließen">✕</button></header>
         <div class="body">
           <p class="hint">Audio „<strong x-text="deleteTarget.title"></strong>" samt Schritten, Abschnitten, Gruppen &amp; Sprungmarken wird gelöscht. Videos bleiben, verlieren aber ihre Stelle in dieser Musik. Zum Bestätigen bitte den <strong>Trainer-Code</strong> eingeben.</p>
-          <div class="pw-row">
-            <input :type="showDelPw ? 'text' : 'password'" x-model="deletePassword" placeholder="Trainer-Code"
-                   autocomplete="current-password" @keydown.enter="doDeleteProject()" />
-            <button type="button" class="icon" @click="showDelPw = !showDelPw" :aria-label="showDelPw ? 'Code verbergen' : 'Code anzeigen'">
-              <svg x-show="!showDelPw" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg x-show="showDelPw" x-cloak viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
-            </button>
-          </div>
+          <input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore x-model="deletePassword" placeholder="Trainer-Code"
+                 aria-label="Trainer-Code" @keydown.enter="doDeleteProject()" />
           <div x-show="deleteError" style="color:var(--danger);font-size:13px;margin-top:8px" x-text="deleteError"></div>
           <div class="calib-row" style="margin-top:12px">
             <button style="flex:1" @click="cancelDeleteProject()">Abbrechen</button>

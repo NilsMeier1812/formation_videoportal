@@ -95,24 +95,39 @@ export function groupNameOf(part, n) {
   return (names[n] && String(names[n]).trim()) || "Gruppe " + n;
 }
 
+/** Kein eigener Gruppen-Abschnitt (oder Person in keiner Gruppe): alle tanzen dasselbe. */
+export const ALL_SAME = "Alle gleich";
+
 /**
- * Verlauf der Gruppen einer Person über das ganze Lied,
- * z. B. ["Links", "Alle gleich", "Mitte"]. Gleiche Nachbarn werden zusammengefasst.
+ * Verlauf der Gruppen einer Person über das ganze Lied, mit Startzeit:
+ * z. B. [{ name: "Links", start: 0 }, { name: "Alle gleich", start: 32 }, …].
+ * Gleiche Nachbarn werden zusammengefasst.
  */
-export function groupTimeline(sortedParts, memberships, personNumber, duration) {
+export function groupSpans(sortedParts, memberships, personNumber, duration) {
   if (!personNumber) return [];
   const out = [];
+  const push = (name, start) => { if (out[out.length - 1]?.name !== name) out.push({ name, start }); };
   let cursor = 0;
   for (const p of sortedParts) {
     const start = Number(p.start_sec) || 0;
     const end = p.end_sec == null ? duration : Number(p.end_sec);
-    if (start > cursor + 0.05) out.push("Alle gleich"); // Lücke davor
+    if (start > cursor + 0.05) push(ALL_SAME, cursor); // Lücke davor
     const g = groupOf(memberships, p, personNumber);
-    out.push(g ? groupNameOf(p, g) : "Alle gleich");
+    push(g ? groupNameOf(p, g) : ALL_SAME, start);
     cursor = Math.max(cursor, end);
   }
-  if (!sortedParts.length || cursor < duration - 0.05) out.push("Alle gleich"); // Rest
-  const merged = [];
-  for (const x of out) if (merged[merged.length - 1] !== x) merged.push(x);
-  return merged;
+  if (!sortedParts.length || cursor < duration - 0.05) push(ALL_SAME, cursor); // Rest
+  return out;
+}
+
+/** Nur die Namen, z. B. ["Links", "Alle gleich", "Mitte"]. */
+export function groupTimeline(sortedParts, memberships, personNumber, duration) {
+  return groupSpans(sortedParts, memberships, personNumber, duration).map((x) => x.name);
+}
+
+/** Welcher Eintrag aus groupSpans gerade läuft (Index, -1 vor dem ersten). */
+export function spanIndexAt(spans, t) {
+  let idx = -1;
+  for (let i = 0; i < spans.length; i++) if (spans[i].start <= t + 1e-6) idx = i;
+  return idx;
 }

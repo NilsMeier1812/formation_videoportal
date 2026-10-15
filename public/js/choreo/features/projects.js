@@ -27,7 +27,6 @@ export function projects() {
     deletePassword: "",
     deleteError: "",
     deleting: false,
-    showDelPw: false,
 
     /** Nicht angemeldet: private Projekte ausblenden. Angemeldet: alle sehen. */
     get visibleProjects() {
@@ -278,7 +277,6 @@ export function projects() {
       this.deleteTarget = p;
       this.deletePassword = "";
       this.deleteError = "";
-      this.showDelPw = false;
       this.deleting = false;
     },
     cancelDeleteProject() {
