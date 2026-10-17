@@ -1,5 +1,6 @@
 // Paare, Abschnitte mit Gruppen und die Zuteilung „welches Paar ist in welcher Gruppe".
 import { repo } from "../data/index.js";
+import { pairForName } from "../lib/pairs.js";
 import { round3, uuid } from "../lib/util.js";
 import { rt } from "../runtime.js";
 
@@ -56,11 +57,19 @@ export function groups() {
         setTimeout(() => select.classList.remove("attention"), 1600);
       });
     },
-    /** Gibt es genau ein Paar, ist es automatisch gewählt; ein gelöschtes Paar ist nicht mehr gewählt. */
+    /**
+     * Paar automatisch wählen: gibt es genau eines, dieses; sonst das Paar, zu dem der beim
+     * Anmelden angegebene Name passt (nur solange man hier noch nie selbst gewählt hat).
+     * Ein gelöschtes Paar ist nicht mehr gewählt.
+     */
     autoPickPair() {
       const numbers = this.persons.map((p) => Number(p.number));
       if (this.myPersonNumber && !numbers.includes(Number(this.myPersonNumber))) this.setMyPerson(0);
-      if (!this.myPersonNumber && numbers.length === 1) this.setMyPerson(numbers[0]);
+      if (this.myPersonNumber) return;
+      if (numbers.length === 1) { this.setMyPerson(numbers[0]); return; }
+      const chosenBefore = this.project && localStorage.getItem("choreo_person_" + this.project.id) !== null;
+      const byName = chosenBefore ? 0 : pairForName(this.persons, this.userName);
+      if (byName) this.setMyPerson(byName);
     },
     /** „Ich bin Paar X" – merkt sich die Wahl pro Projekt. */
     setMyPerson(n) {

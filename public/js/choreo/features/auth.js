@@ -77,6 +77,7 @@ export function auth() {
         if (name || !session.getName()) session.setName(name);
         const role = await session.login(code);
         this.userName = session.getName();
+        if (this.project) this.autoPickPair(); // Name passt zu einem Paar → gleich wählen
         this.loginPassword = "";
         this.loginName = "";
         this.loginOpen = false;
