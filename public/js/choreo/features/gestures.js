@@ -3,7 +3,8 @@
 //
 // Alle Wege landen in zoomAt(): neuer Zoom + passende Scroll-Position werden gemerkt und
 // höchstens einmal pro Bildschirm-Frame angewendet – schnelles Drehen/Ziehen bremst nicht.
-// Ein Finger bleibt wie bisher (wischen, tippen, Marken ziehen); nur zwei Finger zoomen.
+// Ein Finger bleibt wie bisher (wischen, tippen, Marken ziehen); nur zwei Finger zoomen –
+// auch wenn ein Finger auf einer Sprungmarke liegt (die bleibt dabei, wo sie ist).
 import { clampZoom, scrollFor, wheelFactor } from "../lib/zoom.js";
 import { rt } from "../runtime.js";
 
@@ -97,7 +98,11 @@ export function gestures() {
 
       const onTouchStart = (e) => {
         if (e.touches.length === 1) { firstOnMarker = onMarker(e); return; }
-        if (e.touches.length !== 2 || !rt.ws || !this.duration || firstOnMarker || onMarker(e)) return;
+        if (e.touches.length !== 2 || !rt.ws || !this.duration) return;
+        // Solange gezoomt wird, verschiebt sich keine Sprungmarke (siehe onRegionMoved).
+        // Hat ein Finger im Bearbeiten eine Marke gegriffen: Ziehen abbrechen, Marken neu setzen.
+        rt.pinchGuard = true;
+        if ((firstOnMarker || onMarker(e)) && this.currentMode === "editor") this.renderRegions();
         const [a, b] = e.touches;
         const s = this.zoomState();
         const x = mid(a, b);
@@ -113,7 +118,7 @@ export function gestures() {
         this.zoomTo(pinch.zoom0 * (dist(a, b) / pinch.d0), pinch.time, mid(a, b));
       };
       const onTouchEnd = (e) => {
-        if (e.touches.length === 0) firstOnMarker = false;
+        if (e.touches.length === 0) { firstOnMarker = false; rt.pinchGuard = false; }
         if (!pinch || e.touches.length >= 2) return;
         pinch = null;
         swallowUntil = Date.now() + 350; // Loslassen soll nicht an die Stelle springen

@@ -42,6 +42,7 @@ export const rt = {
   zoomPending: null, // { zoom, scroll }
   zoomRaf: 0,
   zoomGesturesReady: false,
+  pinchGuard: false, // zwei Finger liegen auf: Sprungmarken nicht verschieben
 
   // Sonstiges
   heartbeatTimer: null,

@@ -75,7 +75,9 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   Start und Ende werden auf die Position gesetzt; die **Tänze kommen dabei aus den Abschnitten** der Musik
   (änderbar). Einzelne Videos lassen sich aus der Auswahl nehmen. Außerdem Choreos (Tänze, Hauptaudio) und
   Tags verwalten, **Audios hochladen, duplizieren und löschen** (Löschen mit Trainer-Code), Videos in den
-  Papierkorb legen. **Tänze & Takt** einer Audio (Titel, privat, Abschnitte mit Tanz, BPM, Taktart) öffnet sich
+  Papierkorb legen. **Start-Audio** („Als Start-Audio“ an einer Audio, höchstens eine; `projects.is_start`):
+  Wer die App zum allerersten Mal öffnet, sieht diese statt der neuesten – wer schon da war, behält seine
+  zuletzt geöffnete. **Tänze & Takt** einer Audio (Titel, privat, Abschnitte mit Tanz, BPM, Taktart) öffnet sich
   von hier aus im Planer, weil das Einstellen des Takts Welle und Raster braucht; „Fertig“ führt zurück.
   „Tänze & Takt“ ist ein Blatt unten (Welle und Raster bleiben oben sichtbar) mit drei Reitern:
   **Abschnitte** (Zeitstrahl, „Hier teilen“, je Abschnitt Tanz, BPM, Taktart, „Takt 1 hier“ und

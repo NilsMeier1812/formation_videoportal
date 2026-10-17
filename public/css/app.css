@@ -369,6 +369,9 @@
   background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
 }
 .vpage .pill.dance { background: var(--accent-dim); border-color: transparent; color: var(--accent); }
+.vpage .pill.start { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: transparent; color: var(--accent); }
+.vpage .lib-start-note { display: flex; align-items: center; gap: 6px; margin: 0 2px; }
+.vpage .lib-start-note svg { flex-shrink: 0; }
 .vpage .pill.private { background: var(--badge-lock-bg); border-color: transparent; color: var(--badge-lock-text); }
 
 /* Choreos: Übersicht → Detail */

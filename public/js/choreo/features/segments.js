@@ -34,6 +34,7 @@ export function segments() {
       this.renderRegions();
     },
     onRegionMoved(region) {
+      if (rt.pinchGuard) { this.renderRegions(); return; } // beim Zoomen mit zwei Fingern nicht verschoben
       const seg = this.segments.find((s) => s.id === region.id);
       if (seg) this.updateSegment(seg, { timestamp: round3(region.start) }, { delay: 0 });
     },
