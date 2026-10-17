@@ -11,6 +11,7 @@ const GEAR = '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.
 const CROSS = '<path d="M18 6 6 18M6 6l12 12"/>';
 const COPY = '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
 const UPLOAD = '<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>';
+const HOME = '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>';
 const STAR = '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>';
 
 function toast(message) {
@@ -98,6 +99,7 @@ function pillsOf(audio) {
   const pills = library.tempoPills(audio);
   return el("span", { class: "lib-pills" },
     ...pills.map((p) => el("span", { class: `pill${p.dance ? " dance" : ""}` }, p.label)),
+    audio.is_start ? el("span", { class: "pill start", title: "Start-Audio für alle, die die App zum ersten Mal öffnen" }, "Start") : null,
     audio.is_private ? el("span", { class: "pill private" }, "privat") : null);
 }
 
@@ -133,11 +135,35 @@ function audioRow(audio, reload, rerender, { showChoreo = false } = {}) {
         type: "button", class: "small-btn",
         onclick: () => change(reload, `/api/choreos/${choreo.id}`, "PATCH", { main_project_id: audio.id }),
       }, icon(STAR, 16), "Als Hauptaudio") : null,
+      startButton(audio, reload),
       el("button", { type: "button", class: "small-btn", onclick: () => fire("duplicate-audio", { projectId: audio.id }) },
         icon(COPY, 16), "Duplizieren"),
       el("button", { type: "button", class: "small-btn danger", onclick: () => fire("delete-audio", { projectId: audio.id }) },
         icon(TRASH, 16), "Löschen"),
       el("label", { class: "lib-move" }, "Choreo", move)));
+}
+
+/** Start-Audio (wer die App zum ersten Mal öffnet, sieht diese) setzen oder wegnehmen. */
+function startButton(audio, reload) {
+  const on = !audio.is_start;
+  return el("button", {
+    type: "button", class: "small-btn",
+    title: "Wer die App zum ersten Mal öffnet, sieht diese Audio",
+    onclick: () => {
+      if (on && audio.is_private && !confirm("Diese Audio ist privat – die Gruppe sieht sie nicht und bekommt dann weiter die neueste Audio. Trotzdem als Start-Audio?")) return;
+      change(reload, `/api/audios/${audio.id}/start`, "PUT", { on });
+    },
+  }, icon(HOME, 16), on ? "Als Start-Audio" : "Keine Start-Audio mehr");
+}
+
+/** Hinweis oben in der Übersicht: welche Audio Erstbesucher sehen. */
+function startNote() {
+  const start = library.data.audios.find((a) => a.is_start);
+  const choreo = start && library.choreo(start.choreo_id);
+  return el("p", { class: "muted small lib-start-note" }, icon(HOME, 14),
+    start
+      ? el("span", {}, "Start-Audio für Erstbesucher: ", el("strong", {}, choreo ? `${choreo.title} · ${start.title}` : start.title))
+      : el("span", {}, "Keine Start-Audio – Erstbesucher sehen die neueste Audio. Festlegen: Audio antippen → „Als Start-Audio“."));
 }
 
 /** Zeile der Übersicht → öffnet das Detail. */
@@ -197,7 +223,7 @@ function overview(reload, rerender) {
     results.replaceChildren(
       ...hitChoreos.map((c) => choreoNav(c, rerender)),
       ...hitAudios.map((a) => audioRow(a, reload, rerender, { showChoreo: true })),
-      hitChoreos.length || hitAudios.length ? null : el("p", { class: "muted small lib-empty" }, "Nichts gefunden."),
+      ...(hitChoreos.length || hitAudios.length ? [] : [el("p", { class: "muted small lib-empty" }, "Nichts gefunden.")]),
     );
   };
   search.addEventListener("input", fill);
@@ -205,6 +231,7 @@ function overview(reload, rerender) {
 
   return el("div", { class: "lib-page" },
     search,
+    startNote(),
     el("div", { class: "card lib-card" }, results),
     el("div", { class: "card lib-card lib-new" },
       addForm("Neue Choreo", "Anlegen", (title) => change(reload, "/api/choreos", "POST", { title })),

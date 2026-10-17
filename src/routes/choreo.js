@@ -11,7 +11,7 @@ import { HttpError, json, readJson } from "../lib/http.js";
 const TABLES = {
   projects: {
     columns: ["title", "bpm", "time_signature", "audio_url", "grid_offset", "is_private", "created_at", "updated_at"],
-    booleans: ["is_private"],
+    booleans: ["is_private", "is_start"], // is_start nur lesen – setzen über PUT /api/audios/:id/start
   },
   tempo_sections: {
     columns: ["project_id", "sort_index", "label", "start_sec", "end_sec", "bpm", "time_signature", "offset_sec", "dance_id", "updated_at"],

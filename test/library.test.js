@@ -130,6 +130,29 @@ describe("Bibliothek", () => {
     expect((await data(await call("/api/library"))).audios.map((a) => a.id)).toContain(geheim);
   });
 
+  it("Start-Audio: höchstens eine, nur Trainer setzen sie, steht in Bibliothek und Planer-Liste", async () => {
+    const a = await project("start-a");
+    const b = await project("start-b");
+    expect((await call(`/api/audios/${a}/start`, { method: "PUT", headers: GROUP, body: { on: true } })).status).toBe(401);
+    expect((await call(`/api/audios/${a}/start`, { method: "PUT", body: { on: true } })).status).toBe(204);
+    expect((await call(`/api/audios/${b}/start`, { method: "PUT", body: { on: true } })).status).toBe(204);
+    const lib = await data(await call("/api/library", { headers: GROUP }));
+    expect(lib.audios.filter((x) => x.is_start).map((x) => x.id)).toEqual([b]); // die neue ersetzt die alte
+    const list = await data(await call("/api/choreo/projects", { headers: GROUP }));
+    expect(list.find((x) => x.id === b).is_start).toBe(true);
+    expect(list.find((x) => x.id === a).is_start).toBe(false);
+    expect((await call(`/api/audios/${b}/start`, { method: "PUT", body: { on: false } })).status).toBe(204);
+    expect((await data(await call("/api/library"))).audios.some((x) => x.is_start)).toBe(false);
+    expect((await call("/api/audios/gibt-es-nicht/start", { method: "PUT", body: { on: true } })).status).toBe(404);
+  });
+
+  it("Start-Audio lässt sich nicht über das normale Speichern setzen", async () => {
+    const a = await project("start-c");
+    await call(`/api/choreo/projects/${a}`, { method: "PATCH", body: { is_start: true, title: "Neu" } });
+    const row = await env.DB.prepare("SELECT is_start, title FROM projects WHERE id = ?").bind(a).first();
+    expect(row.is_start).toBe(0);
+  });
+
   it("verwaltet Tags; doppelte Namen gibt es nicht", async () => {
     const name = `Technik ${uid().slice(0, 6)}`;
     const { id } = await data(await call("/api/tags", { method: "POST", body: { name } }));

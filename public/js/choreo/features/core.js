@@ -182,7 +182,8 @@ export function core() {
 
       const last = localStorage.getItem("choreo_last_project");
       const visible = this.visibleProjects;
-      const target = visible.find((p) => p.id === last) || visible[0];
+      // gemerkte Audio – beim allerersten Besuch die Start-Audio (Verwalten → Choreos), sonst die neueste
+      const target = visible.find((p) => p.id === last) || visible.find((p) => p.is_start) || visible[0];
       // Musik erst laden, wenn der Planer wirklich geöffnet wird (z. B. Start über einen Video-Link)
       if (target && this.appView === "choreo") await this.openProject(target);
       else if (target) this.pendingProject = target;

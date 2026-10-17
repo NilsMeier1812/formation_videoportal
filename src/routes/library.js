@@ -39,7 +39,7 @@ export async function getLibrary(request, env) {
     env.DB.prepare("SELECT id, choreo_id, name, sort_index FROM dances ORDER BY sort_index, name"),
     env.DB.prepare("SELECT id, name, sort_index FROM tags ORDER BY sort_index, name"),
     env.DB.prepare(
-      `SELECT id, title, choreo_id, is_private FROM projects ${trainer ? "" : "WHERE is_private = 0"} ORDER BY title`
+      `SELECT id, title, choreo_id, is_private, is_start FROM projects ${trainer ? "" : "WHERE is_private = 0"} ORDER BY title`
     ),
     env.DB.prepare(
       "SELECT project_id, dance_id, MIN(start_sec) AS first FROM tempo_sections WHERE dance_id IS NOT NULL GROUP BY project_id, dance_id ORDER BY first"
@@ -56,7 +56,7 @@ export async function getLibrary(request, env) {
     choreos: choreos.results.map((c) => ({ ...c, dances: dances.results.filter((d) => d.choreo_id === c.id) })),
     tags: tags.results,
     audios: audios.results.map((a) => ({
-      ...a, is_private: Boolean(a.is_private), dance_ids: dancesOf(a.id), sections: sectionsOf(a.id),
+      ...a, is_private: Boolean(a.is_private), is_start: Boolean(a.is_start), dance_ids: dancesOf(a.id), sections: sectionsOf(a.id),
     })),
   });
 }
@@ -142,6 +142,25 @@ export async function deleteDance(request, env, id) {
 }
 
 // ---------------- Audios (Planer-Projekte) ----------------
+
+/**
+ * PUT /api/audios/:id/start { on } – Start-Audio für alle, die die App zum ersten Mal öffnen.
+ * Es gibt höchstens eine: Setzen nimmt es allen anderen weg.
+ */
+export async function setStartAudio(request, env, projectId) {
+  await requireRole(request, env, "tagger");
+  const body = await readJson(request);
+  if (!(await exists(env, "projects", projectId))) throw new HttpError(404, "Audio nicht gefunden");
+  if (body.on) {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE projects SET is_start = 0 WHERE is_start = 1 AND id != ?").bind(projectId),
+      env.DB.prepare("UPDATE projects SET is_start = 1 WHERE id = ?").bind(projectId),
+    ]);
+  } else {
+    await env.DB.prepare("UPDATE projects SET is_start = 0 WHERE id = ?").bind(projectId).run();
+  }
+  return new Response(null, { status: 204 });
+}
 
 /**
  * PUT /api/audios/:id { choreo_id } – Audio einer Choreo zuordnen.

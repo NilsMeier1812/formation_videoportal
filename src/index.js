@@ -41,6 +41,7 @@ const routes = [
   ["PATCH", new RegExp(`^/api/dances/${KEY}$`), library.updateDance],
   ["DELETE", new RegExp(`^/api/dances/${KEY}$`), library.deleteDance],
   ["PUT", new RegExp(`^/api/audios/${KEY}$`), library.assignAudio],
+  ["PUT", new RegExp(`^/api/audios/${KEY}/start$`), library.setStartAudio],
   ["POST", /^\/api\/tags$/, library.createTag],
   ["PATCH", new RegExp(`^/api/tags/${KEY}$`), library.updateTag],
   ["DELETE", new RegExp(`^/api/tags/${KEY}$`), library.deleteTag],
