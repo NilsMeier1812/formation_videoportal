@@ -38,6 +38,11 @@ export const rt = {
   audioRefetchTried: false,
   audioTimeout: null,
 
+  // Zoom (siehe gestures.js): vorgemerkter Zoom, angewendet einmal pro Frame
+  zoomPending: null, // { zoom, scroll }
+  zoomRaf: 0,
+  zoomGesturesReady: false,
+
   // Sonstiges
   heartbeatTimer: null,
   lastActiveSegmentId: null,

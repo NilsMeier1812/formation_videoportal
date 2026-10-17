@@ -92,6 +92,8 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 }
 /* PC: ziehen verschiebt die Welle (siehe setupDragScroll) */
 @media (hover: hover) and (pointer: fine) { #waveform { cursor: grab; } }
+/* Handy: ein Finger verschiebt seitlich, zwei Finger zoomen die Welle (nicht die Seite), siehe gestures.js */
+#waveform, #waveform ::part(scroll) { touch-action: pan-x; }
 #waveform.dragging, #waveform.dragging * { cursor: grabbing !important; user-select: none; }
 /* eigenes Beat-Grid liegt als Overlay über dem Waveform (klick-durchlässig) */
 .grid-canvas {

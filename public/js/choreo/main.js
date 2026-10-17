@@ -5,6 +5,7 @@
 //   projects  Projekte laden/öffnen/anlegen/duplizieren/löschen, Einstellungen
 //   audio     Musik laden, Wellenform, Wiedergabe
 //   canvas    Taktraster, Schritt-Spuren, Playhead, Tippen in die Spuren
+//   gestures  Zoomen: Knöpfe, Mausrad (PC), zwei Finger (Handy)
 //   steps     Schritte und Notizen
 //   segments  Sprungmarken
 //   tempo     Tempo-Abschnitte
@@ -30,6 +31,7 @@ import { segments } from "./features/segments.js";
 import { steps } from "./features/steps.js";
 import { tempo } from "./features/tempo.js";
 import { transfer } from "./features/transfer.js";
+import { gestures } from "./features/gestures.js";
 import { videos } from "./features/videos.js";
 
 /**
@@ -50,7 +52,7 @@ function compose(...parts) {
 }
 
 Alpine.data("choreo", () =>
-  compose(core(), auth(), projects(), audio(), canvas(), steps(), segments(), tempo(), groups(), editing(), videos(), transfer())
+  compose(core(), auth(), projects(), audio(), canvas(), gestures(), steps(), segments(), tempo(), groups(), editing(), videos(), transfer())
 );
 
 window.Alpine = Alpine;
