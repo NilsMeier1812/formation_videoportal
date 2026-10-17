@@ -1,7 +1,7 @@
 // Paar zum Namen finden (rein, testbar): Wer sich mit Namen anmeldet, bekommt sein Paar
 // automatisch gewählt – sofern der Name eindeutig zu genau einem Paar passt.
 //
-// Paar-Namen sind z. B. „Anna & Ben“, „Anna und Ben“, „Anna/Ben“, „Anna Müller, Ben Schulz“.
+// Paar-Namen sind z. B. „Anna | Ben“ (so in der App üblich), „Anna & Ben“, „Anna und Ben“, „Anna/Ben“, „Anna Müller, Ben Schulz“.
 // Ein Treffer ist: ganzer Name gleich, oder der Vorname (erstes Wort) gleich dem Vornamen
 // einer Person im Paar. Groß/klein und Akzente egal.
 
@@ -9,9 +9,9 @@ const norm = (s) => String(s || "")
   .normalize("NFD").replace(/[̀-ͯ]/g, "") // é → e, ü → u
   .toLowerCase().replace(/ß/g, "ss").replace(/\s+/g, " ").trim();
 
-/** „Anna & Ben“ → ["anna", "ben"] */
+/** „Anna | Ben“ → ["anna", "ben"] */
 function peopleOf(pairName) {
-  return norm(pairName).split(/\s*(?:&|\+|\/|,|;|\bund\b|\bu\.\s)\s*/).map((x) => x.trim()).filter(Boolean);
+  return norm(pairName).split(/\s*(?:\||&|\+|\/|,|;|\bund\b|\bu\.\s)\s*/).map((x) => x.trim()).filter(Boolean);
 }
 
 /** Nummer des passenden Paares – oder 0 (kein Name, kein oder mehrere Treffer). */

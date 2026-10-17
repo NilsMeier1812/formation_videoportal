@@ -7,6 +7,8 @@ const persons = [
   { number: 3, name: "Émilie Müller, Jörg Schulz" },
   { number: 4, name: "" },
   { number: 5, name: "Lena/Max" },
+  { number: 7, name: "Sophie Weber | Tim Koch" },
+  { number: 8, name: "Mia|Noah" },
 ];
 
 describe("Paar zum Namen", () => {
@@ -15,6 +17,12 @@ describe("Paar zum Namen", () => {
     expect(pairForName(persons, "anna")).toBe(1);
     expect(pairForName(persons, " David ")).toBe(2);
     expect(pairForName(persons, "Max")).toBe(5);
+  });
+  it("Trennstrich „Name1 | Name2“", () => {
+    expect(pairForName(persons, "Tim")).toBe(7);
+    expect(pairForName(persons, "sophie weber")).toBe(7);
+    expect(pairForName(persons, "Noah")).toBe(8);
+    expect(pairForName(persons, "Mia")).toBe(8);
   });
   it("Akzente, Umlaute, Nachname egal", () => {
     expect(pairForName(persons, "Emilie")).toBe(3);
