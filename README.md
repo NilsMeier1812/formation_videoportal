@@ -53,7 +53,7 @@ eine WAV erzeugt (exakte Zeitachse wie Welle und Raster, anders als MP3 im `<aud
 „Tonhöhe beibehalten“ abgespielt – bei jedem Tempo derselbe Weg, Wechsel ohne Neuladen. Lässt sich die Datei
 nicht dekodieren, spielt die Originaldatei. Alles im Planer hängt an der Musik-Zeit; nur die Playhead-Uhr
 rechnet mit dem Faktor (`lib/speed.js`).
-Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; Bearbeiten mit
+Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; das Paar ist automatisch gewählt, wenn es nur eines gibt oder der beim Anmelden angegebene Name eindeutig zu einem Paar-Namen passt – `lib/pairs.js`, eigene Wahl geht vor; Bearbeiten mit
 Unter-Reitern *Schritte* – Gruppe für neue Schritte direkt wählen –, *Gruppen* – Zeitstrahl, „Abschnitt hier“,
 Gruppen als Chips, Paare antippen zum Zuteilen – und *Paare*) und **Sprungmarken** (antippen springt hin,
 Schalter „In der Welle zeigen“; Bearbeiten: „Marke hier“, Beschreibung bei der aktuellen Marke).
