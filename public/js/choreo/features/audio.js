@@ -232,6 +232,8 @@ export function audio() {
 
       this.setupOverlays(container);
       this.setupDragScroll(container);
+      this.setupZoomGestures(); // Mausrad / zwei Finger, siehe gestures.js
+      rt.zoomPending = null;
 
       rt.ws.on("ready", () => this.onAudioReady());
       rt.ws.on("decode", () => this.onAudioReady());
@@ -346,7 +348,5 @@ export function audio() {
     },
 
     seekTo(t) { if (rt.ws && this.duration) rt.ws.setTime(Number(t)); },
-    zoomIn() { this.zoom = Math.min(400, (this.zoom || 20) * 1.6); rt.ws?.zoom(this.zoom); },
-    zoomOut() { this.zoom = Math.max(1, (this.zoom || 20) / 1.6); rt.ws?.zoom(this.zoom); },
   };
 }

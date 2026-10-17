@@ -117,7 +117,11 @@ noch einmal auswählen → es geht an der Stelle weiter.
 (Choreo · Videos · Hochladen, für Trainer · Verwalten), Hell/Dunkel wählbar (im Menü).
 
 **Planer-Bedienung am PC:** in der Welle kurz klicken = an die Stelle springen, gedrückt halten und ziehen =
-Welle verschieben. Schritt-Anzeige startet mit „123“.
+Welle verschieben, Mausrad über Welle oder L/F/N-Leiste = zoomen (Stelle unter der Maus bleibt; Strg+Rad bzw.
+Touchpad-Zoom ebenso; Umschalt+Rad oder seitlich wischen = verschieben). Schritt-Anzeige startet mit „123“.
+**Am Handy:** ein Finger wischt/tippt wie gewohnt, zwei Finger auf Welle oder Leiste zoomen (nur die Welle,
+nicht die Seite; die Stelle zwischen den Fingern bleibt). Zoom-Logik: `features/gestures.js`, Rechnung in
+`lib/zoom.js` – angewendet höchstens einmal pro Bildschirm-Frame.
 Farben in `public/css/theme.css`.
 
 **PWA:** ein Manifest und ein Service Worker für alles; startet im Planer, startet offline an jeder Adresse.
