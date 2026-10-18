@@ -146,7 +146,8 @@
           <template x-if="!planVideosLoaded">
             <div class="empty">Lade Videos…</div>
           </template>
-          <template x-if="planVideosLoaded">
+          <!-- erst bei offenem Reiter: sonst würden die Vorschaubilder im Hintergrund laden -->
+          <template x-if="planVideosLoaded && bottomTab === 'videos'">
             <div>
               <div class="notes-head">
                 <h2 x-text="videosHere.length ? 'An dieser Stelle' : 'Videos'"></h2>
@@ -225,7 +226,7 @@
         <!-- Tab: Sprungmarken – antippen springt hin; Schalter: in der Welle zeigen -->
         <div x-show="bottomTab === 'notes'" class="tab-pane">
           <div class="pane-head">
-            <label class="switch-line"><input type="checkbox" :checked="showMarkers" @change="toggleMarkers()" :disabled="!project"> In der Welle zeigen</label>
+            <label class="switch-line"><input type="checkbox" :checked="showMarkers" @change="toggleMarkers()" :disabled="!project"> Sprungmarken anzeigen</label>
             <span x-show="currentMode === 'editor' && lockOwned" class="badge lock">Du bearbeitest</span>
             <span x-show="currentMode === 'editor' && !lockOwned && !online" class="badge offline">Offline-Bearbeitung</span>
           </div>
@@ -479,9 +480,9 @@
 
         <div class="controls">
           <div class="seg" id="pl-rates" role="group" aria-label="Tempo">
-            <button type="button" data-rate="0.25" aria-pressed="false">0,25×</button>
             <button type="button" data-rate="0.5" aria-pressed="false">0,5×</button>
-            <button type="button" data-rate="0.75" aria-pressed="false">0,75×</button>
+            <button type="button" data-rate="0.7" aria-pressed="false">0,7×</button>
+            <button type="button" data-rate="0.9" aria-pressed="false">0,9×</button>
             <button type="button" data-rate="1" aria-pressed="true">1×</button>
           </div>
           <div class="seg" id="pl-steps" role="group" aria-label="Springen">

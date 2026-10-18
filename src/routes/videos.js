@@ -219,14 +219,18 @@ async function loadVideo(env, id) {
   return row && publicVideo(env, row);
 }
 
-// GET /api/videos – alle fertigen Videos, neueste Aufnahme zuerst
+// GET /api/videos – alle fertigen Videos, neueste Aufnahme zuerst.
+// ?audio=<Projekt-ID>: nur die mit einer Stelle in dieser Musik (Planer, Tab „Videos“ – klein).
 export async function listVideos(request, env) {
-  const { results } = await env.DB.prepare(
+  const audio = new URL(request.url).searchParams.get("audio");
+  if (audio != null && !/^[A-Za-z0-9_-]{1,64}$/.test(audio)) throw new HttpError(400, "Ungültige Audio");
+  const statement = env.DB.prepare(
     `${SELECT_VIDEO}
-      WHERE v.file_state = 'ready' AND v.deleted_at IS NULL
+      WHERE v.file_state = 'ready' AND v.deleted_at IS NULL ${audio ? "AND v.audio_project_id = ?" : ""}
       ORDER BY COALESCE(v.recorded_at, v.created_at) DESC, v.created_at DESC
       LIMIT 2000`
-  ).all();
+  );
+  const { results } = await (audio ? statement.bind(audio) : statement).all();
   return json({ videos: results.map((row) => publicVideo(env, row)) });
 }
 

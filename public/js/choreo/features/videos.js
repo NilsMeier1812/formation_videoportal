@@ -1,8 +1,9 @@
 // Videos im Planer.
 //
 //   Tab „Videos“      Videos, deren Zeitraum (von–bis) die aktuelle Stelle der Musik
-//                     enthält. Gezeigt werden nur Vorschaubild, Titel und Tags – die
-//                     Videos selbst laden erst, wenn man eines antippt (Player).
+//                     enthält. Die Liste (nur Daten, wenige KB) kommt gleich beim Öffnen
+//                     der Audio – so stimmt die Zahl am Reiter sofort. Vorschaubilder erst,
+//                     wenn der Reiter offen ist; die Videos selbst erst im Player.
 //   „Stelle wählen“   für Admins (Reiter „Verwalten“): Start und Ende eines Videos in
 //                     der Musik festlegen. Der Zeitraum erscheint als Fläche in der Welle.
 //
@@ -20,8 +21,9 @@ export function videos() {
     libraryData: library.data,
 
     // ---- Tab „Videos“ ----
-    planVideos: [], // alle Videos mit Zeitraum (geladen beim Öffnen des Tabs)
-    planVideosLoaded: false,
+    planVideos: [], // Videos mit Stelle in der offenen Audio (geladen beim Öffnen der Audio)
+    planVideosFor: null, // zu welcher Audio planVideos gehört
+    get planVideosLoaded() { return Boolean(this.project) && this.planVideosFor === this.project.id; },
 
     // ---- Stelle wählen (Admin) ----
     pick: null, // { projectId, start, end, videos: [{ id, url, poster, label }], preview }
@@ -38,7 +40,7 @@ export function videos() {
       window.addEventListener("new-audio", (e) => this.openNewAudio(e.detail?.choreoId || null));
       window.addEventListener("duplicate-audio", (e) => { const p = audioById(e.detail.projectId); if (p) this.duplicateProject(p); });
       window.addEventListener("delete-audio", (e) => { const p = audioById(e.detail.projectId); if (p) this.askDeleteProject(p); });
-      window.addEventListener("videos-changed", () => { if (this.planVideosLoaded) this.loadPlanVideos(); });
+      window.addEventListener("videos-changed", () => { if (this.project) this.loadPlanVideos(); });
     },
 
     // ---------------- Menü: Audios nach Choreos gruppiert ----------------
@@ -79,13 +81,22 @@ export function videos() {
     },
 
     // ---------------- Tab „Videos“ ----------------
+    /** Nur die Videos der offenen Audio (vom Server gefiltert) – beim Öffnen der Audio und des Tabs. */
     async loadPlanVideos() {
+      const id = this.project?.id;
+      if (!id) return;
       try {
-        const [{ videos }] = await Promise.all([api("/api/videos"), library.load()]);
-        this.planVideos = videos.filter((v) => v.audio_project_id && v.audio_start_s != null);
-        this.planVideosLoaded = true;
+        const [{ videos }] = await Promise.all([
+          api(`/api/videos?audio=${encodeURIComponent(id)}`),
+          library.load().catch(() => {}), // nur für Titel/Tags
+        ]);
+        if (this.project?.id !== id) return; // inzwischen eine andere Audio geöffnet
+        this.planVideos = videos.filter((v) => v.audio_project_id === id && v.audio_start_s != null);
+        this.planVideosFor = id;
       } catch {
-        if (!this.planVideosLoaded) this.setStatus("Videos konnten nicht geladen werden");
+        if (this.project?.id === id && !this.planVideosLoaded && this.bottomTab === "videos") {
+          this.setStatus("Videos konnten nicht geladen werden");
+        }
       }
     },
     openVideosTab() {

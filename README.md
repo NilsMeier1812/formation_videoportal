@@ -56,7 +56,7 @@ rechnet mit dem Faktor (`lib/speed.js`).
 Reiter unten: **Schritte & Gruppen** (Training: „Ich tanze“ + eigener Gruppen-Verlauf; das Paar ist automatisch gewählt, wenn es nur eines gibt oder der beim Anmelden angegebene Name eindeutig zu einem Paar-Namen passt – `lib/pairs.js`, eigene Wahl geht vor; Bearbeiten mit
 Unter-Reitern *Schritte* – Gruppe für neue Schritte direkt wählen –, *Gruppen* – Zeitstrahl, „Abschnitt hier“,
 Gruppen als Chips, Paare antippen zum Zuteilen – und *Paare*) und **Sprungmarken** (antippen springt hin,
-Schalter „In der Welle zeigen“; Bearbeiten: „Marke hier“, Beschreibung bei der aktuellen Marke).
+Schalter „Sprungmarken anzeigen“; Bearbeiten: „Marke hier“, Beschreibung bei der aktuellen Marke).
 
 **Choreos, Tänze, Audios, Tags:**
 ```
@@ -87,7 +87,7 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   (Schritte, Notizen, Sprungmarken, Paare/Gruppen; Zeit hier = Zeit dort + Versatz, optional nur ein Bereich).
 - **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
   erst im Player) und die **Videothek** mit Suche und Filtern (Choreo, Tanz, Tag). Im Player: „In der Musik
-  zeigen“ und für Trainer „Zuordnung bearbeiten“; Tempo 0,25–1×, ±1 s und ±1 Bild (am PC auch ← → , .).
+  zeigen“ und für Trainer „Zuordnung bearbeiten“; Tempo 0,5 · 0,7 · 0,9 · 1×, ±1 s und ±1 Bild (am PC auch ← → , .).
 - API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
   `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.
 
