@@ -186,6 +186,16 @@ describe("Videos zuordnen", () => {
   });
   const assign = (body, headers) => call("/api/videos/assign", { method: "POST", body, headers });
 
+  it("listet auf Wunsch nur die Videos einer Audio (für den Planer)", async () => {
+    await assign({ ids: [V1], changes: { choreo_id: ids.kuer, audio: { project_id: ids.voll, start_s: 1, end_s: 2 } } });
+    const only = (await data(await call(`/api/videos?audio=${ids.voll}`, { headers: GROUP }))).videos;
+    expect(only.map((v) => v.id)).toEqual([V1]);
+    const all = (await data(await call("/api/videos", { headers: GROUP }))).videos.map((v) => v.id);
+    expect(all).toEqual(expect.arrayContaining([V1, V2]));
+    expect((await data(await call(`/api/videos?audio=${ids.latein}`, { headers: GROUP }))).videos).toEqual([]);
+    expect((await call("/api/videos?audio=x%27%20OR%201", { headers: GROUP })).status).toBe(400);
+  });
+
   it("ordnet mehrere Videos auf einmal zu", async () => {
     const res = await assign({
       ids: [V1, V2],

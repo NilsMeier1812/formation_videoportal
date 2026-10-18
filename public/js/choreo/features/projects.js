@@ -81,6 +81,7 @@ export function projects() {
       this.myPersonNumber = Number(localStorage.getItem("choreo_person_" + p.id)) || 0;
       if (token !== rt.loadToken) return;
       this.autoPickPair(); // nur ein Paar → automatisch gewählt // inzwischen wurde ein anderes Projekt gewählt
+      this.loadPlanVideos(); // Liste der Videos (klein) – Zahl am Reiter „Videos“ stimmt sofort
       this.createWs();
       await this.loadAudio(p);
     },
