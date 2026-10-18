@@ -290,11 +290,12 @@
                   </template>
                 </select>
               </label>
-              <!-- „Alle gleich“ nur als kleiner Punkt zwischen den Gruppen -->
+              <!-- „Alle gleich“ nur als kleiner Punkt zwischen den Gruppen. Eine Zeile, läuft mit der
+                   Musik mit (der aktuelle Eintrag steht in der Mitte) – nicht von Hand scrollbar. -->
               <template x-if="myPersonNumber && myGroupSpans.some((x) => x.name !== ALL_SAME)">
                 <div>
                   <div class="ts-label">Meine Gruppen im Lied</div>
-                  <div class="grp-flow">
+                  <div class="grp-flow" x-effect="centerGroupFlow($el, myGroupNowIndex, myGroupSpans.length)">
                     <template x-for="(x, i) in myGroupSpans" :key="i">
                       <span :class="{ 'grp-step': x.name !== ALL_SAME, 'grp-gap': x.name === ALL_SAME, now: i === myGroupNowIndex }"
                             :title="x.name === ALL_SAME ? x.name : null" :aria-label="x.name === ALL_SAME ? x.name : null"
@@ -303,12 +304,16 @@
                   </div>
                 </div>
               </template>
-              <div class="legend-line">
-                <span><b class="lg-tag">L</b> Leader</span>
-                <span><b class="lg-tag">F</b> Follower</span>
-                <span><b class="lg-tag">N</b> Notizen/Figuren</span>
-                <span><i class="lg-dot" style="background:var(--foot-left)"></i> links</span>
-                <span><i class="lg-dot" style="background:var(--foot-right)"></i> rechts</span>
+              <div class="legend">
+                <div class="legend-row">
+                  <span><b class="lg-tag">L</b> Leader</span>
+                  <span><b class="lg-tag">F</b> Follower</span>
+                  <span><b class="lg-tag">N</b> Notizen/Figuren</span>
+                </div>
+                <div class="legend-row">
+                  <span><i class="lg-dot" style="background:var(--foot-left)"></i> links</span>
+                  <span><i class="lg-dot" style="background:var(--foot-right)"></i> rechts</span>
+                </div>
               </div>
             </div>
           </template>
