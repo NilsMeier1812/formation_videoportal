@@ -44,6 +44,26 @@ export function stepTime(step, tempoSections) {
   return Number(tempo.offset_sec || 0) + Number(step.beat_pos) * secondsPerBeat(tempo);
 }
 
+/**
+ * Späteste Stelle, an der Daten liegen (Abschnitts-Anfänge, Sprungmarken, Gruppen-Abschnitte,
+ * Schritte). Liegt sie deutlich hinter dem Ende der geladenen Musik, ist die Datei wohl
+ * unvollständig (abgebrochener Download) – siehe audioLooksTruncated.
+ */
+export function lastDataTime({ tempoSections = [], segments = [], parts = [], steps = [] }) {
+  let last = 0;
+  const take = (v) => { const n = Number(v); if (Number.isFinite(n) && n > last) last = n; };
+  for (const s of tempoSections) { take(s.start_sec); take(s.end_sec); }
+  for (const s of segments) take(s.timestamp);
+  for (const p of parts) { take(p.start_sec); take(p.end_sec); }
+  for (const st of steps) take(stepTime(st, tempoSections));
+  return last;
+}
+
+/** Musik kürzer als die Daten darauf (mit 2 s Spielraum)? */
+export function audioLooksTruncated(duration, dataEnd) {
+  return duration > 0 && dataEnd > duration + 2;
+}
+
 /** Zeit → Beat im Raster des Abschnitts, immer auf ½-Beats gerundet. */
 export function snapBeat(tempo, time) {
   const beat = Math.round((time - Number(tempo.offset_sec || 0)) / secondsPerBeat(tempo) / 0.5) * 0.5;

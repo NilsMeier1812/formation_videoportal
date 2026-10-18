@@ -60,7 +60,7 @@
         </div>
         <div class="loading-overlay" x-show="audioError" x-cloak>
           <div class="audio-error" x-text="audioError"></div>
-          <button @click="project && loadAudio(project)">Erneut versuchen</button>
+          <button @click="retryAudio({ manual: true })">Erneut versuchen</button>
         </div>
         <div class="loading-overlay" x-show="!project && !audioLoading" x-cloak>
           <div style="text-align:center">

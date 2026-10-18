@@ -141,8 +141,10 @@ export function core() {
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") {
           repo.flush();
+          if (this.audioLoading) rt.hiddenDuringLoad = true; // Laden kann jetzt abbrechen
           return;
         }
+        this.onAudioVisible(); // abgebrochenes Laden neu starten
         if (this.online) repo.processQueue();
         if (this.currentMode === "editor" && this.online) this.verifyLockStillOurs();
         // Nach dem Hintergrund Canvas neu vermessen, sonst verrutscht das Raster

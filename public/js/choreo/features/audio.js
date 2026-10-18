@@ -13,7 +13,7 @@ import WaveSurfer from "/vendor/wavesurfer.esm.js";
 import { AUDIO_TIMEOUT_MS } from "../config.js";
 import { local } from "../data/index.js";
 import { SPEED_MAX, SPEED_MIN, advance, encodeWav, peaksFrom, formatBpm, formatSpeed, normalizeSpeed, stepSpeed, tempoLines } from "../lib/speed.js";
-import { segmentAt } from "../lib/timeline.js";
+import { audioLooksTruncated, lastDataTime, segmentAt } from "../lib/timeline.js";
 import { rt } from "../runtime.js";
 
 export function audio() {
@@ -65,18 +65,24 @@ export function audio() {
     // ---------------- Laden ----------------
     // Spinner/Status hängen an den Wavesurfer-Events 'ready'/'decode'/'error',
     // nicht am load()-Promise (das kann in v7 hängen bleiben).
+    //
+    // Handy: Wechselt man während des Ladens in eine andere App, friert der Browser die
+    // Seite ein – Download oder Dekodieren brechen dann ab. Das ist kein Fehler der Datei:
+    // Solche Fehler werden nicht angezeigt (und schalten nicht auf die Notlösung), sondern
+    // beim Zurückkommen wird einfach neu geladen (interruptedByBackground / retryAudio).
     async loadAudio(project) {
       this.audioLoading = true;
       this.audioError = null;
       rt.audioRefetchTried = false;
+      rt.hiddenDuringLoad = document.visibilityState === "hidden";
       const token = rt.loadToken;
 
       clearTimeout(rt.audioTimeout);
       rt.audioTimeout = setTimeout(() => {
-        if (token === rt.loadToken && this.audioLoading) {
-          this.audioLoading = false;
-          this.audioError = "Audio-Dekodierung hat zu lange gedauert. Erneut versuchen? (Tipp: MP3/WAV sind am kompatibelsten.)";
-        }
+        if (token !== rt.loadToken || !this.audioLoading) return;
+        if (this.interruptedByBackground()) return;
+        this.audioLoading = false;
+        this.audioError = "Audio-Dekodierung hat zu lange gedauert. Erneut versuchen? (Tipp: MP3/WAV sind am kompatibelsten.)";
       }, AUDIO_TIMEOUT_MS);
 
       // 1. lokal vorhanden (und dieselbe Datei)? → direkt an Wavesurfer.
@@ -85,7 +91,8 @@ export function audio() {
       const cached = await local.getAudio(project.id);
       if (token !== rt.loadToken) return;
       const sameFile = cached?.url === project.audio_url || !navigator.onLine;
-      if (cached?.blob && sameFile) {
+      const complete = cached?.blob && (!cached.size || cached.blob.size === cached.size); // abgeschnitten → neu
+      if (complete && sameFile) {
         rt.audioSource = "cache";
         this.wsLoadBlob(cached.blob).catch((e) => this.handleAudioError(e));
         return;
@@ -99,12 +106,16 @@ export function audio() {
       try {
         const res = await fetch(project.audio_url);
         if (!res.ok) throw new Error("HTTP " + res.status);
+        // Vollständig angekommen? (Abbruch im Hintergrund darf nicht im Cache landen)
+        const expected = res.headers.get("content-encoding") ? null : Number(res.headers.get("content-length")) || null;
         const blob = await res.blob();
-        await local.putAudio(project.id, blob, project.audio_url);
+        if (expected && blob.size !== expected) throw new Error(`Download unvollständig (${blob.size} von ${expected} Bytes)`);
+        await local.putAudio(project.id, blob, project.audio_url, expected);
         if (token !== rt.loadToken) return;
         this.wsLoadBlob(blob).catch((e) => this.handleAudioError(e));
       } catch (e) {
         if (token !== rt.loadToken) return;
+        if (this.interruptedByBackground()) return;
         clearTimeout(rt.audioTimeout);
         this.audioLoading = false;
         this.audioError = navigator.onLine
@@ -117,15 +128,62 @@ export function audio() {
       clearTimeout(rt.audioTimeout);
       this.audioLoading = false;
       this.audioError = null;
+      rt.backgroundRetries = 0;
       if (rt.ws) {
         this.duration = rt.ws.getDuration();
         rt.ws.setPlaybackRate(this.playbackRate, true); // Tonhöhe beibehalten, auch bei 100 %
+      }
+      // Musik deutlich kürzer als die Daten darauf → Datei wohl abgeschnitten: einmal frisch laden
+      const dataEnd = lastDataTime({ tempoSections: this.tempoSections, segments: this.segments, parts: this.parts, steps: this.steps });
+      if (audioLooksTruncated(this.duration, dataEnd) && !rt.truncatedRefetchTried && this.project && navigator.onLine) {
+        rt.truncatedRefetchTried = true; // je geöffnetem Projekt nur einmal (siehe openProject)
+        local.dropAudio(this.project.id).then(() => this.retryAudio());
+        return;
       }
       this.renderRegions();
       this.recalibrate();
     },
 
+    /**
+     * Fehler/Abbruch, während die Seite im Hintergrund war (oder es gerade ist)? Dann nichts
+     * anzeigen: sichtbar → gleich neu laden, versteckt → beim Zurückkommen (onAudioVisible).
+     */
+    interruptedByBackground() {
+      if (document.visibilityState !== "hidden" && !rt.hiddenDuringLoad) return false;
+      if (document.visibilityState === "hidden") rt.retryOnVisible = true;
+      else queueMicrotask(() => this.retryAudio());
+      return true;
+    },
+
+    /**
+     * Zurück in der App: abgebrochenes Laden neu starten. (Hängt es nur, greift die Zeitgrenze
+     * AUDIO_TIMEOUT_MS – wegen des Hintergrunds dann ebenfalls als Neuladen statt Fehler.)
+     */
+    onAudioVisible() {
+      if (this.project && rt.retryOnVisible) this.retryAudio();
+    },
+
+    /** Welle neu aufbauen und Musik neu laden (auch „Erneut versuchen“ – dann ohne Begrenzung). */
+    retryAudio({ manual = false } = {}) {
+      if (!this.project) return;
+      rt.retryOnVisible = false;
+      rt.backgroundRetries = manual ? 0 : (rt.backgroundRetries || 0) + 1;
+      if (rt.backgroundRetries > 3) { // nicht endlos versuchen
+        clearTimeout(rt.audioTimeout);
+        this.audioLoading = false;
+        this.audioError = "Audio konnte nicht geladen werden. Erneut versuchen?";
+        return;
+      }
+      ++rt.loadToken; // laufendes Laden verwerfen
+      if (this.isPlaying) rt.ws?.pause();
+      rt.decodeFailed = false;
+      this.destroyWs();
+      this.createWs();
+      this.loadAudio(this.project);
+    },
+
     handleAudioError() {
+      if (this.interruptedByBackground()) return; // kein Fehler der Datei
       // iOS hat den Cache geräumt oder der Blob ist kaputt: einmal frisch laden
       if (rt.audioSource === "cache" && !rt.audioRefetchTried && this.project && navigator.onLine) {
         rt.audioRefetchTried = true;
