@@ -71,6 +71,20 @@ export function groups() {
       const byName = chosenBefore ? 0 : pairForName(this.persons, this.userName);
       if (byName) this.setMyPerson(byName);
     },
+    /**
+     * Gruppen-Verlauf (eine Zeile): den aktuellen Eintrag in die Mitte schieben. Läuft bei
+     * jedem Wechsel der Gruppe (x-effect); von Hand scrollen geht absichtlich nicht.
+     */
+    centerGroupFlow(el, index) {
+      this.$nextTick(() => {
+        const item = el.querySelectorAll(":scope > span")[Math.max(0, index)];
+        if (!item) return;
+        const left = item.offsetLeft - el.offsetLeft - (el.clientWidth - item.offsetWidth) / 2;
+        const first = !el.dataset.placed; // beim ersten Mal ohne Animation
+        el.dataset.placed = "1";
+        el.scrollTo({ left: Math.max(0, left), behavior: first ? "auto" : "smooth" });
+      });
+    },
     /** „Ich bin Paar X" – merkt sich die Wahl pro Projekt. */
     setMyPerson(n) {
       this.myPersonNumber = Number(n) || 0;
