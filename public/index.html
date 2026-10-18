@@ -225,7 +225,7 @@
         <!-- Tab: Sprungmarken – antippen springt hin; Schalter: in der Welle zeigen -->
         <div x-show="bottomTab === 'notes'" class="tab-pane">
           <div class="pane-head">
-            <label class="switch-line"><input type="checkbox" :checked="showMarkers" @change="toggleMarkers()" :disabled="!project"> In der Welle zeigen</label>
+            <label class="switch-line"><input type="checkbox" :checked="showMarkers" @change="toggleMarkers()" :disabled="!project"> Sprungmarken anzeigen</label>
             <span x-show="currentMode === 'editor' && lockOwned" class="badge lock">Du bearbeitest</span>
             <span x-show="currentMode === 'editor' && !lockOwned && !online" class="badge offline">Offline-Bearbeitung</span>
           </div>
