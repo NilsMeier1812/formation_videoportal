@@ -872,8 +872,6 @@
       <form class="gate-card" @submit.prevent="doLogin()">
         <img src="/icons/icon-192.png" alt="" class="gate-logo" width="72" height="72">
         <h1 id="gate-title">Formation</h1>
-        <p class="hint">Die App ist nur für die Gruppe. Bitte einmal den <strong>Gruppen-Code</strong> eingeben –
-          das Handy merkt ihn sich ein Jahr lang. Trainer nehmen ihren Trainer-Code.</p>
         <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name" />
         <input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore x-model="loginPassword" placeholder="Code"
                aria-label="Code" required />
@@ -892,7 +890,6 @@
       <div class="modal">
         <header><h2>Anmelden</h2><button class="icon" @click="closeLogin()" aria-label="Schließen">✕</button></header>
         <div class="body">
-          <p class="hint">Mit dem <strong>Gruppen-Code</strong> siehst du alles und kannst Videos hochladen, mit dem <strong>Trainer-Code</strong> zusätzlich bearbeiten und zuordnen. Die Anmeldung wird ein Jahr lang gemerkt.</p>
           <input type="text" x-model="loginName" placeholder="Dein Name (optional)" autocomplete="name"
                  @keydown.enter="doLogin()" style="margin-bottom:8px" />
           <input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore x-model="loginPassword" placeholder="Code"
