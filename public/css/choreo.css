@@ -327,9 +327,9 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 /* ===== Schritte & Gruppen ===== */
 .pane-stack { display: grid; gap: 14px; }
 .pane-stack > * { min-width: 0; } /* sonst wächst die Gruppen-Zeile über den Bildschirm hinaus */
-/* Legende: L/F/N in einer Zeile, darunter links/rechts – gleichmäßig verteilt, mittig */
+/* Legende: L/F/N in einer Zeile, darunter links/rechts – linksbündig */
 .legend { display: grid; gap: 8px; font-size: 12px; color: var(--muted); }
-.legend-row { display: flex; flex-wrap: wrap; justify-content: space-evenly; gap: 6px 16px; }
+.legend-row { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px 18px; }
 .legend-row span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .lg-tag {
   display: inline-flex; align-items: center; justify-content: center;
