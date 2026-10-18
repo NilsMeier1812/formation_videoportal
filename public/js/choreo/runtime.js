@@ -37,6 +37,10 @@ export const rt = {
   audioSource: null, // 'cache' | 'network'
   audioRefetchTried: false,
   audioTimeout: null,
+  hiddenDuringLoad: false, // Seite war beim Laden im Hintergrund → Abbruch ist kein Dateifehler
+  retryOnVisible: false, // beim Zurückkommen neu laden
+  backgroundRetries: 0,
+  truncatedRefetchTried: false, // Musik kürzer als die Daten → einmal frisch geladen
 
   // Zoom (siehe gestures.js): vorgemerkter Zoom, angewendet einmal pro Frame
   zoomPending: null, // { zoom, scroll }

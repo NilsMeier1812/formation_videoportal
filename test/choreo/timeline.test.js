@@ -6,7 +6,9 @@ import {
   groupNameOf,
   groupNumbersOf,
   groupOf,
+  audioLooksTruncated,
   groupSpans,
+  lastDataTime,
   groupTimeline,
   spanIndexAt,
   isOffbeat,
@@ -128,5 +130,27 @@ describe("Gruppen", () => {
     expect(spanIndexAt(spans, spans[1].start - 0.01)).toBe(0);
     expect(spanIndexAt(spans, 999)).toBe(spans.length - 1);
     expect(spanIndexAt([], 5)).toBe(-1);
+  });
+});
+
+describe("Unvollständige Audio erkennen", () => {
+  const tempoSections = [
+    { id: "t1", start_sec: 0, end_sec: 30, bpm: 120, offset_sec: 0.5 },
+    { id: "t2", start_sec: 30, end_sec: null, bpm: 60, offset_sec: 30 },
+  ];
+  it("späteste Stelle aus Abschnitten, Marken, Gruppen und Schritten", () => {
+    expect(lastDataTime({})).toBe(0);
+    expect(lastDataTime({ tempoSections })).toBe(30);
+    expect(lastDataTime({ tempoSections, segments: [{ timestamp: 51.2 }] })).toBe(51.2);
+    expect(lastDataTime({ tempoSections, parts: [{ start_sec: 40, end_sec: 70 }] })).toBe(70);
+    // Schritt in t2 bei Beat 100 → 30 + 100 s
+    expect(lastDataTime({ tempoSections, steps: [{ tempo_section_id: "t2", beat_pos: 100 }] })).toBe(130);
+    expect(lastDataTime({ tempoSections, steps: [{ tempo_section_id: "fehlt", beat_pos: 999 }] })).toBe(30);
+  });
+  it("zu kurz nur mit deutlichem Abstand", () => {
+    expect(audioLooksTruncated(43, 180)).toBe(true);
+    expect(audioLooksTruncated(180, 181)).toBe(false); // Spielraum
+    expect(audioLooksTruncated(0, 100)).toBe(false); // Länge unbekannt
+    expect(audioLooksTruncated(180, 0)).toBe(false); // noch keine Daten
   });
 });
