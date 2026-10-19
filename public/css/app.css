@@ -453,6 +453,21 @@
 
 /* Verwalten → Mehr: Speicher, Papierkorb */
 .vpage .more { display: grid; gap: 12px; }
+/* Nutzung: Balken je Tag (8 Wochen) und Ø je Wochentag */
+.vpage .usage-head { display: flex; justify-content: space-between; margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.vpage .usage-chart { display: flex; align-items: flex-end; gap: 2px; height: 96px; border-bottom: 1px solid var(--border); }
+.vpage .usage-bar { flex: 1 1 0; min-width: 0; height: 100%; padding: 0; border: 0; background: none; display: flex; align-items: flex-end; cursor: pointer; }
+.vpage .usage-bar .fill { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--accent); opacity: .55; }
+.vpage .usage-bar.on .fill { opacity: 1; }
+.vpage .usage-bar .fill.zero { height: 0; }
+.vpage .usage-axis { display: flex; gap: 2px; height: 14px; font-size: 10px; color: var(--muted); }
+.vpage .usage-axis span { flex: 1 1 0; min-width: 0; overflow: visible; white-space: nowrap; }
+.vpage .usage-caption { margin: 6px 0 0; font-size: 13px; color: var(--text); min-height: 1.4em; }
+.vpage .usage-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.vpage .usage-wd { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.vpage .usage-wd-track { display: flex; align-items: flex-end; width: 100%; max-width: 28px; height: 56px; }
+.vpage .usage-wd-track .fill { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--accent); }
+.vpage .usage-wd-label { font-weight: 600; color: var(--text); }
 .vpage .meter { height: 10px; margin: 10px 0 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
 .vpage .meter span { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
 .vpage .meter span.full { background: var(--danger); }

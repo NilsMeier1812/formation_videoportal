@@ -6,9 +6,11 @@
 //   choreo/main.js   Planer + gemeinsames Menü (Alpine)
 import { registerServiceWorker } from "./pwa.js";
 import { router } from "./router.js";
+import { startUsage } from "./usage.js";
 import { setupViews } from "./views/index.js";
 
 setupViews();
 router.start();
 await import("./choreo/main.js");
 registerServiceWorker();
+startUsage(); // still im Hintergrund, siehe usage.js
