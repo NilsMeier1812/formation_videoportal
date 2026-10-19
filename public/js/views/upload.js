@@ -4,6 +4,8 @@
 // hängt etwas, gibt es „Erneut versuchen“ – mit derselben Datei, ohne neu auszuwählen.
 // Große Videos gehen in Teilen (lib/multipart-upload.js): Abbrüche kosten nur einen
 // Teil, und nach erneuter Auswahl derselben Datei geht es an der Stelle weiter.
+// „Abbrechen“ (je Video) und „Alle abbrechen“ stoppen sofort und räumen den angefangenen
+// Upload auf dem Server weg (DELETE /api/videos/:id/upload).
 // Mehr als die Datei braucht es nicht: Aufnahmezeit und Länge kommen aus den
 // Metadaten des Videos, ein Vorschaubild erzeugt der Browser; zugeordnet wird
 // von den Trainern (Reiter „Verwalten“).
@@ -11,7 +13,7 @@ import { api, ApiError, el, formatBytes, formatDateTime } from "../api.js";
 import { blobReader, readVideoMeta } from "../lib/mp4meta.js";
 import {
   dropResume, dropResumeKey, fingerprint, loadResume, pendingResumes, saveResume,
-  sendBlob, uploadControl, uploadInParts, withRetries,
+  sendBlob, uploadControl, uploadInParts, UploadCancelled, withRetries,
 } from "../lib/multipart-upload.js";
 import { makeThumbnail } from "../lib/thumbnail.js";
 import { session } from "../session.js";
@@ -21,6 +23,7 @@ const ROLE_NAMES = { group: "mit Gruppen-Code", tagger: "als Trainer" };
 
 let active = 0; // laufende Uploads (auch einzeln wiederholte)
 let wakeLock = null;
+let batch = []; // Zeilen der aktuellen Reihe (für „Alle abbrechen“)
 
 // ---------------- Anmeldung ----------------
 // Angemeldet ist man immer (sonst zeigt die App den Anmeldebildschirm).
@@ -56,6 +59,7 @@ async function setBusy(on) {
   const busy = active > 0;
   $("up-submit").disabled = busy;
   $("up-stay").hidden = !busy;
+  $("up-cancel-all").hidden = !busy || !batch.some((r) => r.cancellable());
   // Punkt am Reiter „Hochladen“, solange etwas läuft – auch aus anderen Bereichen sichtbar
   document.querySelector('.bottom-nav [data-tab="upload"]')?.classList.toggle("busy", busy);
   if (on && active === 1) await keepAwake();
@@ -118,26 +122,32 @@ async function uploadThumb(id, thumb) {
 
 const STUCK_MS = 15000; // so lange ohne Fortschritt → Knopf „Erneut versuchen“ zeigen
 
-/** Eine Zeile in der Liste; `run()` lädt die Datei hoch (auch erneut, mit derselben Datei). */
+/**
+ * Eine Zeile in der Liste. `run()` lädt die Datei hoch (auch erneut, mit derselben Datei)
+ * und meldet "ok" | "failed" | "cancelled"; `cancel()` bricht ab (auch solange sie noch wartet).
+ */
 function uploadRow(file, meta) {
   const fill = el("span");
   const state = el("span", { class: "state" }, "wartet …");
   const when = el("span", { class: "when" });
   const retry = el("button", { type: "button", class: "small-btn retry", hidden: true }, "Erneut versuchen");
-  $("up-list").append(
-    el("li", { class: "card upload-item" },
-      el("span", { class: "name" }, `${file.name} · ${formatBytes(file.size)}`),
-      when,
-      el("div", { class: "bar" }, fill),
-      el("div", { class: "upload-foot" }, state, retry),
-    ),
+  const cancelBtn = el("button", { type: "button", class: "small-btn cancel" }, "Abbrechen");
+  const item = el("li", { class: "card upload-item" },
+    el("span", { class: "name" }, `${file.name} · ${formatBytes(file.size)}`),
+    when,
+    el("div", { class: "bar" }, fill),
+    el("div", { class: "upload-foot" }, state, el("span", { class: "upload-actions" }, retry, cancelBtn)),
   );
+  $("up-list").append(item);
 
   let info = null;
   let thumb = null;
   let control = null;
   let lastMove = Date.now();
   let running = false;
+  let phase = "waiting"; // waiting | running | completing | done | failed | cancelled
+  let videoId = null; // sobald der Server das Video angelegt hat (zum Aufräumen beim Abbrechen)
+  const check = () => { if (control?.cancelled) throw new UploadCancelled(); };
 
   const setState = (text, cls = "") => { state.textContent = text; state.className = `state ${cls}`.trim(); };
   const progress = (p) => { fill.style.width = `${Math.round(p * 100)}%`; };
@@ -167,6 +177,31 @@ function uploadRow(file, meta) {
     if (running) { setState("neu gestartet …"); control.kick(); } else run();
   });
 
+  // Abbrechen geht, bis der Server die fertige Datei prüft („wird geprüft …“)
+  const cancellable = () => ["waiting", "running", "failed"].includes(phase);
+  /** Angefangenes wegräumen: Fortsetzen vergessen, Upload auf dem Server verwerfen. */
+  const discard = () => {
+    dropResume(file);
+    if (videoId) api(`/api/videos/${videoId}/upload`, { method: "DELETE" }).catch(() => {}); // sonst räumt der Server nach 24 h auf
+  };
+  const showCancelled = () => {
+    phase = "cancelled";
+    retry.hidden = true;
+    cancelBtn.hidden = true;
+    progress(0);
+    item.classList.add("cancelled");
+    setState("abgebrochen", "cancelled");
+  };
+  function cancel() {
+    if (!cancellable()) return;
+    if (running) { control.cancel(); return; } // run() räumt auf
+    // wartet noch oder ist fehlgeschlagen: gleich hier
+    if (phase === "failed") discard();
+    clearInterval(watch);
+    showCancelled();
+  }
+  cancelBtn.addEventListener("click", () => { cancel(); refreshCancelAll(); });
+
   const create = () => api("/api/videos", {
     method: "POST",
     body: { ...meta, ...info, filename: file.name, size: file.size, content_type: file.type },
@@ -185,6 +220,7 @@ function uploadRow(file, meta) {
       info = await recordingInfo(file);
       if (info.duration_s == null) info.duration_s = (await thumb).duration;
     }
+    check();
     when.textContent = info.recorded_at
       ? `aufgenommen ${formatDateTime(info.recorded_at)}${info.recorded_source === "file" ? " (Dateidatum)" : ""}`
       : "Aufnahmezeit unbekannt";
@@ -195,9 +231,12 @@ function uploadRow(file, meta) {
     if (resume) {
       setState("setzt fort …");
       id = resume.id;
+      videoId = id;
     } else {
       const created = await create();
       id = created.id;
+      videoId = id;
+      check();
       if (created.upload.multipart) {
         resume = startParts(created);
       } else {
@@ -223,10 +262,16 @@ function uploadRow(file, meta) {
         dropResume(file);
         const created = await create();
         id = created.id;
+        videoId = id;
+        check();
         parts = await partsOf(startParts(created));
       }
     }
 
+    check();
+    phase = "completing"; // ab hier kein Abbrechen mehr
+    cancelBtn.hidden = true;
+    refreshCancelAll();
     setState("wird geprüft …");
     await withRetries(async () => {
       try {
@@ -241,30 +286,48 @@ function uploadRow(file, meta) {
   }
 
   async function run() {
+    if (phase === "cancelled") return "cancelled"; // abgebrochen, während sie noch wartete
     running = true;
+    phase = "running";
     control = uploadControl();
+    cancelBtn.hidden = false;
+    item.classList.remove("cancelled");
     lastMove = Date.now();
     await setBusy(true);
     try {
       await upload();
+      phase = "done";
+      cancelBtn.hidden = true;
       progress(1);
       setState("fertig ✓", "ok");
       clearInterval(watch);
-      return true;
+      return "ok";
     } catch (err) {
+      if (err instanceof UploadCancelled || control.cancelled) {
+        discard();
+        clearInterval(watch);
+        showCancelled();
+        return "cancelled";
+      }
+      phase = "failed";
       const resumable = Boolean(loadResume(file));
       setState(err instanceof ApiError && err.status === 401
         ? "Fehler: Anmeldung abgelaufen – bitte neu anmelden"
         : `Fehler: ${err.message}${resumable ? " – „Erneut versuchen“ macht an der Stelle weiter" : ""}`, "error");
       retry.hidden = false;
-      return false;
+      return "failed";
     } finally {
       running = false;
       await setBusy(false);
     }
   }
 
-  return run;
+  return { run, cancel, cancellable };
+}
+
+/** „Alle abbrechen“ nur zeigen, solange es in der Reihe noch etwas abzubrechen gibt. */
+function refreshCancelAll() {
+  $("up-cancel-all").hidden = !active || !batch.some((r) => r.cancellable());
 }
 
 async function onSubmit(event) {
@@ -280,21 +343,25 @@ async function onSubmit(event) {
 
   const meta = { uploaded_by: name };
   const rows = files.map((file) => uploadRow(file, meta));
+  batch = rows;
 
   await setBusy(true); // über die ganze Reihe hinweg
-  let ok = 0;
+  const results = [];
   // Nacheinander: schont die Verbindung in der Halle und hält die Reihenfolge.
-  for (const run of rows) {
-    if (await run()) ok++;
-  }
+  for (const row of rows) results.push(await row.run());
+  batch = [];
   await setBusy(false);
 
-  const all = ok === files.length;
-  message.textContent = all
-    ? `${ok} ${ok === 1 ? "Video" : "Videos"} hochgeladen.`
-    : `${ok} von ${files.length} hochgeladen – bei den anderen „Erneut versuchen“ tippen.`;
-  message.className = all ? "message ok" : "message error";
-  if (all) {
+  const count = (what) => results.filter((r) => r === what).length;
+  const [ok, cancelled, failed] = [count("ok"), count("cancelled"), count("failed")];
+  const videos = (n) => `${n} ${n === 1 ? "Video" : "Videos"}`;
+  message.textContent = [
+    ok ? `${videos(ok)} hochgeladen.` : "",
+    cancelled ? `${cancelled} abgebrochen.` : "",
+    failed ? `${failed} nicht geschafft – dort „Erneut versuchen“ tippen.` : "",
+  ].filter(Boolean).join(" ") || "Nichts hochgeladen.";
+  message.className = failed ? "message error" : "message ok";
+  if (!failed) {
     $("up-files").value = "";
     onFilesChanged();
   }
@@ -304,6 +371,12 @@ export const uploadView = {
   mount() {
     $("up-files").addEventListener("change", onFilesChanged);
     $("up-form").addEventListener("submit", onSubmit);
+    $("up-cancel-all").addEventListener("click", () => {
+      const open = batch.filter((r) => r.cancellable());
+      if (!open.length || !confirm(`${open.length === 1 ? "Den Upload" : `Alle ${open.length} Uploads`} abbrechen?`)) return;
+      for (const row of open) row.cancel();
+      refreshCancelAll();
+    });
     $("up-name").value = session.getName();
 
     window.addEventListener("beforeunload", (event) => {

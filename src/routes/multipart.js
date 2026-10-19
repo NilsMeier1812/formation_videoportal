@@ -56,6 +56,25 @@ export async function abortUpload(env, key, uploadId) {
   } catch { /* schon weg – egal */ }
 }
 
+/**
+ * DELETE /api/videos/:id/upload – laufenden Upload abbrechen („Abbrechen“ beim Hochladen):
+ * Teil-Upload in R2 verwerfen, halbe Datei und Datensatz löschen. Nur solange das Video
+ * noch hochlädt – fertige Videos bleiben (die löschen Trainer über den Papierkorb).
+ * Schon weg → trotzdem 204 (Abbrechen darf doppelt kommen).
+ */
+export async function cancelUpload(request, env, id) {
+  await requireRole(request, env, "group");
+  const row = await env.DB.prepare(
+    "SELECT storage_key, multipart_upload_id, file_state FROM video WHERE id = ?"
+  ).bind(id).first();
+  if (!row) return new Response(null, { status: 204 });
+  if (row.file_state !== "uploading") throw new HttpError(409, "Schon fertig hochgeladen");
+  if (row.multipart_upload_id) await abortUpload(env, row.storage_key, row.multipart_upload_id);
+  await env.BUCKET.delete(row.storage_key);
+  await env.DB.prepare("DELETE FROM video WHERE id = ? AND file_state = 'uploading'").bind(id).run();
+  return new Response(null, { status: 204 });
+}
+
 async function openUpload(env, id) {
   const row = await env.DB.prepare(
     "SELECT storage_key, size_bytes, multipart_upload_id FROM video WHERE id = ? AND file_state = 'uploading'"

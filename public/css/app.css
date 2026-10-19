@@ -226,6 +226,11 @@
 .vpage .upload-item .state.error { color: var(--danger); }
 .vpage .upload-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; }
 .vpage .upload-foot .retry { flex-shrink: 0; }
+.vpage .upload-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.vpage .upload-actions .cancel { color: var(--danger); }
+.vpage .upload-item.cancelled .name, .vpage .upload-item.cancelled .when { opacity: .55; }
+.vpage .upload-item .state.cancelled { color: var(--muted); font-style: italic; }
+.vpage .cancel-all { color: var(--danger); }
 .vpage .stay-hint {
   margin: 12px 0; padding: 10px 12px; border-radius: var(--radius); font-size: 14px;
   background: var(--panel-2); border: 1px solid var(--accent);

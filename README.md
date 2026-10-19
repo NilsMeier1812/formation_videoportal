@@ -110,6 +110,9 @@ alles andere in 1080p H.264 umgewandelt (HDR → SDR, ohne GPS/Metadaten). Rück
 **Upload in Teilen** (`src/routes/multipart.js`, `public/js/lib/multipart-upload.js`): Videos ab 32 MB in
 10-MiB-Teilen direkt nach R2, drei gleichzeitig, jeder Teil mit Wiederholung. Nach einem Abbruch dieselbe Datei
 noch einmal auswählen → es geht an der Stelle weiter.
+**Abbrechen:** je Video („Abbrechen“, auch solange es noch wartet) und „Alle abbrechen“ für die ganze Reihe –
+bis die fertige Datei geprüft wird. Der laufende Teil stoppt sofort, der angefangene Upload wird auf dem
+Server verworfen (`DELETE /api/videos/:id/upload`, nur solange das Video noch hochlädt).
 
 **E-Mails** (`src/mails.js`, Resend): an `MAIL_TO` bei jedem Upload ab 1 GB und montags eine Wochenübersicht.
 
