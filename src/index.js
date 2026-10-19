@@ -8,6 +8,7 @@ import * as library from "./routes/library.js";
 import { getMedia } from "./routes/media.js";
 import * as processing from "./routes/processing.js";
 import * as session from "./routes/session.js";
+import * as usage from "./routes/usage.js";
 import * as videos from "./routes/videos.js";
 
 const ID = "([0-9a-f-]{36})";
@@ -22,6 +23,8 @@ const routes = [
   ["POST", /^\/api\/videos\/assign$/, videos.assignVideos],
   ["GET", /^\/api\/videos\/trash$/, videos.listTrash],
   ["GET", /^\/api\/storage$/, videos.storageInfo],
+  ["POST", /^\/api\/usage$/, usage.recordUsage],
+  ["GET", /^\/api\/usage$/, usage.usageStats],
   ["GET", new RegExp(`^/api/videos/${ID}$`), videos.getVideo],
   ["DELETE", new RegExp(`^/api/videos/${ID}$`), videos.trashVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],

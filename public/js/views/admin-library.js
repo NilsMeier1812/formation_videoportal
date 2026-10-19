@@ -5,6 +5,7 @@
 import { api, el, icon } from "../api.js";
 import { library } from "../library.js";
 import { router } from "../router.js";
+import { fillDays, lastDays, shortDay, weekdayAverages } from "../lib/usage-stats.js";
 
 const TRASH = '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>';
 const GEAR = '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>';
@@ -368,6 +369,55 @@ function storageCard(info) {
   );
 }
 
+// ---------------- Nutzung (anonym, siehe src/routes/usage.js) ----------------
+const USAGE_DAYS = 56; // 8 Wochen
+const fmt1 = (n) => (Math.round(n * 10) / 10).toString().replace(".", ",");
+const deviceWord = (n) => (n === 1 ? "Gerät" : "Geräte");
+
+function usageCard(stats) {
+  const days = fillDays(stats.from, stats.today, stats.days);
+  const max = Math.max(1, ...days.map((d) => d.devices));
+  const week = lastDays(days, 7);
+  const describe = (d) => d.devices
+    ? `${shortDay(d)}: ${d.devices} ${deviceWord(d.devices)}${d.trainers ? ` (davon ${d.trainers} Trainer)` : ""} · ${d.opens}× geöffnet`
+    : `${shortDay(d)}: niemand`;
+  const caption = el("p", { class: "usage-caption" }, describe(days[days.length - 1]));
+  const show = (d, bar) => {
+    caption.textContent = describe(d);
+    for (const b of chart.querySelectorAll(".usage-bar")) b.classList.toggle("on", b === bar);
+  };
+  const chart = el("div", { class: "usage-chart" }, ...days.map((d, i) => {
+    const bar = el("button", {
+      type: "button", class: `usage-bar${i === days.length - 1 ? " on" : ""}${d.weekday === 0 ? " monday" : ""}`,
+      "aria-label": describe(d),
+    }, el("span", { class: d.devices ? "fill" : "fill zero", style: `height:${d.devices ? Math.max(4, (d.devices / max) * 100) : 0}%` }));
+    bar.addEventListener("mouseenter", () => show(d, bar));
+    bar.addEventListener("focus", () => show(d, bar));
+    bar.addEventListener("click", () => show(d, bar));
+    return bar;
+  }));
+  // Datum unter jedem Montag – nicht ganz am Ende (würde abgeschnitten)
+  const axis = el("div", { class: "usage-axis" }, ...days.map((d, i) => el("span", {},
+    d.weekday === 0 && i < days.length - 4 ? shortDay(d).slice(3) : "")));
+
+  const avgs = weekdayAverages(days);
+  const maxAvg = Math.max(0.1, ...avgs.map((w) => w.avg));
+  const weekChart = el("div", { class: "usage-week" }, ...avgs.map((w) => el("div", { class: "usage-wd", title: `${w.label}: Ø ${fmt1(w.avg)} ${deviceWord(w.avg)}` },
+    el("span", { class: "usage-wd-val" }, fmt1(w.avg)),
+    el("span", { class: "usage-wd-track" }, el("span", { class: "fill", style: `height:${w.avg ? Math.max(4, (w.avg / maxAvg) * 100) : 0}%` })),
+    el("span", { class: "usage-wd-label" }, w.label))));
+
+  return el("div", { class: "card" },
+    el("div", { class: "section-title first" }, "Nutzung"),
+    el("p", { class: "muted small" }, `Letzte 7 Tage: Ø ${fmt1(week.devicesAvg)} ${deviceWord(week.devicesAvg)} pro Tag · ${week.opens}× geöffnet`),
+    el("div", { class: "usage-head" }, el("span", {}, "Geräte pro Tag · 8 Wochen"), el("span", { class: "muted" }, `max. ${max}`)),
+    chart, axis, caption,
+    el("div", { class: "usage-head" }, el("span", {}, "Ø Geräte nach Wochentag")),
+    weekChart,
+    el("p", { class: "muted small" }, "Anonym: gezählt werden Geräte pro Tag, keine Namen. „Geöffnet“ = App geöffnet oder nach mindestens 30 Minuten wieder hervorgeholt."),
+  );
+}
+
 function trashCard(trash, reload) {
   const daysLeft = (v) => Math.max(0, trash.days - Math.floor((Date.now() - Date.parse(v.deleted_at)) / 86400000));
   return el("div", { class: "card" },
@@ -390,14 +440,17 @@ function trashCard(trash, reload) {
   );
 }
 
-/** Reiter „Mehr“: Speicher, Papierkorb, Tags. */
+/** Reiter „Mehr“: Nutzung, Speicher, Papierkorb, Tags. */
 export async function renderMore(container, reload) {
   let info = null;
   let trash = { days: 30, videos: [] };
+  let usage = null;
   try {
-    [info, trash] = await Promise.all([api("/api/storage"), api("/api/videos/trash")]);
+    [info, trash, usage] = await Promise.all([
+      api("/api/storage"), api("/api/videos/trash"), api(`/api/usage?days=${USAGE_DAYS}`).catch(() => null),
+    ]);
   } catch (err) {
     toast(err.message);
   }
-  container.replaceChildren(...[info && storageCard(info), trashCard(trash, reload), tagsCard(reload)].filter(Boolean));
+  container.replaceChildren(...[usage && usageCard(usage), info && storageCard(info), trashCard(trash, reload), tagsCard(reload)].filter(Boolean));
 }

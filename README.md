@@ -94,6 +94,11 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
 **Videos und Bilder** liefert der Worker unter `/media/<key>` aus (mit Range für das Springen im Video) –
 nur für Angemeldete. Der Bucket selbst ist nicht öffentlich erreichbar.
 
+**Nutzung** (Verwalten → Mehr, nur Trainer): Geräte pro Tag der letzten 8 Wochen und Ø je Wochentag.
+Die App meldet sich still beim Öffnen/Zurückholen (höchstens alle 30 min je Gerät, `public/js/usage.js`);
+gespeichert wird je Tag nur ein Hash aus zufälliger Geräte-Kennung und Datum (`usage_days`, keine Namen,
+über Tage nicht verfolgbar), nach ~1 Jahr löscht der Cron.
+
 **Papierkorb und Speicher** (Verwalten → Mehr): gelöschte Videos 30 Tage zurückholbar, Anzeige des belegten
 Speichers (Deckel `QUOTA_BYTES` = 200 GB, einzelne Datei höchstens `MAX_FILE_BYTES` = 5 GB).
 
