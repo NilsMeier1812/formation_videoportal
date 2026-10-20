@@ -91,5 +91,32 @@ describe("Upload in Teilen – lokal über das Binding", () => {
     const bytes = new Uint8Array(await obj.arrayBuffer());
     expect([bytes[0], bytes[PART_SIZE], bytes[2 * PART_SIZE], bytes[size - 1]]).toEqual([1, 2, 3, 4]);
     expect((await row(id)).file_state).toBe("ready");
+  }, 20000); // 32 MB durch das lokale Binding – im vollen, parallelen Testlauf manchmal > 5 s
+});
+
+describe("Upload abbrechen", () => {
+  it("verwirft den Teil-Upload, die halbe Datei und den Datensatz", async () => {
+    const dev = { DEV_MODE: "1" };
+    const size = 32 * MIB + 1;
+    const { id } = await (await call("/api/videos", { method: "POST", body: { filename: "x.mp4", size, content_type: "video/mp4" }, extra: dev })).json();
+    const { urls } = await (await call(`/api/videos/${id}/parts`, { method: "POST", body: { numbers: [1] }, extra: dev })).json();
+    await call(urls[0].url, { method: "PUT", raw: new Uint8Array(PART_SIZE), headers: {}, extra: dev });
+    const res = await call(`/api/videos/${id}/upload`, { method: "DELETE", extra: dev });
+    expect(res.status).toBe(204);
+    expect(await row(id)).toBeNull();
+    expect(await env.BUCKET.head(`raw/${id}.mp4`)).toBeNull();
+    // doppelt abbrechen ist egal
+    expect((await call(`/api/videos/${id}/upload`, { method: "DELETE", extra: dev })).status).toBe(204);
+  });
+
+  it("fertige Videos bleiben; ohne Code geht nichts", async () => {
+    const id = crypto.randomUUID();
+    await env.DB.prepare(
+      "INSERT INTO video (id, storage_key, size_bytes, file_state, created_at) VALUES (?, ?, 1, 'ready', ?)"
+    ).bind(id, `raw/${id}.mp4`, new Date().toISOString()).run();
+    expect((await call(`/api/videos/${id}/upload`, { method: "DELETE" })).status).toBe(409);
+    expect((await row(id)).file_state).toBe("ready");
+    const anon = await worker.fetch(new Request(`${BASE}/api/videos/${id}/upload`, { method: "DELETE" }), env);
+    expect(anon.status).toBe(401);
   });
 });

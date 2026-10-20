@@ -73,19 +73,34 @@ if (typeof document !== "undefined") {
   window.addEventListener("online", () => wakeup.dispatchEvent(new Event("wake")));
 }
 
+/** „Abbrechen“ getippt – kein Fehler, nichts wiederholen. */
+export class UploadCancelled extends Error {
+  constructor() {
+    super("abgebrochen");
+    this.cancelled = true;
+  }
+}
+
 /**
  * Steuerung für einen Upload: `kick()` („Erneut versuchen“) bricht hängende Teile ab
- * und beendet Wartepausen. `onKick(fn)` meldet sich dafür an (gibt Abmelden zurück).
+ * und beendet Wartepausen. `cancel()` („Abbrechen“) bricht alles ab, ohne zu wiederholen.
+ * `onKick(fn)` meldet sich für beides an (gibt Abmelden zurück).
  */
 export function uploadControl() {
   const target = new EventTarget();
-  return {
+  const control = {
+    cancelled: false,
     kick() { target.dispatchEvent(new Event("kick")); },
+    cancel() {
+      control.cancelled = true;
+      target.dispatchEvent(new Event("kick")); // laufende Teile abbrechen, Pausen beenden
+    },
     onKick(fn) {
       target.addEventListener("kick", fn);
       return () => target.removeEventListener("kick", fn);
     },
   };
+  return control;
 }
 
 /** Pause, die vorzeitig endet: beim Zurückkommen, wieder online oder „Erneut versuchen“. */
@@ -169,10 +184,12 @@ export async function withRetries(attempt, { control, onRetry, retries = RETRIES
   let failures = 0; // zählen fürs Aufgeben
   let tries = 0; // alle, für die Länge der Pause
   for (;;) {
+    if (control?.cancelled) throw new UploadCancelled();
     const hiddenBefore = hiddenCount;
     try {
       return await attempt(failures);
     } catch (err) {
+      if (control?.cancelled) throw new UploadCancelled();
       if (!err.retry) throw err;
       const counts = !err.kicked && hiddenCount === hiddenBefore && document.visibilityState === "visible";
       if (counts) failures++;

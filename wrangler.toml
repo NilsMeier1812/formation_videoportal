@@ -36,7 +36,6 @@ MAX_FILE_BYTES = "5000000000"    # 5 GB
 GH_REPO = "NilsMeier1812/formation_videoportal"  # Umwandlung: .github/workflows/process-video.yml
 APP_URL = "https://formation.nils-meier.de"        # für Links in Mails
 MAIL_FROM = "Formation <formation@nils-meier.de>"  # Absender (Domain muss bei Resend verifiziert sein)
-NOTIFY_FILE_BYTES = "1000000000"                   # Sofortmail ab 1 GB
 
 # Zeitgesteuerte Aufgaben (src/cron.js), Zeiten in UTC:
 #   stündlich: abgebrochene Uploads aufräumen, Umwandlung wiederholen

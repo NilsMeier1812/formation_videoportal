@@ -81,6 +81,7 @@ Cloudflare → `formation-portal` → *Settings* → *Variables and Secrets* →
 Absender ist `Formation <formation@nils-meier.de>` (Variable `MAIL_FROM` in `wrangler.toml`). Die Domain
 muss bei Resend verifiziert sein – ist sie eine andere, `MAIL_FROM` anpassen.
 
-**Was kommt:** eine Mail bei jedem Upload ab 1 GB (`NOTIFY_FILE_BYTES`) und montags früh eine
+**Was kommt:** eine Mail nach jedem Upload (mehrere Videos auf einmal = eine Mail; was nicht direkt
+gemeldet wurde, holt der stündliche Cron nach) und montags früh eine
 Wochenübersicht (neue Videos, noch nicht zugeordnet, fehlgeschlagene Umwandlungen, Speicher) – nur,
 wenn es etwas zu berichten gibt.
