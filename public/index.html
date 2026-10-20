@@ -453,17 +453,23 @@
       <h1 class="appbar-title">Videos</h1>
     </header>
     <main>
-      <div class="search">
+      <!-- Suche + Filter + Sortieren in einer Zeile; die Knöpfe öffnen je ein Menü (views/videos.js) -->
+      <div class="search vl-toolbar">
         <label>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="vl-q" type="search" placeholder="Suchen: Titel, Name, Tag, Datum" aria-label="Videos durchsuchen" autocomplete="off">
+          <input id="vl-q" type="search" placeholder="Suchen …" title="Titel, Name, Tag, Datum" aria-label="Videos durchsuchen (Titel, Name, Tag, Datum)" autocomplete="off">
         </label>
+        <button type="button" class="tool-btn" id="vl-filter-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="Filtern" title="Filtern">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+          <span class="tool-badge" id="vl-filter-count" hidden></span>
+        </button>
+        <button type="button" class="tool-btn" id="vl-sort-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Sortieren" title="Sortieren">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>
+        </button>
+        <div class="vl-menu" id="vl-filter-menu" role="dialog" aria-label="Filter" hidden></div>
+        <div class="vl-menu" id="vl-sort-menu" role="menu" aria-label="Sortieren" hidden></div>
       </div>
-      <div class="filters" id="vl-filters">
-        <select id="vl-choreo" aria-label="Choreo"><option value="">Alle Choreos</option></select>
-        <select id="vl-dance" aria-label="Tanz"><option value="">Alle Tänze</option></select>
-        <select id="vl-tag" aria-label="Tag"><option value="">Alle Tags</option></select>
-      </div>
+      <div class="vl-active" id="vl-active" hidden></div>
       <p id="vl-info" class="result-info" aria-live="polite">Lade …</p>
       <ul id="vl-videos" class="grid"></ul>
     </main>
