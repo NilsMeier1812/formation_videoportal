@@ -63,6 +63,33 @@ describe("Aufräumen per Cron", () => {
     expect(await row(fertig.id)).not.toBeNull();
   });
 
+  it("löscht einzeln endgültig – samt Dateien; nur aus dem Papierkorb, nur Trainer", async () => {
+    const weg = await video({ state: "trashed", deleted: new Date().toISOString(), play: true });
+    const aktiv = await video();
+    expect((await call(`/api/videos/${weg.id}/purge`, { method: "DELETE", headers: GROUP })).status).toBe(401);
+    expect((await call(`/api/videos/${aktiv.id}/purge`, { method: "DELETE" })).status).toBe(404); // nicht im Papierkorb
+    expect(await row(aktiv.id)).not.toBeNull();
+    expect((await call(`/api/videos/${weg.id}/purge`, { method: "DELETE" })).status).toBe(204);
+    expect(await row(weg.id)).toBeNull();
+    expect(await env.BUCKET.head(weg.raw)).toBeNull();
+    expect(await env.BUCKET.head(`play/${weg.id}.mp4`)).toBeNull();
+  });
+
+  it("leert den Papierkorb auf Knopfdruck – nur was drin liegt", async () => {
+    const a = await video({ state: "trashed", deleted: new Date().toISOString() });
+    const b = await video({ state: "trashed", deleted: new Date().toISOString(), play: true });
+    const aktiv = await video();
+    expect((await call("/api/videos/trash", { method: "DELETE", headers: GROUP })).status).toBe(401);
+    const res = await call("/api/videos/trash", { method: "DELETE" });
+    expect((await res.json()).deleted).toBeGreaterThanOrEqual(2);
+    expect(await row(a.id)).toBeNull();
+    expect(await row(b.id)).toBeNull();
+    expect(await env.BUCKET.head(b.raw)).toBeNull();
+    expect(await row(aktiv.id)).not.toBeNull();
+    expect(await env.BUCKET.head(aktiv.raw)).not.toBeNull();
+    expect((await (await call("/api/videos/trash")).json()).videos).toEqual([]);
+  });
+
   it("leert den Papierkorb nach 30 Tagen – samt Dateien", async () => {
     const now = Date.now();
     const alt = await video({ state: "trashed", deleted: new Date(now - 31 * DAY).toISOString(), play: true });

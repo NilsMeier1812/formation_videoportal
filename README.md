@@ -86,7 +86,7 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   ist; alles wandert mit, danach „Alles verschieben“ zum Feinjustieren) und **Aus anderer Audio übernehmen**
   (Schritte, Notizen, Sprungmarken, Paare/Gruppen; Zeit hier = Zeit dort + Versatz, optional nur ein Bereich).
 - **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
-  erst im Player) und die **Videothek** mit Suche und Filtern (Choreo, Tanz, Tag). Im Player: „In der Musik
+  erst im Player) und die **Videothek** mit Suche, Menü „Filtern“ (Choreo, Tanz, Tag; aktive als Pillen) und Menü „Sortieren“ (Aufnahme, Upload, Länge, Titel – wird gemerkt). Im Player: „In der Musik
   zeigen“ und für Trainer „Zuordnung bearbeiten“; Tempo 0,5 · 0,7 · 0,9 · 1×, ±1 s und ±1 Bild (am PC auch ← → , .).
 - API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
   `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.
@@ -99,7 +99,7 @@ Die App meldet sich still beim Öffnen/Zurückholen (höchstens alle 30 min je G
 gespeichert wird je Tag nur ein Hash aus zufälliger Geräte-Kennung und Datum (`usage_days`, keine Namen,
 über Tage nicht verfolgbar), nach ~1 Jahr löscht der Cron.
 
-**Papierkorb und Speicher** (Verwalten → Mehr): gelöschte Videos 30 Tage zurückholbar, Anzeige des belegten
+**Papierkorb und Speicher** (Verwalten → Mehr): gelöschte Videos 30 Tage zurückholbar – oder sofort endgültig löschen (je Video „Löschen“ oder „Papierkorb leeren“, `DELETE /api/videos/:id/purge` bzw. `/api/videos/trash`), Anzeige des belegten
 Speichers (Deckel `QUOTA_BYTES` = 200 GB, einzelne Datei höchstens `MAX_FILE_BYTES` = 5 GB).
 
 **Umwandlung** (`.github/workflows/process-video.yml`, `scripts/process-video.sh`): nach jedem Upload stößt der

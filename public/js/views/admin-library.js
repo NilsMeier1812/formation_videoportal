@@ -12,6 +12,7 @@ const GEAR = '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.
 const CROSS = '<path d="M18 6 6 18M6 6l12 12"/>';
 const COPY = '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
 const UPLOAD = '<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>';
+const RESTORE = '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>';
 const HOME = '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>';
 const STAR = '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>';
 
@@ -420,22 +421,41 @@ function usageCard(stats) {
 
 function trashCard(trash, reload) {
   const daysLeft = (v) => Math.max(0, trash.days - Math.floor((Date.now() - Date.parse(v.deleted_at)) / 86400000));
+  const n = trash.videos.length;
   return el("div", { class: "card" },
-    el("div", { class: "section-title first" }, `Papierkorb (${trash.videos.length})`),
-    trash.videos.length
-      ? el("p", { class: "muted small" }, `Gelöschte Videos bleiben ${trash.days} Tage hier und lassen sich zurückholen; danach werden sie endgültig gelöscht.`)
+    el("div", { class: "trash-head" },
+      el("div", { class: "section-title first" }, `Papierkorb (${n})`),
+      n ? el("button", {
+        type: "button", class: "small-btn danger",
+        onclick: () => {
+          if (confirm(`${n === 1 ? "Das Video" : `Alle ${n} Videos`} im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.`)) {
+            change(reload, "/api/videos/trash", "DELETE");
+          }
+        },
+      }, icon(TRASH, 16), "Papierkorb leeren") : null),
+    n
+      ? el("p", { class: "muted small" }, `Gelöschte Videos bleiben ${trash.days} Tage hier und lassen sich zurückholen; danach werden sie endgültig gelöscht – oder sofort mit dem Papierkorb-Knopf.`)
       : el("p", { class: "muted small" }, "Leer."),
     ...trash.videos.map((v) => el("div", { class: "trash-row" },
       el("span", { class: "trash-thumb" }, v.thumb_url ? el("img", { src: v.thumb_url, alt: "", loading: "lazy" }) : null),
       el("span", { class: "trash-main" },
         el("span", { class: "trash-title" }, library.videoTitle(v)),
         el("span", { class: "muted small" }, `noch ${daysLeft(v)} Tage`)),
-      el("button", {
-        type: "button", class: "small-btn",
-        onclick: () => change(reload, `/api/videos/${v.id}/restore`, "POST").then(() => {
-          window.dispatchEvent(new Event("videos-changed"));
-        }),
-      }, "Zurückholen"),
+      el("span", { class: "trash-actions" },
+        el("button", {
+          type: "button", class: "icon-btn trash-restore", title: "Zurückholen", "aria-label": `${library.videoTitle(v)} zurückholen`,
+          onclick: () => change(reload, `/api/videos/${v.id}/restore`, "POST").then(() => {
+            window.dispatchEvent(new Event("videos-changed"));
+          }),
+        }, icon(RESTORE, 20)),
+        el("button", {
+          type: "button", class: "icon-btn danger trash-purge", title: "Endgültig löschen", "aria-label": `${library.videoTitle(v)} endgültig löschen`,
+          onclick: () => {
+            if (confirm(`„${library.videoTitle(v)}“ endgültig löschen? Das lässt sich nicht rückgängig machen.`)) {
+              change(reload, `/api/videos/${v.id}/purge`, "DELETE");
+            }
+          },
+        }, icon(TRASH, 20))),
     )),
   );
 }

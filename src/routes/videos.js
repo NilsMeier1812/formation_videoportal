@@ -404,6 +404,33 @@ export async function restoreVideo(request, env, id) {
   return json(await loadVideo(env, id));
 }
 
+/** Endgültig löschen: Dateien in R2 (Original, Abspielfassung, Bild) und Datensatz (Tänze/Tags per CASCADE). */
+export async function deleteForever(env, v) {
+  await env.BUCKET.delete([v.storage_key, v.play_key, v.thumb_key].filter(Boolean));
+  await env.DB.prepare("DELETE FROM video WHERE id = ? AND deleted_at IS NOT NULL").bind(v.id).run();
+}
+
+// DELETE /api/videos/:id/purge – ein Video aus dem Papierkorb endgültig löschen
+export async function purgeVideo(request, env, id) {
+  await requireRole(request, env, "tagger");
+  const v = await env.DB.prepare(
+    "SELECT id, storage_key, play_key, thumb_key FROM video WHERE id = ? AND deleted_at IS NOT NULL"
+  ).bind(id).first();
+  if (!v) throw new HttpError(404, "Nicht im Papierkorb");
+  await deleteForever(env, v);
+  return new Response(null, { status: 204 });
+}
+
+// DELETE /api/videos/trash – Papierkorb leeren (alles darin endgültig löschen)
+export async function emptyTrash(request, env) {
+  await requireRole(request, env, "tagger");
+  const { results } = await env.DB.prepare(
+    "SELECT id, storage_key, play_key, thumb_key FROM video WHERE deleted_at IS NOT NULL LIMIT 500"
+  ).all();
+  for (const v of results) await deleteForever(env, v);
+  return json({ deleted: results.length });
+}
+
 // GET /api/storage – belegter Speicher (Originale + Abspielfassungen) und Anzahlen
 export async function storageInfo(request, env) {
   await requireRole(request, env, "tagger");
