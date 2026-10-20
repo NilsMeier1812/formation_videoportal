@@ -112,7 +112,7 @@ function chipGroup(title, key, options) {
 function renderFilterMenu() {
   const { choreos, tags } = library.data;
   const any = activeFilters().length;
-  $("vl-filter-menu").replaceChildren(
+  $("vl-filter-menu").replaceChildren(...[ // replaceChildren schreibt null als Text – daher filtern
     chipGroup("Choreo", "choreo", choreos.map((c) => ({ id: c.id, name: c.title }))),
     chipGroup("Tanz", "dance", danceOptions()),
     chipGroup("Tag", "tag", tags),
@@ -120,7 +120,7 @@ function renderFilterMenu() {
     el("div", { class: "vl-menu-foot" },
       el("button", { type: "button", class: "link", disabled: !any, onclick: () => { Object.assign(filter, { choreo: "", dance: "", tag: "" }); renderFilterMenu(); render(); } }, "Zurücksetzen"),
       el("button", { type: "button", class: "small-btn primary", onclick: () => closeMenus() }, "Fertig")),
-  );
+  ].filter(Boolean));
 }
 
 function renderSortMenu() {
