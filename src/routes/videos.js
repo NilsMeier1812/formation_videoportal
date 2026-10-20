@@ -3,7 +3,7 @@ import { requireRole } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
 import { presignPut } from "../lib/presign.js";
 import { finishMultipart, MULTIPART_FROM, PART_SIZE, partCount, startMultipart } from "./multipart.js";
-import { notifyLargeUpload } from "../mails.js";
+import { notifyNewUploads } from "../mails.js";
 import { dispatchProcessing } from "./processing.js";
 import {
   contentTypeFor,
@@ -184,9 +184,16 @@ export async function completeVideo(request, env, id) {
 
   // Umwandlung anstoßen; klappt das nicht, holt der stündliche Cron es nach
   await dispatchProcessing(env, { id, storage_key: row.storage_key });
-  // Ab 1 GB bekommt der Admin sofort eine Mail
-  await notifyLargeUpload(env, { id, size_bytes: obj.size, uploaded_by: row.uploaded_by });
+  // Mail kommt gesammelt am Ende der Upload-Reihe (POST /api/videos/notify) bzw. per Cron
   return json(await loadVideo(env, id));
+}
+
+// POST /api/videos/notify { ids } – Ende einer Upload-Reihe: eine Mail für alle fertigen Videos
+export async function notifyUploaded(request, env) {
+  await requireRole(request, env, "group");
+  const body = await readJson(request);
+  const notified = await notifyNewUploads(env, { ids: idList(body.ids, "Videos") });
+  return json({ notified });
 }
 
 // PUT /api/videos/:id/thumb – Vorschaubild (JPEG), vom Browser beim Hochladen erzeugt.

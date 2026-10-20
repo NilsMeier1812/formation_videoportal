@@ -1,14 +1,15 @@
 // Aufgaben nach Zeitplan (Cloudflare Cron Triggers, siehe wrangler.toml [triggers]).
 //
 //   stündlich   abgebrochene Uploads aufräumen (länger als 24 h im Zustand „uploading“),
-//               Umwandlung anstoßen/wiederholen (höchstens 3 Versuche)
+//               Umwandlung anstoßen/wiederholen (höchstens 3 Versuche), noch nicht gemeldete
+//               Uploads per Mail melden
 //   täglich     Papierkorb: Videos, die länger als 30 Tage dort liegen, endgültig löschen;
 //               Originale 7 Tage nach erfolgreicher Umwandlung löschen; Nutzungszahlen
 //               älter als ~1 Jahr löschen
 //   wöchentlich Übersicht per Mail an den Admin (montags)
 //
 // Alles ist wiederholbar: Läuft ein Job doppelt oder bricht ab, macht der nächste weiter.
-import { sendWeeklySummary } from "./mails.js";
+import { notifyNewUploads, sendWeeklySummary } from "./mails.js";
 import { abortUpload } from "./routes/multipart.js";
 import { dispatchProcessing, MAX_ATTEMPTS } from "./routes/processing.js";
 import { purgeUsage } from "./routes/usage.js";
@@ -95,6 +96,7 @@ export async function runScheduled(cron, env, now = Date.now()) {
   if (cron === CRON.hourly) {
     done.uploads = await cleanupUploads(env, now);
     done.processing = await retryProcessing(env, now);
+    done.notified = await notifyNewUploads(env, { now });
   }
   if (cron === CRON.daily) {
     done.trash = await purgeTrash(env, now);

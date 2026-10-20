@@ -4,6 +4,8 @@
 // hängt etwas, gibt es „Erneut versuchen“ – mit derselben Datei, ohne neu auszuwählen.
 // Große Videos gehen in Teilen (lib/multipart-upload.js): Abbrüche kosten nur einen
 // Teil, und nach erneuter Auswahl derselben Datei geht es an der Stelle weiter.
+// Am Ende einer Reihe meldet die Seite die fertigen Videos – der Admin bekommt EINE Mail
+// (POST /api/videos/notify; was so nicht ankommt, holt der Server-Cron nach).
 // „Abbrechen“ (je Video) und „Alle abbrechen“ stoppen sofort und räumen den angefangenen
 // Upload auf dem Server weg (DELETE /api/videos/:id/upload).
 // Mehr als die Datei braucht es nicht: Aufnahmezeit und Länge kommen aus den
@@ -174,7 +176,9 @@ function uploadRow(file, meta) {
   retry.addEventListener("click", () => {
     retry.hidden = true;
     lastMove = Date.now();
-    if (running) { setState("neu gestartet …"); control.kick(); } else run();
+    if (running) { setState("neu gestartet …"); control.kick(); return; }
+    // einzeln wiederholt (nach dem Ende der Reihe) → selbst melden
+    run().then((result) => { if (result === "ok" && !batch.includes(row)) notifyUploaded([videoId]); });
   });
 
   // Abbrechen geht, bis der Server die fertige Datei prüft („wird geprüft …“)
@@ -322,7 +326,13 @@ function uploadRow(file, meta) {
     }
   }
 
-  return { run, cancel, cancellable };
+  const row = { run, cancel, cancellable, id: () => videoId };
+  return row;
+}
+
+/** Fertige Videos melden → eine Mail an den Admin. Klappt es nicht, meldet der Cron sie später. */
+function notifyUploaded(ids) {
+  if (ids.length) api("/api/videos/notify", { method: "POST", body: { ids } }).catch(() => {});
 }
 
 /** „Alle abbrechen“ nur zeigen, solange es in der Reihe noch etwas abzubrechen gibt. */
@@ -350,6 +360,7 @@ async function onSubmit(event) {
   // Nacheinander: schont die Verbindung in der Halle und hält die Reihenfolge.
   for (const row of rows) results.push(await row.run());
   batch = [];
+  notifyUploaded(rows.filter((_, i) => results[i] === "ok").map((r) => r.id()));
   await setBusy(false);
 
   const count = (what) => results.filter((r) => r === what).length;

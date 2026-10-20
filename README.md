@@ -114,7 +114,9 @@ noch einmal auswählen → es geht an der Stelle weiter.
 bis die fertige Datei geprüft wird. Der laufende Teil stoppt sofort, der angefangene Upload wird auf dem
 Server verworfen (`DELETE /api/videos/:id/upload`, nur solange das Video noch hochlädt).
 
-**E-Mails** (`src/mails.js`, Resend): an `MAIL_TO` bei jedem Upload ab 1 GB und montags eine Wochenübersicht.
+**E-Mails** (`src/mails.js`, Resend): an `MAIL_TO` nach jedem Upload – eine Mail je Upload-Reihe mit allen Videos
+und dem Stand „noch nicht zugeordnet“ (`POST /api/videos/notify` am Ende der Reihe; Übriggebliebenes holt der
+stündliche Cron nach, `video.notified_at`) – und montags eine Wochenübersicht.
 
 **Zeitgesteuert** (`src/cron.js`, Cloudflare Cron Triggers in `wrangler.toml`):
 - stündlich: abgebrochene Uploads aufräumen (älter als 24 h), Umwandlung anstoßen/wiederholen (max. 3 Versuche)

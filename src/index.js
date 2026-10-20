@@ -30,6 +30,7 @@ const routes = [
   ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/parts$`), multipart.partUrls],
   ["DELETE", new RegExp(`^/api/videos/${ID}/upload$`), multipart.cancelUpload],
+  ["POST", /^\/api\/videos\/notify$/, videos.notifyUploaded],
   ["PUT", new RegExp(`^/api/videos/${ID}/thumb$`), videos.putThumb],
   ["POST", new RegExp(`^/api/videos/${ID}/restore$`), videos.restoreVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/reprocess$`), processing.reprocessVideo],
