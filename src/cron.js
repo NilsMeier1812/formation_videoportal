@@ -13,7 +13,7 @@ import { notifyNewUploads, sendWeeklySummary } from "./mails.js";
 import { abortUpload } from "./routes/multipart.js";
 import { dispatchProcessing, MAX_ATTEMPTS } from "./routes/processing.js";
 import { purgeUsage } from "./routes/usage.js";
-import { TRASH_DAYS } from "./routes/videos.js";
+import { deleteForever, TRASH_DAYS } from "./routes/videos.js";
 
 export const CRON = {
   hourly: "17 * * * *",
@@ -48,10 +48,7 @@ export async function purgeTrash(env, now = Date.now()) {
     `SELECT id, storage_key, play_key, thumb_key FROM video
       WHERE deleted_at IS NOT NULL AND deleted_at < ? LIMIT ?`
   ).bind(hoursAgo(TRASH_DAYS * 24, now), BATCH).all();
-  for (const v of results) {
-    await env.BUCKET.delete([v.storage_key, v.play_key, v.thumb_key].filter(Boolean));
-    await env.DB.prepare("DELETE FROM video WHERE id = ? AND deleted_at IS NOT NULL").bind(v.id).run();
-  }
+  for (const v of results) await deleteForever(env, v);
   return results.length;
 }
 

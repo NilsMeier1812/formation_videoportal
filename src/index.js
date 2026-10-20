@@ -22,6 +22,7 @@ const routes = [
   ["POST", /^\/api\/videos$/, videos.createVideo],
   ["POST", /^\/api\/videos\/assign$/, videos.assignVideos],
   ["GET", /^\/api\/videos\/trash$/, videos.listTrash],
+  ["DELETE", /^\/api\/videos\/trash$/, videos.emptyTrash],
   ["GET", /^\/api\/storage$/, videos.storageInfo],
   ["POST", /^\/api\/usage$/, usage.recordUsage],
   ["GET", /^\/api\/usage$/, usage.usageStats],
@@ -33,6 +34,7 @@ const routes = [
   ["POST", /^\/api\/videos\/notify$/, videos.notifyUploaded],
   ["PUT", new RegExp(`^/api/videos/${ID}/thumb$`), videos.putThumb],
   ["POST", new RegExp(`^/api/videos/${ID}/restore$`), videos.restoreVideo],
+  ["DELETE", new RegExp(`^/api/videos/${ID}/purge$`), videos.purgeVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/reprocess$`), processing.reprocessVideo],
   // Rückmeldung der Umwandlung (GitHub Actions) – eigenes Geheimnis statt Login
   ["POST", /^\/api\/internal\/processed$/, processing.processedCallback],

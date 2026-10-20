@@ -480,6 +480,9 @@
 .vpage .trash-thumb { flex-shrink: 0; width: 72px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 6px; background: var(--panel-2); }
 .vpage .trash-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .vpage .trash-main { flex: 1; min-width: 0; display: grid; }
+.vpage .trash-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vpage .trash-head .section-title { margin: 0; }
+.vpage .trash-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 .vpage .trash-title { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .vpage .card > .lib-row + .lib-row, .vpage .card > .lib-row + .add-row { margin-top: 8px; }
 .vpage .error.small { font-size: 13px; margin: 4px 0; }

@@ -420,22 +420,41 @@ function usageCard(stats) {
 
 function trashCard(trash, reload) {
   const daysLeft = (v) => Math.max(0, trash.days - Math.floor((Date.now() - Date.parse(v.deleted_at)) / 86400000));
+  const n = trash.videos.length;
   return el("div", { class: "card" },
-    el("div", { class: "section-title first" }, `Papierkorb (${trash.videos.length})`),
-    trash.videos.length
-      ? el("p", { class: "muted small" }, `Gelöschte Videos bleiben ${trash.days} Tage hier und lassen sich zurückholen; danach werden sie endgültig gelöscht.`)
+    el("div", { class: "trash-head" },
+      el("div", { class: "section-title first" }, `Papierkorb (${n})`),
+      n ? el("button", {
+        type: "button", class: "small-btn danger",
+        onclick: () => {
+          if (confirm(`${n === 1 ? "Das Video" : `Alle ${n} Videos`} im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.`)) {
+            change(reload, "/api/videos/trash", "DELETE");
+          }
+        },
+      }, icon(TRASH, 16), "Papierkorb leeren") : null),
+    n
+      ? el("p", { class: "muted small" }, `Gelöschte Videos bleiben ${trash.days} Tage hier und lassen sich zurückholen; danach werden sie endgültig gelöscht – oder sofort mit „Löschen“.`)
       : el("p", { class: "muted small" }, "Leer."),
     ...trash.videos.map((v) => el("div", { class: "trash-row" },
       el("span", { class: "trash-thumb" }, v.thumb_url ? el("img", { src: v.thumb_url, alt: "", loading: "lazy" }) : null),
       el("span", { class: "trash-main" },
         el("span", { class: "trash-title" }, library.videoTitle(v)),
         el("span", { class: "muted small" }, `noch ${daysLeft(v)} Tage`)),
-      el("button", {
-        type: "button", class: "small-btn",
-        onclick: () => change(reload, `/api/videos/${v.id}/restore`, "POST").then(() => {
-          window.dispatchEvent(new Event("videos-changed"));
-        }),
-      }, "Zurückholen"),
+      el("span", { class: "trash-actions" },
+        el("button", {
+          type: "button", class: "small-btn",
+          onclick: () => change(reload, `/api/videos/${v.id}/restore`, "POST").then(() => {
+            window.dispatchEvent(new Event("videos-changed"));
+          }),
+        }, "Zurückholen"),
+        el("button", {
+          type: "button", class: "small-btn danger", "aria-label": `${library.videoTitle(v)} endgültig löschen`,
+          onclick: () => {
+            if (confirm(`„${library.videoTitle(v)}“ endgültig löschen? Das lässt sich nicht rückgängig machen.`)) {
+              change(reload, `/api/videos/${v.id}/purge`, "DELETE");
+            }
+          },
+        }, "Löschen")),
     )),
   );
 }
