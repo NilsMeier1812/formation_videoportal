@@ -86,7 +86,10 @@ Choreo (z. B. „Kür 2026“) ── genau eine Hauptaudio
   ist; alles wandert mit, danach „Alles verschieben“ zum Feinjustieren) und **Aus anderer Audio übernehmen**
   (Schritte, Notizen, Sprungmarken, Paare/Gruppen; Zeit hier = Zeit dort + Versatz, optional nur ein Bereich).
 - **Finden:** im Planer der Tab **Videos** (Videos an der aktuellen Stelle; nur Vorschaubilder, das Video lädt
-  erst im Player) und die **Videothek** mit Suche, Menü „Filtern“ (Choreo, Tanz, Tag; aktive als Pillen) und Menü „Sortieren“ (Aufnahme, Upload, Länge, Titel – wird gemerkt). Im Player: „In der Musik
+  erst im Player) und die **Videothek** mit Suche, Menü „Filtern“ (Choreo, Tanz, Tag; aktive als Pillen) und Menü „Sortieren“ (Aufnahme, Upload, Länge, Titel – wird gemerkt). Oben die Leiste **„Letztes Training“**: alle Videos des
+  letzten Trainingstags (Aufnahmezeit, Berliner Datum; sonntags ab 1 Video, sonst ab 2 – `lib/trainings.js`),
+  mit ‹ › zu den Trainings davor; Trainer blenden einen Tag mit „Kein Training“ für alle aus
+  (`training_exclusions`, zurückholen im Filter-Menü). Im Player: „In der Musik
   zeigen“ und für Trainer „Zuordnung bearbeiten“; Tempo 0,5 · 0,7 · 0,9 · 1×, ±1 s und ±1 Bild (am PC auch ← → , .).
 - API: `POST /api/videos` (+ `/complete`, `/thumb`), `GET /api/videos[/:id]`, `POST /api/videos/assign`,
   `DELETE /api/videos/:id` (Papierkorb), `GET /api/library`, `/api/choreos`, `/api/dances`, `/api/audios`, `/api/tags`.

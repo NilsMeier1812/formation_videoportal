@@ -168,6 +168,26 @@
   background: var(--accent-surface); border: 1px solid var(--accent-dim); color: var(--accent); font-size: 13px; font-weight: 600;
 }
 .vpage .vl-pill span { font-size: 15px; line-height: 1; }
+/* Leiste „Letztes Training“ */
+.vpage .vl-training { margin: 0 0 12px; }
+.vpage .vl-training-go {
+  display: flex; width: 100%; align-items: baseline; justify-content: flex-start; gap: 8px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 14px; text-align: left;
+  background: var(--accent-surface); border: 1px solid var(--accent-dim); color: var(--text);
+}
+.vpage .vl-training-kicker { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.vpage .vl-training-day { font-weight: 700; }
+.vpage .vl-training-count { color: var(--muted); font-size: 14px; }
+.vpage .vl-training-go .vl-training-count::before { content: "· "; }
+.vpage .vl-training-on {
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 14px;
+  background: var(--accent-surface); border: 1px solid var(--accent); color: var(--text);
+}
+.vpage .vl-training-on .icon-btn { font-size: 24px; line-height: 1; color: var(--accent); }
+.vpage .vl-training-on .icon-btn:disabled { opacity: .3; }
+.vpage .vl-training-on .vl-not-training { color: var(--muted); }
+.vpage .vl-training-mid { flex: 1; min-width: 0; display: grid; text-align: center; }
+.vpage .vl-chip.muted-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); border-style: dashed; }
 .vpage .vl-pill, .vpage .vl-chip { min-height: 32px; }
 .vpage .vl-sort-item { min-height: 0; }
 .vpage .search label svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
