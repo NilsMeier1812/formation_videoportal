@@ -1,14 +1,19 @@
 // Videothek: alle Videos, durchsuchbar, filterbar nach Choreo, Tanz und Tag (Menü „Filtern“)
 // und sortierbar nach Aufnahme, Upload, Länge, Titel (Menü „Sortieren“, wird gemerkt).
+// „Letztes Training“ (Leiste oben, auch im Filter-Menü): alle Videos des letzten Trainingstags –
+// erkannt an der Aufnahmezeit (lib/trainings.js). Trainer können einen Tag ausblenden.
 // Wird beim ersten Öffnen geladen und bei jedem weiteren Öffnen still aufgefrischt.
 import { api, el, formatDateTime, formatDuration, icon } from "../api.js";
 import { library } from "../library.js";
+import { trainingDays, trainingLabel, videoDay } from "../lib/trainings.js";
+import { session } from "../session.js";
 
 const PLAY = '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>';
 const VIDEO = '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>';
 
 const $ = (id) => document.getElementById(id);
 let videos = [];
+let excludedDays = []; // „Kein Training“ (vom Server, für alle gleich)
 let loaded = ""; // zuletzt gezeigter Stand (JSON) – nur neu zeichnen, wenn sich etwas geändert hat
 
 /** Suchtext eines Videos: alles, wonach man sinnvoll suchen kann. */
@@ -44,7 +49,8 @@ function card(video) {
 }
 
 // ---------------- Filter und Sortieren (je ein Menü) ----------------
-const filter = { choreo: "", dance: "", tag: "" };
+const filter = { training: "", choreo: "", dance: "", tag: "" };
+const trainings = () => trainingDays(videos, excludedDays);
 const SORTS = [
   { key: "recorded_desc", label: "Aufnahme: neueste zuerst" },
   { key: "recorded_asc", label: "Aufnahme: älteste zuerst" },
@@ -81,12 +87,14 @@ function danceOptions() {
 
 /** Gewähltes, das es nicht mehr gibt (gelöscht, andere Choreo), verwerfen. */
 function cleanFilter() {
+  if (filter.training && !trainings().some((t) => t.day === filter.training)) filter.training = "";
   if (filter.choreo && !library.choreo(filter.choreo)) filter.choreo = "";
   if (filter.dance && !danceOptions().some((d) => d.id === filter.dance)) filter.dance = "";
   if (filter.tag && !library.tag(filter.tag)) filter.tag = "";
 }
 
 const activeFilters = () => [
+  filter.training && { key: "training", label: `Training ${trainingLabel(filter.training)}` },
   filter.choreo && { key: "choreo", label: library.choreo(filter.choreo)?.title },
   filter.dance && { key: "dance", label: library.dance(filter.dance)?.name },
   filter.tag && { key: "tag", label: library.tag(filter.tag)?.name },
@@ -113,14 +121,81 @@ function renderFilterMenu() {
   const { choreos, tags } = library.data;
   const any = activeFilters().length;
   $("vl-filter-menu").replaceChildren(...[ // replaceChildren schreibt null als Text – daher filtern
+    chipGroup("Training", "training", trainings().slice(0, 8).map((t) => ({ id: t.day, name: `${trainingLabel(t.day)} (${t.count})` }))),
+    hiddenTrainings(),
     chipGroup("Choreo", "choreo", choreos.map((c) => ({ id: c.id, name: c.title }))),
     chipGroup("Tanz", "dance", danceOptions()),
     chipGroup("Tag", "tag", tags),
     choreos.length || tags.length ? null : el("p", { class: "muted small" }, "Noch keine Choreos oder Tags."),
     el("div", { class: "vl-menu-foot" },
-      el("button", { type: "button", class: "link", disabled: !any, onclick: () => { Object.assign(filter, { choreo: "", dance: "", tag: "" }); renderFilterMenu(); render(); } }, "Zurücksetzen"),
+      el("button", { type: "button", class: "link", disabled: !any, onclick: () => { Object.assign(filter, { training: "", choreo: "", dance: "", tag: "" }); renderFilterMenu(); render(); } }, "Zurücksetzen"),
       el("button", { type: "button", class: "small-btn primary", onclick: () => closeMenus() }, "Fertig")),
   ].filter(Boolean));
+}
+
+// ---------------- Training: Leiste und „Kein Training“ ----------------
+const RESTORE = '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>';
+const HIDE = '<path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.1 6.1C3.6 7.8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 4.2-.9"/>';
+
+/** Trainer: Tag ausblenden bzw. wieder als Training zählen. */
+async function setExcluded(day, excluded) {
+  try {
+    const res = await api(`/api/trainings/${day}`, { method: "PUT", body: { excluded, by: session.getName() } });
+    excludedDays = res.excluded_training_days;
+  } catch (err) {
+    window.dispatchEvent(new CustomEvent("toast", { detail: err.message }));
+    return;
+  }
+  cleanFilter();
+  if (!$("vl-filter-menu").hidden) renderFilterMenu();
+  render();
+}
+
+/** Im Filter-Menü (nur Trainer): ausgeblendete Tage mit Videos – antippen zählt sie wieder. */
+function hiddenTrainings() {
+  if (!session.isTrainer) return null;
+  const hidden = trainingDays(videos, excludedDays, { includeExcluded: true }).filter((t) => t.excluded);
+  if (!hidden.length) return null;
+  return el("div", { class: "vl-menu-group vl-hidden-days" },
+    el("div", { class: "vl-menu-title" }, "Kein Training (ausgeblendet)"),
+    el("div", { class: "vl-chips" }, ...hidden.map((t) => el("button", {
+      type: "button", class: "vl-chip muted-chip", title: "Wieder als Training zählen",
+      onclick: () => setExcluded(t.day, false),
+    }, icon(RESTORE, 14), `${trainingLabel(t.day)} (${t.count})`))));
+}
+
+/** Leiste „Letztes Training“ – gewählt: ‹ älter · Tag · neuer ›, Trainer zusätzlich „Kein Training“. */
+function renderTraining() {
+  const box = $("vl-training");
+  const list = trainings();
+  box.hidden = !list.length;
+  if (!list.length) { box.replaceChildren(); return; }
+  const videosWord = (n) => `${n} ${n === 1 ? "Video" : "Videos"}`;
+  const i = list.findIndex((t) => t.day === filter.training);
+  if (i < 0) {
+    const last = list[0];
+    box.replaceChildren(el("button", {
+      type: "button", class: "vl-training-go", onclick: () => { filter.training = last.day; render(); },
+    }, el("span", { class: "vl-training-kicker" }, "Letztes Training"),
+    el("span", { class: "vl-training-day" }, trainingLabel(last.day)),
+    el("span", { class: "vl-training-count" }, videosWord(last.count))));
+    return;
+  }
+  const t = list[i];
+  const go = (j) => { filter.training = list[j].day; render(); };
+  box.replaceChildren(el("div", { class: "vl-training-on" },
+    el("button", { type: "button", class: "icon-btn", "aria-label": "Training davor", title: "Training davor", disabled: i >= list.length - 1, onclick: () => go(i + 1) }, "‹"),
+    el("div", { class: "vl-training-mid" },
+      el("span", { class: "vl-training-kicker" }, i === 0 ? "Letztes Training" : "Training"),
+      el("span", { class: "vl-training-day" }, `${trainingLabel(t.day)} · ${videosWord(t.count)}`)),
+    el("button", { type: "button", class: "icon-btn", "aria-label": "Training danach", title: "Training danach", disabled: i === 0, onclick: () => go(i - 1) }, "›"),
+    session.isTrainer ? el("button", {
+      type: "button", class: "icon-btn vl-not-training", title: "Kein Training – ausblenden", "aria-label": `${trainingLabel(t.day)}: kein Training, ausblenden`,
+      onclick: () => {
+        if (confirm(`${trainingLabel(t.day)} war kein Training? Der Tag wird für alle ausgeblendet – die Videos bleiben. Zurückholen geht im Filter-Menü.`)) setExcluded(t.day, true);
+      },
+    }, icon(HIDE, 18)) : null,
+  ));
 }
 
 function renderSortMenu() {
@@ -172,9 +247,10 @@ function render() {
   const info = $("vl-info");
   const list = $("vl-videos");
   const words = $("vl-q").value.toLowerCase().split(/\s+/).filter(Boolean);
-  const { choreo, dance, tag } = filter;
-  const filtered = Boolean(words.length || choreo || dance || tag);
+  const { training, choreo, dance, tag } = filter;
+  const filtered = Boolean(words.length || training || choreo || dance || tag);
   const shown = videos.filter((v) =>
+    (!training || videoDay(v) === training) &&
     (!choreo || v.choreo_id === choreo) &&
     (!dance || v.dance_ids.includes(dance)) &&
     (!tag || v.tag_ids.includes(tag)) &&
@@ -182,6 +258,7 @@ function render() {
     .sort(COMPARE[sort]);
   list.replaceChildren(...shown.map(card));
   renderActive();
+  renderTraining();
 
   if (!videos.length) {
     info.textContent = "";
@@ -202,11 +279,12 @@ async function refresh() {
   const info = $("vl-info");
   try {
     const [data] = await Promise.all([api("/api/videos"), library.load()]);
-    cleanFilter();
-    const json = JSON.stringify(data.videos);
+    const json = JSON.stringify([data.videos, data.excluded_training_days]);
     if (json === loaded) return;
     loaded = json;
     videos = data.videos;
+    excludedDays = data.excluded_training_days || [];
+    cleanFilter();
     info.className = "result-info";
     render();
   } catch (err) {

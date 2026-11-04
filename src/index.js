@@ -8,6 +8,7 @@ import * as library from "./routes/library.js";
 import { getMedia } from "./routes/media.js";
 import * as processing from "./routes/processing.js";
 import * as session from "./routes/session.js";
+import * as trainings from "./routes/trainings.js";
 import * as usage from "./routes/usage.js";
 import * as videos from "./routes/videos.js";
 
@@ -24,6 +25,7 @@ const routes = [
   ["GET", /^\/api\/videos\/trash$/, videos.listTrash],
   ["DELETE", /^\/api\/videos\/trash$/, videos.emptyTrash],
   ["GET", /^\/api\/storage$/, videos.storageInfo],
+  ["PUT", /^\/api\/trainings\/(\d{4}-\d{2}-\d{2})$/, trainings.setTrainingExcluded],
   ["POST", /^\/api\/usage$/, usage.recordUsage],
   ["GET", /^\/api\/usage$/, usage.usageStats],
   ["GET", new RegExp(`^/api/videos/${ID}$`), videos.getVideo],

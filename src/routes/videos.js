@@ -5,6 +5,7 @@ import { presignPut } from "../lib/presign.js";
 import { finishMultipart, MULTIPART_FROM, PART_SIZE, partCount, startMultipart } from "./multipart.js";
 import { notifyNewUploads } from "../mails.js";
 import { dispatchProcessing } from "./processing.js";
+import { excludedTrainingDays } from "./trainings.js";
 import {
   contentTypeFor,
   extensionFor,
@@ -226,7 +227,8 @@ async function loadVideo(env, id) {
   return row && publicVideo(env, row);
 }
 
-// GET /api/videos – alle fertigen Videos, neueste Aufnahme zuerst.
+// GET /api/videos – alle fertigen Videos, neueste Aufnahme zuerst; dazu die ausgeblendeten
+// Trainingstage (für „Letztes Training“).
 // ?audio=<Projekt-ID>: nur die mit einer Stelle in dieser Musik (Planer, Tab „Videos“ – klein).
 export async function listVideos(request, env) {
   const audio = new URL(request.url).searchParams.get("audio");
@@ -238,7 +240,8 @@ export async function listVideos(request, env) {
       LIMIT 2000`
   );
   const { results } = await (audio ? statement.bind(audio) : statement).all();
-  return json({ videos: results.map((row) => publicVideo(env, row)) });
+  const videos = results.map((row) => publicVideo(env, row));
+  return json(audio ? { videos } : { videos, excluded_training_days: await excludedTrainingDays(env) });
 }
 
 // GET /api/videos/:id
