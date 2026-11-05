@@ -1,5 +1,6 @@
 // Die Video-Bereiche: werden beim ersten Öffnen eingerichtet, danach nur noch
 // gezeigt und versteckt. Der Planer (Choreo) hängt sich selbst an "routechange".
+import { el } from "../api.js";
 import { router } from "../router.js";
 import { session } from "../session.js";
 import { adminView, refreshInboxBadge } from "./admin.js";
@@ -14,11 +15,26 @@ const mounted = new Set();
 function showCurrent() {
   const view = VIEWS[router.view];
   if (!view || !session.role) return;
-  if (!mounted.has(view)) {
-    view.mount();
-    mounted.add(view);
+  try {
+    if (!mounted.has(view)) {
+      mounted.add(view);
+      view.mount();
+    }
+    view.show(router.route);
+  } catch (err) {
+    // Ein kaputter Bereich soll die anderen nicht mitreißen – und nicht ewig „Lade …“ zeigen
+    console.error(err);
+    showBroken(router.view);
   }
-  view.show(router.route);
+}
+
+/** Hinweis im Bereich: etwas passt nicht (meist: Seite veraltet) – mit „Neu laden“. */
+function showBroken(name) {
+  const main = document.querySelector(`.view[data-view="${name}"] main`);
+  if (!main || main.querySelector(".view-broken")) return;
+  main.prepend(el("p", { class: "notice view-broken" },
+    "Dieser Bereich konnte nicht geladen werden. ",
+    el("button", { type: "button", class: "link", onclick: () => location.reload() }, "Neu laden")));
 }
 
 export function setupViews() {

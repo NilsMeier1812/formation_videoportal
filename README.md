@@ -140,6 +140,10 @@ nicht die Seite; die Stelle zwischen den Fingern bleibt). Zoom-Logik: `features/
 Farben in `public/css/theme.css`.
 
 **PWA:** ein Manifest und ein Service Worker für alles; startet im Planer, startet offline an jeder Adresse.
+Bei jeder Änderung an `public/` den Stand hochzählen – an drei Stellen gleich (ein Test prüft das):
+`public/js/build.js` (`BUILD`), `public/index.html` (`<html data-build>`) und `public/sw.js` (`VERSION`).
+Kommt beim Start die Seite aus dem Cache, das Programm aber schon frisch vom Server, merkt die App das
+und lädt einmal neu (statt mit halb alter Seite hängenzubleiben).
 
 ## Bibliotheken aktualisieren
 
