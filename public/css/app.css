@@ -162,7 +162,7 @@
 }
 .vpage .vl-sort-item[aria-checked="true"] { color: var(--accent); font-weight: 600; background: var(--accent-surface); }
 .vpage .vl-check { font-weight: 700; }
-.vpage .vl-active { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 10px; }
+.vpage .vl-active { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
 .vpage .vl-pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
   background: var(--accent-surface); border: 1px solid var(--accent-dim); color: var(--accent); font-size: 13px; font-weight: 600;
@@ -244,6 +244,9 @@
 }
 .vpage .chip.left { left: 8px; }
 .vpage .chip.right { right: 8px; font-variant-numeric: tabular-nums; }
+/* Aufrufe (nur Trainer): oben rechts, da ist auf dem Vorschaubild Platz */
+.vpage .chip.views { top: 8px; bottom: auto; right: 8px; display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.vpage .chip.views svg { display: block; }
 
 .vpage .video-card .meta { padding: 10px 12px 12px; }
 .vpage .video-card .title { font-weight: 600; overflow-wrap: anywhere; }

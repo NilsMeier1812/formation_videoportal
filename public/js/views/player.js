@@ -9,6 +9,8 @@ const $ = (id) => document.getElementById(id);
 let currentId = null;
 let loadToken = 0;
 let stale = false; // Zuordnung wurde geändert → beim nächsten Zeigen neu laden
+let shown = null; // geladenes Video (für die Aufrufe)
+let counted = false; // dieses Öffnen schon als Aufruf gemeldet?
 
 function showFacts(v) {
   const facts = [
@@ -16,6 +18,8 @@ function showFacts(v) {
     ["Hochgeladen von", v.uploaded_by],
     ["Länge", formatDuration(v.duration_s)],
     ["Größe", formatBytes(v.size_bytes)],
+    // nur für Trainer (der Server liefert die Zahl sonst nicht)
+    ["Aufrufe", v.view_count != null ? String(v.view_count) : null],
   ].filter(([, value]) => value);
   $("pl-facts").replaceChildren(...facts.flatMap(([k, value]) => [el("dt", {}, k), el("dd", {}, value)]));
 }
@@ -115,6 +119,8 @@ async function load(id) {
   const token = ++loadToken;
   const video = $("pl-video");
   currentId = id;
+  shown = null;
+  counted = false;
   video.pause();
   video.removeAttribute("src");
   video.removeAttribute("poster");
@@ -136,6 +142,7 @@ async function load(id) {
     if (v.thumb_url) video.poster = v.thumb_url;
     showProcessing(v);
     showFacts(v);
+    shown = v;
     $("pl-status").hidden = true;
     $("pl-box").hidden = false;
   } catch (err) {
@@ -156,6 +163,19 @@ export const playerView = {
         for (const b of rateButtons) b.setAttribute("aria-pressed", String(b === button));
       });
     }
+    // Aufruf zählen: einmal pro Öffnen, beim ersten Abspielen (nicht schon beim Öffnen)
+    video.addEventListener("play", () => {
+      if (counted || !shown) return;
+      counted = true;
+      const v = shown;
+      api(`/api/videos/${encodeURIComponent(v.id)}/view`, { method: "POST" })
+        .then(() => {
+          if (v.view_count == null) return;
+          v.view_count += 1;
+          if (shown === v) showFacts(v);
+        })
+        .catch(() => {}); // still – Zählen darf nie stören
+    });
     // Manche Browser setzen das Tempo beim Laden zurück
     video.addEventListener("loadedmetadata", () => { video.playbackRate = activeRate(); });
 
@@ -195,5 +215,6 @@ export const playerView = {
   },
   hide() {
     $("pl-video").pause();
+    counted = false; // wer dasselbe Video später wieder öffnet und abspielt, zählt erneut
   },
 };

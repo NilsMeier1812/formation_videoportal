@@ -102,6 +102,10 @@ Die App meldet sich still beim Öffnen/Zurückholen (höchstens alle 30 min je G
 gespeichert wird je Tag nur ein Hash aus zufälliger Geräte-Kennung und Datum (`usage_days`, keine Namen,
 über Tage nicht verfolgbar), nach ~1 Jahr löscht der Cron.
 
+**Aufrufe je Video** (nur Trainer sehen sie: Auge mit Zahl oben rechts auf dem Vorschaubild, „Aufrufe“ im Player):
+insgesamt, nicht pro Tag. Der Player meldet beim ersten Abspielen je Öffnen `POST /api/videos/:id/view`
+(Spalte `video.view_count`); gezählt werden alle Angemeldeten, auch Trainer. Die Zahl liefert der Server nur an Trainer aus.
+
 **Papierkorb und Speicher** (Verwalten → Mehr): gelöschte Videos 30 Tage zurückholbar – oder sofort endgültig löschen (je Video „Löschen“ oder „Papierkorb leeren“, `DELETE /api/videos/:id/purge` bzw. `/api/videos/trash`), Anzeige des belegten
 Speichers (Deckel `QUOTA_BYTES` = 200 GB, einzelne Datei höchstens `MAX_FILE_BYTES` = 5 GB).
 
