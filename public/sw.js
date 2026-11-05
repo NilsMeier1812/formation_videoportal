@@ -11,7 +11,7 @@
      Die Musik des Planers liegt in IndexedDB, nicht hier.
    ========================================================================== */
 
-const VERSION = "v39";
+const VERSION = "v40";
 const CACHE = `formation-shell-${VERSION}`;
 
 // Grundausstattung, damit der Planer offline startet, auch wenn man ihn nach

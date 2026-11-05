@@ -141,6 +141,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   font-size: 13px;
   color: var(--muted);
   min-width: 42px;
+  flex-shrink: 0;
 }
 #controls-bar .spacer { flex: 1; }
 #controls-bar { position: relative; }
@@ -172,7 +173,18 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .sc-step { font-size: 24px; }
 .sc-reset { font-size: 14px; }
 .speed-hint { margin: 0 2px; font-size: 11px; line-height: 1.35; color: var(--muted); }
-#controls-bar .icon { width: 34px; height: 34px; }
+#controls-bar .icon { width: 34px; height: 34px; flex-shrink: 0; }
+/* Schmale Handys: Leiste enger, damit −/+ nicht gequetscht oder abgeschnitten werden.
+   Ganz schmal (unter 360 px) entfallen −/+ – dort zoomt man mit zwei Fingern. */
+@media (max-width: 400px) {
+  #controls-bar { gap: 4px; padding: 0 6px; }
+  #controls-bar .disp-toggle button { padding: 0 6px; }
+  #controls-bar .play-btn { width: 40px; height: 40px; }
+  #controls-bar .speed-btn { padding: 0 6px; }
+}
+@media (max-width: 359px) {
+  #controls-bar .icon { display: none; }
+}
 .icon svg { display: block; }
 .play-btn {
   width: 44px; height: 44px; border-radius: 50%;
