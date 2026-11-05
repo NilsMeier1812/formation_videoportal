@@ -1,5 +1,5 @@
 // Videos: Hochladen (Gruppen-Code), Ansehen (alle), Zuordnen und Löschen (Trainer-Code).
-import { requireRole } from "../lib/auth.js";
+import { hasRole, requireRole, roleFor } from "../lib/auth.js";
 import { HttpError, json, readJson } from "../lib/http.js";
 import { presignPut } from "../lib/presign.js";
 import { finishMultipart, MULTIPART_FROM, PART_SIZE, partCount, startMultipart } from "./multipart.js";
@@ -27,8 +27,8 @@ function idArray(text) {
   try { return JSON.parse(text ?? "[]").filter(Boolean); } catch { return []; }
 }
 
-/** Was nach außen geht – ohne interne Felder. */
-function publicVideo(env, row) {
+/** Was nach außen geht – ohne interne Felder. Die Aufrufe nur für Trainer. */
+function publicVideo(env, row, { trainer = false } = {}) {
   return {
     id: row.id,
     title: row.title,
@@ -51,8 +51,11 @@ function publicVideo(env, row) {
     thumb_url: mediaUrl(env, row.thumb_key),
     is_processed: Boolean(row.play_key),
     processing: row.processing, // pending | done | failed
+    ...(trainer ? { view_count: row.view_count ?? 0 } : {}),
   };
 }
+
+const isTrainer = async (request, env) => hasRole(await roleFor(request, env), "tagger");
 
 // Tänze und Tags gleich mitliefern (als JSON-Liste)
 const SELECT_VIDEO = `
@@ -240,7 +243,8 @@ export async function listVideos(request, env) {
       LIMIT 2000`
   );
   const { results } = await (audio ? statement.bind(audio) : statement).all();
-  const videos = results.map((row) => publicVideo(env, row));
+  const trainer = await isTrainer(request, env);
+  const videos = results.map((row) => publicVideo(env, row, { trainer }));
   return json(audio ? { videos } : { videos, excluded_training_days: await excludedTrainingDays(env) });
 }
 
@@ -252,7 +256,16 @@ export async function getVideo(request, env, id) {
     .bind(id)
     .first();
   if (!row) throw new HttpError(404, "Video nicht gefunden");
-  return json(publicVideo(env, row));
+  return json(publicVideo(env, row, { trainer: await isTrainer(request, env) }));
+}
+
+// POST /api/videos/:id/view – einmal angeschaut (der Player meldet das erste Abspielen).
+export async function countView(request, env, id) {
+  const { meta } = await env.DB.prepare(
+    "UPDATE video SET view_count = view_count + 1 WHERE id = ? AND file_state = 'ready' AND deleted_at IS NULL"
+  ).bind(id).run();
+  if (!meta.changes) throw new HttpError(404, "Video nicht gefunden");
+  return json({ ok: true });
 }
 
 // ---------------- Zuordnen (Trainer) ----------------
@@ -366,7 +379,7 @@ export async function assignVideos(request, env) {
   if (statements.length) await env.DB.batch(statements);
 
   const { results } = await env.DB.prepare(`${SELECT_VIDEO} WHERE v.id IN (${marks})`).bind(...ids).all();
-  return json({ videos: results.map((row) => publicVideo(env, row)) });
+  return json({ videos: results.map((row) => publicVideo(env, row, { trainer: true })) });
 }
 
 // DELETE /api/videos/:id – in den Papierkorb (die Datei bleibt vorerst in R2)
@@ -392,7 +405,7 @@ export async function listTrash(request, env) {
   ).all();
   return json({
     days: TRASH_DAYS,
-    videos: results.map((row) => ({ ...publicVideo(env, row), deleted_at: row.deleted_at })),
+    videos: results.map((row) => ({ ...publicVideo(env, row, { trainer: true }), deleted_at: row.deleted_at })),
   });
 }
 

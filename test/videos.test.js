@@ -302,3 +302,45 @@ describe("Zugangsschutz", () => {
     expect((await login()).status).toBe(429);
   });
 });
+
+describe("Aufrufe je Video", () => {
+  const TAGGER = { "x-portal-code": "tagger-test" };
+  const [V1, V2, V3] = [1, 2, 3].map((n) => `00000000-0000-4000-8000-00000000000${n}`);
+  async function readyVideo(id) {
+    await env.DB.prepare(
+      `INSERT INTO video (id, storage_key, size_bytes, file_state, tag_state, created_at)
+       VALUES (?, ?, 1, 'ready', 'untagged', '2026-11-01T10:00:00Z')`
+    ).bind(id, `raw/${id}.mp4`).run();
+  }
+
+  it("zählt jedes Abspielen, insgesamt", async () => {
+    await readyVideo(V1);
+    for (let i = 0; i < 3; i++) {
+      expect((await call(`/api/videos/${V1}/view`, { method: "POST" })).status).toBe(200);
+    }
+    expect((await call(`/api/videos/${V1}/view`, { method: "POST", headers: TAGGER })).status).toBe(200);
+    expect((await videoRow(V1)).view_count).toBe(4);
+  });
+
+  it("nur Trainer bekommen die Zahl", async () => {
+    await readyVideo(V2);
+    await call(`/api/videos/${V2}/view`, { method: "POST" });
+    const asGroup = await (await call(`/api/videos/${V2}`)).json();
+    expect(asGroup).not.toHaveProperty("view_count");
+    const listGroup = await (await call("/api/videos")).json();
+    expect(listGroup.videos.find((v) => v.id === V2)).not.toHaveProperty("view_count");
+
+    expect((await (await call(`/api/videos/${V2}`, { headers: TAGGER })).json()).view_count).toBe(1);
+    const listTrainer = await (await call("/api/videos", { headers: TAGGER })).json();
+    expect(listTrainer.videos.find((v) => v.id === V2).view_count).toBe(1);
+  });
+
+  it("ohne Anmeldung, unbekannt oder im Papierkorb: nichts zählen", async () => {
+    await readyVideo(V3);
+    expect((await call(`/api/videos/${V3}/view`, { method: "POST", headers: {} })).status).toBe(401);
+    expect((await call("/api/videos/00000000-0000-4000-8000-000000000009/view", { method: "POST" })).status).toBe(404);
+    await env.DB.prepare("UPDATE video SET deleted_at = '2026-11-02T10:00:00Z' WHERE id = ?").bind(V3).run();
+    expect((await call(`/api/videos/${V3}/view`, { method: "POST" })).status).toBe(404);
+    expect((await videoRow(V3)).view_count).toBe(0);
+  });
+});

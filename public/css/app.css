@@ -244,6 +244,9 @@
 }
 .vpage .chip.left { left: 8px; }
 .vpage .chip.right { right: 8px; font-variant-numeric: tabular-nums; }
+/* Aufrufe (nur Trainer): oben rechts, da ist auf dem Vorschaubild Platz */
+.vpage .chip.views { top: 8px; bottom: auto; right: 8px; display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.vpage .chip.views svg { display: block; }
 
 .vpage .video-card .meta { padding: 10px 12px 12px; }
 .vpage .video-card .title { font-weight: 600; overflow-wrap: anywhere; }

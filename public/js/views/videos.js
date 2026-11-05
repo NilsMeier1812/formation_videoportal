@@ -9,6 +9,7 @@ import { trainingDays, trainingLabel, videoDay } from "../lib/trainings.js";
 import { session } from "../session.js";
 
 const PLAY = '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>';
+const EYE = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
 const VIDEO = '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>';
 
 const $ = (id) => document.getElementById(id);
@@ -38,6 +39,10 @@ function card(video) {
         el("span", { class: "play" }, icon(PLAY, 22)),
         !video.is_processed && el("span", { class: "chip left" }, "wird aufbereitet"),
         video.duration_s && el("span", { class: "chip right" }, formatDuration(video.duration_s)),
+        // Aufrufe: liefert der Server nur an Trainer
+        video.view_count != null && el("span", {
+          class: "chip views", title: "Aufrufe (nur für Trainer sichtbar)", "aria-label": `${video.view_count} Aufrufe`,
+        }, icon(EYE, 12), String(video.view_count)),
       ),
       el("div", { class: "meta" },
         el("div", { class: "title" }, library.videoTitle(video)),

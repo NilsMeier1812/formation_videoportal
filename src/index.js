@@ -31,6 +31,7 @@ const routes = [
   ["GET", new RegExp(`^/api/videos/${ID}$`), videos.getVideo],
   ["DELETE", new RegExp(`^/api/videos/${ID}$`), videos.trashVideo],
   ["POST", new RegExp(`^/api/videos/${ID}/complete$`), videos.completeVideo],
+  ["POST", new RegExp(`^/api/videos/${ID}/view$`), videos.countView],
   ["POST", new RegExp(`^/api/videos/${ID}/parts$`), multipart.partUrls],
   ["DELETE", new RegExp(`^/api/videos/${ID}/upload$`), multipart.cancelUpload],
   ["POST", /^\/api\/videos\/notify$/, videos.notifyUploaded],
