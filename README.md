@@ -110,7 +110,11 @@ gespeichert wird je Tag nur ein Hash aus zufälliger Geräte-Kennung und Datum (
   und Choreo-Wahl gehen an den PC. „Beenden“ in der Kopfzeile führt zurück.
 - Technik: `GET /api/remote?as=host|ctrl` (WebSocket) → ein Durable Object `RemoteRoom` (`src/remote-room.js`,
   SQLite-Variante, läuft auch im Free-Tarif) leitet Befehle an den PC und dessen Stand an die Handys weiter.
-  Lebenszeichen alle 3 s; bricht das WLAN weg, verbinden sich beide selbst wieder.
+  Lebenszeichen alle 3 s; bricht das WLAN weg, verbinden sich beide selbst wieder. Befehle bleiben vorgemerkt,
+  bis der PC antwortet – sonst wird neu verbunden und der Befehl hinterhergeschickt.
+- Uhr (z. B. Galaxy Watch), Sperrbildschirm, Kopfhörer: Im Fernsteuer-Modus meldet sich das Handy als Musik-App an
+  (Media Session, Titel = Lied am PC). Dafür spielt es eine stille Tonspur, solange der PC spielt. Play und Pause
+  schalten beide um. Das Handy darf gesperrt sein, die Seite muss offen bleiben.
   Client: `public/js/choreo/features/remote-control.js`.
 
 **Aufrufe je Video** (nur Trainer sehen sie: Auge mit Zahl oben rechts auf dem Vorschaubild, „Aufrufe“ im Player):
