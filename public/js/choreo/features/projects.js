@@ -55,6 +55,8 @@ export function projects() {
     },
 
     async openProject(p) {
+      // Handy steuert den PC fern: die gewählte Choreo auch dort öffnen (außer es folgt gerade dem PC)
+      if (this.rcRole === "ctrl" && rt.rc.following !== p.id) this.rcCommand("open", { projectId: p.id });
       if (this.currentMode === "editor") await this.releaseLock();
       this.currentMode = "training";
       this.menuOpen = false;
@@ -66,6 +68,7 @@ export function projects() {
       this.isPlaying = false;
       this.currentTime = 0;
       this.duration = 0;
+      this.rcChanged(); // Fernsteuerung: anderes Lied (Handys laden es schon mal)
 
       const token = ++rt.loadToken;
       rt.decodeFailed = false; // Notlösung gilt nur für die Datei, bei der das Dekodieren scheiterte

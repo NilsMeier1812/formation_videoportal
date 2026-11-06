@@ -102,6 +102,17 @@ Die App meldet sich still beim Öffnen/Zurückholen (höchstens alle 30 min je G
 gespeichert wird je Tag nur ein Hash aus zufälliger Geräte-Kennung und Datum (`usage_days`, keine Namen,
 über Tage nicht verfolgbar), nach ~1 Jahr löscht der Cron.
 
+**Fernsteuerung des Musik-Players** (nur Trainer, Menü → „Fernsteuerung“):
+- PC an der Anlage: „Musik an diesem Gerät“ einschalten – gilt, solange die Seite offen ist; der Bildschirm bleibt an.
+  Ein zweiter PC, der das einschaltet, übernimmt (der erste schaltet ab).
+- Handy: „Mit diesem Gerät fernsteuern“ – derselbe Planer, reduziert (nur Sprungmarken, kein Bearbeiten/Tempo).
+  Das Handy spielt nichts selbst, es spiegelt den PC; Play/Pause, Tippen in Welle/Spuren, Sprungmarken
+  und Choreo-Wahl gehen an den PC. „Beenden“ in der Kopfzeile führt zurück.
+- Technik: `GET /api/remote?as=host|ctrl` (WebSocket) → ein Durable Object `RemoteRoom` (`src/remote-room.js`,
+  SQLite-Variante, läuft auch im Free-Tarif) leitet Befehle an den PC und dessen Stand an die Handys weiter.
+  Lebenszeichen alle 3 s; bricht das WLAN weg, verbinden sich beide selbst wieder.
+  Client: `public/js/choreo/features/remote-control.js`.
+
 **Aufrufe je Video** (nur Trainer sehen sie: Auge mit Zahl oben rechts auf dem Vorschaubild, „Aufrufe“ im Player):
 insgesamt, nicht pro Tag. Der Player meldet beim ersten Abspielen je Öffnen `POST /api/videos/:id/view`
 (Spalte `video.view_count`); gezählt werden alle Angemeldeten, auch Trainer. Die Zahl liefert der Server nur an Trainer aus.

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" data-build="41">
+<html lang="de" data-build="42">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
@@ -43,8 +43,18 @@
           <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </div>
         <span x-show="!online" class="badge offline">offline</span>
+        <!-- Fernsteuerung: dieser PC spielt die Musik (Handys der Trainer steuern) -->
+        <button type="button" class="rc-pill" x-show="rcRole === 'host'" x-cloak :class="{ ok: rcConnected }"
+                @click="menuOpen = true" title="Trainer können die Musik vom Handy aus steuern">
+          <span class="rc-dot" aria-hidden="true"></span><span x-text="rcHostLabel"></span>
+        </button>
+        <!-- Fernsteuerung: dieses Gerät steuert den Musik-PC -->
+        <div class="rc-pill rc-ctrl" x-show="rcRole === 'ctrl'" x-cloak :class="{ ok: rcConnected && rcHostOnline }" role="status">
+          <span class="rc-dot" aria-hidden="true"></span><span x-text="rcCtrlShort"></span>
+          <button type="button" class="rc-end" @click="rcStop()">Beenden</button>
+        </div>
         <!-- Bearbeiten: nur für Trainer (Anmeldung im Menü); setzt die Bearbeitungssperre -->
-        <button class="edit-toggle" x-show="project && isEditor" x-cloak
+        <button class="edit-toggle" x-show="project && isEditor && rcRole !== 'ctrl'" x-cloak
                 :class="{ active: currentMode === 'editor' }" :aria-pressed="String(currentMode === 'editor')"
                 @click="toggleMode()">
           <svg x-show="currentMode !== 'editor'" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
@@ -88,7 +98,7 @@
       </button>
       <span class="time" x-text="fmt(currentTime)"></span>
       <!-- Tempo zum Üben: Musik-Zeit bleibt Bezug für alles (Raster, Schritte, Marken …) -->
-      <div class="speed" @click.outside="speedMenuOpen = false; releaseSpeed()" @keydown.escape="speedMenuOpen = false">
+      <div class="speed" x-show="rcRole !== 'ctrl'" @click.outside="speedMenuOpen = false; releaseSpeed()" @keydown.escape="speedMenuOpen = false">
         <button type="button" class="speed-btn" :class="{ slow: playbackRate !== 1 }" :disabled="!project"
                 @click="speedMenuOpen = !speedMenuOpen" :aria-expanded="String(speedMenuOpen)"
                 :aria-label="'Tempo ' + fmtSpeed(playbackRate)" title="Tempo zum Üben" x-text="fmtSpeed(playbackRate)"></button>
@@ -120,7 +130,7 @@
           <p class="speed-hint">Tonhöhe bleibt gleich. Raster, Schritte, Notizen, Marken und Abschnitte laufen mit. Gedrückt halten = schneller durchschalten.</p>
         </div>
       </div>
-      <div class="disp-toggle">
+      <div class="disp-toggle" x-show="rcRole !== 'ctrl'">
         <button :class="{ active: stepDisplay === 'numbers' }" @click="setStepDisplay('numbers')" title="Zahlen">123</button>
         <button :class="{ active: stepDisplay === 'dots' }" @click="setStepDisplay('dots')" title="Punkte"><i class="dd s"></i><i class="dd m"></i><i class="dd l"></i></button>
         <button :class="{ active: stepDisplay === 'letters' }" @click="setStepDisplay('letters')" title="Buchstaben">L u S</button>
@@ -133,9 +143,9 @@
     <!-- ===== Unterer Bereich: Tabs ===== -->
     <section id="bottom-section">
       <div class="tabbar">
-        <button :class="{ active: bottomTab === 'steps' }" @click="setTab('steps')">Schritte &amp; Gruppen</button>
+        <button x-show="rcRole !== 'ctrl'" :class="{ active: bottomTab === 'steps' }" @click="setTab('steps')">Schritte &amp; Gruppen</button>
         <button :class="{ active: bottomTab === 'notes' }" @click="setTab('notes')">Sprungmarken</button>
-        <button x-show="!pick" :class="{ active: bottomTab === 'videos' }" @click="openVideosTab()"><span class="tab-label">Videos<span class="tab-count" x-show="videosHere.length" x-cloak x-text="videosHere.length"></span></span></button>
+        <button x-show="!pick && rcRole !== 'ctrl'" :class="{ active: bottomTab === 'videos' }" @click="openVideosTab()"><span class="tab-label">Videos<span class="tab-count" x-show="videosHere.length" x-cloak x-text="videosHere.length"></span></span></button>
         <button x-show="pick" x-cloak :class="{ active: bottomTab === 'pick' }" @click="setTab('pick')">Stelle wählen</button>
       </div>
 
@@ -645,6 +655,31 @@
             <button x-show="!role" class="primary" @click="openLogin()">Anmelden</button>
           </div>
           <button x-show="role === 'group'" class="acc-switch" @click="openLogin()">Mit Trainer-Code anmelden</button>
+
+          <!-- Fernsteuerung des Musik-Players (nur Trainer, siehe features/remote-control.js) -->
+          <template x-if="isEditor">
+            <div class="rc-box">
+              <div class="section-title">Fernsteuerung</div>
+              <label class="rc-row">
+                <span class="rc-main">
+                  <span class="rc-title">Musik an diesem Gerät</span>
+                  <span class="rc-sub" x-text="rcRole === 'host' ? rcHostLabel + ' – bleibt an, solange die Seite offen ist' : 'Für den PC an der Anlage: Trainer können Play/Pause und Springen vom Handy aus steuern'"></span>
+                </span>
+                <input type="checkbox" role="switch" class="rc-switch" :checked="rcRole === 'host'" @change="rcToggleHost($event.target.checked)">
+              </label>
+              <button type="button" class="rc-go" x-show="rcRole !== 'ctrl'" @click="rcStartCtrl()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+                Mit diesem Gerät fernsteuern
+              </button>
+              <div class="rc-row rc-active" x-show="rcRole === 'ctrl'">
+                <span class="rc-main">
+                  <span class="rc-title">Fernsteuern aktiv</span>
+                  <span class="rc-sub" x-text="rcCtrlLabel"></span>
+                </span>
+                <button type="button" @click="rcStop()">Beenden</button>
+              </div>
+            </div>
+          </template>
 
           <div class="section-title">Choreos</div>
           <template x-for="g in projectGroups" :key="g.key">

@@ -53,6 +53,7 @@ export function auth() {
       this.isEditor = role === "tagger";
       if (wasEditor === this.isEditor) return;
       if (!this.isEditor && this.currentMode === "editor") this.exitEditor();
+      if (!this.isEditor && this.rcRole) this.rcStop(); // Fernsteuerung nur für Trainer
       // Private Projekte schickt der Server nur Trainern → Liste neu holen
       if (this.projects.length) this.loadProjects();
     },
