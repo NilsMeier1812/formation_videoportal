@@ -54,7 +54,10 @@ export const rt = {
     attempt: 0, // Wiederverbinden: wievielter Versuch
     retry: null, // Timer fürs Wiederverbinden
     ping: null, // Lebenszeichen (siehe PING_MS)
-    lastPong: 0,
+    pingAt: 0, // ältester unbeantworteter Ping
+    pending: null, // Handy: Befehl, bis der PC antwortet { action, extra, at }
+    ackTimer: null,
+    silent: null, // Handy: stille Tonspur für Uhr/Sperrbildschirm
     beat: null, // PC: Stand regelmäßig melden, solange die Musik läuft
     lastSent: 0,
     seekTimer: null,

@@ -12,17 +12,30 @@
 //   Dafür wird das Wavesurfer-Objekt des Handys umgeleitet (rcWrapWs): playPause → Befehl,
 //   setTime → Befehl „seek“, pause → nichts (aufräumende Pausen beim Seitenwechsel sollen den
 //   PC nicht anhalten). Choreo wählen im Menü öffnet sie auch am PC.
-//   „Beenden“ in der Leiste unter der Kopfzeile führt zurück zum normalen Planer.
-import { backoff, controllerLabel, controllerShort, mirrorTime, remoteUrl } from "../lib/remote.js";
+//   „Beenden“ in der Kopfzeile führt zurück zum normalen Planer.
+//
+// Uhr (Galaxy Watch), Sperrbildschirm, Kopfhörer: Das Handy meldet sich als Musik-App an
+// (Media Session) – mit Liedtitel und Play/Pause. Damit Android die Steuerung zeigt, spielt das
+// Handy eine STILLE Tonspur, genau solange der PC spielt (dann stimmt auch das Symbol).
+// Beide Knöpfe schalten um – falls ein Symbol mal nicht stimmt, passiert trotzdem das Erwartete.
+// Nebenbei hält die laufende Tonspur die Seite bei gesperrtem Handy wach.
+//
+// Befehle gehen nicht verloren: Bis der PC mit seinem Stand antwortet, bleibt der Befehl
+// vorgemerkt. Kommt keine Antwort (Verbindung eingeschlafen, z. B. nach langer Pause mit
+// gesperrtem Handy), wird neu verbunden und der Befehl hinterhergeschickt.
+import { backoff, controllerLabel, controllerShort, mirrorTime, remoteUrl, silentWav } from "../lib/remote.js";
 import { rt } from "../runtime.js";
 import { router } from "/js/router.js";
 
 const REPLACED = 4001; // ein anderer PC hat übernommen (siehe remote-room.js)
 // Lebenszeichen: Bricht das WLAN weg, merkt der Browser eine tote Verbindung oft minutenlang
 // nicht. Deshalb alle 3 s „ping“ (beantwortet Cloudflare selbst, ohne den Raum zu wecken);
-// kommt 7 s kein „pong“, wird neu verbunden.
+// bleibt ein „ping“ 5 s ohne Antwort, wird neu verbunden. Gezählt ab dem unbeantworteten
+// Ping – so löst es nicht fälschlich aus, wenn Chrome die Timer bei gesperrtem Handy bremst.
 const PING_MS = 3000;
-const DEAD_MS = 7000;
+const DEAD_MS = 5000;
+const ACK_MS = 3000; // Handy: so lange auf die Antwort des PCs zu einem Befehl warten
+const PENDING_MAX_MS = 15000; // vorgemerkter Befehl: nach dem Wiederverbinden nur, wenn frisch
 const BEAT_MS = 2000; // PC: Stand spätestens alle 2 s, solange die Musik läuft
 
 export function remoteControl() {
@@ -70,6 +83,8 @@ export function remoteControl() {
       rt.rc.status = null;
       this.rcRole = "ctrl";
       this.rcHostOnline = false;
+      rt.rc.pending = null;
+      this.rcMediaStart(); // in diesem Tipp: Tonspur darf später ohne Tipp starten
       if (this.bottomTab !== "notes") this.setTab("notes");
       if (this.appView !== "choreo") router.navigate("/");
       this.rcWrapWs();
@@ -85,6 +100,8 @@ export function remoteControl() {
       clearInterval(rt.rc.ping);
       clearInterval(rt.rc.beat);
       clearTimeout(rt.rc.seekTimer);
+      clearTimeout(rt.rc.ackTimer);
+      rt.rc.pending = null;
       const socket = rt.rc.socket;
       rt.rc.socket = null;
       if (socket) {
@@ -98,6 +115,7 @@ export function remoteControl() {
       rt.rc.wakeLock = null;
       if (role === "ctrl") {
         if (rt.rc.raf) { cancelAnimationFrame(rt.rc.raf); rt.rc.raf = 0; }
+        this.rcMediaStop();
         this.rcUnwrapWs();
         this.isPlaying = false;
         rt.rc.status = null;
@@ -142,16 +160,18 @@ export function remoteControl() {
         if (rt.rc.socket !== socket) return;
         this.rcConnected = true;
         rt.rc.attempt = 0;
-        rt.rc.lastPong = performance.now();
+        rt.rc.pingAt = 0;
         clearInterval(rt.rc.ping);
         rt.rc.ping = setInterval(() => {
-          if (performance.now() - rt.rc.lastPong > DEAD_MS) { this.rcLost(socket, 1006); return; }
+          const now = performance.now();
+          if (rt.rc.pingAt && now - rt.rc.pingAt > DEAD_MS) { this.rcLost(socket, 1006); return; }
+          if (!rt.rc.pingAt) rt.rc.pingAt = now; // ältester unbeantworteter Ping
           try { socket.send("ping"); } catch { /* egal */ }
         }, PING_MS);
         if (as === "host") this.rcSendStatus();
       };
       socket.onmessage = (event) => {
-        rt.rc.lastPong = performance.now(); // jede Nachricht zeigt: Verbindung lebt
+        rt.rc.pingAt = 0; // jede Nachricht zeigt: Verbindung lebt
         if (event.data === "pong") return;
         let message;
         try { message = JSON.parse(event.data); } catch { return; }
@@ -167,6 +187,7 @@ export function remoteControl() {
       socket.onclose = null;
       try { socket.close(); } catch { /* egal */ }
       clearInterval(rt.rc.ping);
+      clearTimeout(rt.rc.ackTimer);
       this.rcConnected = false;
       const as = this.rcRole;
       if (as === "ctrl") { this.rcHostOnline = false; this.rcHold(); }
@@ -189,6 +210,7 @@ export function remoteControl() {
         if (m.type === "host") {
           this.rcHostOnline = Boolean(m.online);
           if (!m.online) this.rcHold();
+          else this.rcSendPending(); // vorgemerkten Befehl hinterherschicken
         } else if (m.type === "status") {
           this.rcApplyStatus(m);
         }
@@ -256,14 +278,14 @@ export function remoteControl() {
     },
 
     // ---------------- Handy ----------------
-    /** Befehl an den PC – und sofort so anzeigen (der PC bestätigt gleich mit seinem Stand). */
+    /**
+     * Befehl an den PC – und sofort so anzeigen (der PC bestätigt gleich mit seinem Stand).
+     * Ist die Verbindung gerade weg, wird verbunden und der Befehl danach geschickt.
+     */
     rcCommand(action, extra = {}) {
       const socket = rt.rc.socket;
-      if (!socket || socket.readyState !== WebSocket.OPEN || !this.rcHostOnline) {
-        this.setStatus(this.rcConnected ? "Kein Musik-PC verbunden" : "Verbinde …");
-        return false;
-      }
-      socket.send(JSON.stringify({ type: "cmd", action, ...extra }));
+      const open = socket?.readyState === WebSocket.OPEN;
+      if (open && !this.rcHostOnline) { this.setStatus("Kein Musik-PC verbunden"); return false; }
       const s = rt.rc.status;
       if (s && action !== "open") {
         const time = action === "seek" ? extra.t : this.rcNow();
@@ -271,8 +293,28 @@ export function remoteControl() {
         rt.rc.status = { ...s, time, playing };
         rt.rc.statusAt = performance.now();
         this.isPlaying = playing;
+        this.rcSyncMedia();
+      }
+      rt.rc.pending = { action, extra, at: performance.now() };
+      if (open) this.rcSendPending();
+      else {
+        this.setStatus("Verbinde …");
+        if (!socket || socket.readyState === WebSocket.CLOSED) { rt.rc.attempt = 0; this.rcConnect(); }
       }
       return true;
+    },
+
+    /** Vorgemerkten Befehl schicken; antwortet der PC nicht, gilt die Verbindung als tot. */
+    rcSendPending() {
+      const p = rt.rc.pending;
+      const socket = rt.rc.socket;
+      if (!p || socket?.readyState !== WebSocket.OPEN) return;
+      if (performance.now() - p.at > PENDING_MAX_MS) { rt.rc.pending = null; return; } // zu alt – nicht überraschen
+      try { socket.send(JSON.stringify({ type: "cmd", action: p.action, ...p.extra })); } catch { /* → Zeitgrenze */ }
+      clearTimeout(rt.rc.ackTimer);
+      rt.rc.ackTimer = setTimeout(() => {
+        if (rt.rc.pending === p && rt.rc.socket === socket) this.rcLost(socket, 1006); // neu verbinden, dann nochmal
+      }, ACK_MS);
     },
 
     rcNow() { return mirrorTime(rt.rc.status, performance.now() - rt.rc.statusAt, this.duration); },
@@ -284,15 +326,19 @@ export function remoteControl() {
         rt.rc.statusAt = performance.now();
       }
       this.isPlaying = false;
+      this.rcSyncMedia();
     },
 
     rcApplyStatus(s) {
       rt.rc.status = s;
       rt.rc.statusAt = performance.now();
       this.rcHostOnline = true;
+      rt.rc.pending = null; // der PC hat geantwortet
+      clearTimeout(rt.rc.ackTimer);
       if (s.rate && s.rate !== this.playbackRate) this.playbackRate = s.rate; // BPM-Anzeige wie am PC
       if (s.projectId && s.projectId !== this.project?.id) this.rcFollow(s.projectId);
       this.isPlaying = s.playing;
+      this.rcSyncMedia();
     },
 
     /** Am PC läuft ein anderes Lied → hier dasselbe öffnen (ohne es dem PC zurückzuschicken). */
@@ -304,6 +350,68 @@ export function remoteControl() {
       rt.rc.following = projectId;
       try { await this.openProject(p); } finally { rt.rc.following = null; }
       if (rt.rc.status) this.isPlaying = rt.rc.status.playing; // openProject setzt das zurück
+      this.rcSyncMedia();
+    },
+
+    // ---------------- Uhr, Sperrbildschirm, Kopfhörer (Media Session) ----------------
+    rcMediaStart() {
+      if (!rt.rc.silent) {
+        const el = new Audio();
+        el.loop = true;
+        el.preload = "auto";
+        el.src = URL.createObjectURL(silentWav());
+        rt.rc.silent = el;
+      }
+      const ms = navigator.mediaSession;
+      if (ms) {
+        const toggle = () => { this.rcCommand(this.isPlaying ? "pause" : "play"); };
+        for (const action of ["play", "pause"]) {
+          try { ms.setActionHandler(action, toggle); } catch { /* nicht unterstützt */ }
+        }
+      }
+      this.rcSyncMedia();
+    },
+
+    rcMediaStop() {
+      rt.rc.silent?.pause();
+      const ms = navigator.mediaSession;
+      if (!ms) return;
+      for (const action of ["play", "pause"]) {
+        try { ms.setActionHandler(action, null); } catch { /* egal */ }
+      }
+      ms.metadata = null;
+      ms.playbackState = "none";
+      try { ms.setPositionState(); } catch { /* egal */ }
+    },
+
+    /** Tonspur und Anzeige (Titel, läuft/pausiert, Stelle) an den Stand des PCs angleichen. */
+    rcSyncMedia() {
+      if (this.rcRole !== "ctrl") return;
+      const playing = this.isPlaying;
+      const el = rt.rc.silent;
+      if (el && playing && el.paused) el.play().catch(() => {}); // ohne Tipp evtl. gesperrt – Knöpfe gehen trotzdem
+      else if (el && !playing && !el.paused) el.pause();
+      const ms = navigator.mediaSession;
+      if (!ms) return;
+      const s = rt.rc.status;
+      const title = s?.title || this.project?.title || "Formation";
+      if (typeof MediaMetadata === "function" && ms.metadata?.title !== title) {
+        ms.metadata = new MediaMetadata({
+          title,
+          artist: "Formation · Musik-PC",
+          artwork: [
+            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          ],
+        });
+      }
+      ms.playbackState = playing ? "playing" : "paused";
+      const duration = s?.duration || this.duration;
+      if (duration > 0) {
+        try {
+          ms.setPositionState({ duration, playbackRate: s?.rate || 1, position: Math.min(this.rcNow(), duration) });
+        } catch { /* egal */ }
+      }
     },
 
     /** Läuft, solange das Handy fernsteuert: Playhead, Welle und Sichtbereich folgen dem PC. */

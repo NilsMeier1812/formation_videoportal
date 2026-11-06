@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backoff, controllerLabel, controllerShort, mirrorTime, remoteUrl } from "../../public/js/choreo/lib/remote.js";
+import { backoff, controllerLabel, controllerShort, mirrorTime, remoteUrl, silentWav } from "../../public/js/choreo/lib/remote.js";
 
 describe("Fernsteuerung: Stelle des PCs am Handy", () => {
   const playing = { time: 10, playing: true, rate: 1, duration: 60 };
@@ -32,5 +32,21 @@ describe("Fernsteuerung: Verbindung", () => {
     expect(controllerShort({ connected: true, hostOnline: false })).toBe("Kein Musik-PC");
     expect(controllerShort({ connected: true, hostOnline: true })).toBe("PC verbunden");
     expect(controllerLabel({ connected: true, hostOnline: false })).toMatch(/Musik an diesem Gerät/);
+  });
+});
+
+describe("Fernsteuerung: stille Tonspur für Uhr und Sperrbildschirm", () => {
+  it("WAV, Mono, 8 kHz, 10 s, nur Stille", async () => {
+    const blob = silentWav();
+    expect(blob.type).toBe("audio/wav");
+    const wav = await blob.arrayBuffer();
+    const view = new DataView(wav);
+    const text = (o, n) => String.fromCharCode(...new Uint8Array(wav, o, n));
+    expect(text(0, 4)).toBe("RIFF");
+    expect(text(8, 4)).toBe("WAVE");
+    expect(view.getUint16(22, true)).toBe(1); // Mono
+    expect(view.getUint32(24, true)).toBe(8000);
+    expect(view.getUint32(40, true)).toBe(10 * 8000 * 2); // > 5 s, sonst keine Mediensteuerung
+    expect(new Int16Array(wav, 44).every((x) => x === 0)).toBe(true);
   });
 });

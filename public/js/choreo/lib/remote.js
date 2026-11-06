@@ -1,4 +1,5 @@
 // Fernsteuerung (rein, testbar): Stelle des PCs am Handy weiterrechnen, Wiederverbinden.
+import { encodeWav } from "./speed.js";
 
 /** Wartezeiten (ms) fürs Wiederverbinden: schnell, dann seltener. */
 export const BACKOFF = [1000, 2000, 4000, 8000, 10000];
@@ -31,4 +32,15 @@ export function controllerLabel({ connected, hostOnline }) {
   if (!connected) return "Verbinde …";
   if (!hostOnline) return "Kein Musik-PC – dort im Menü „Musik an diesem Gerät“ einschalten";
   return "Steuert den Musik-PC";
+}
+
+/**
+ * Stille Tonspur (WAV-Blob, Mono, 8 kHz, 16 Bit) für die Mediensteuerung von Handy und Uhr:
+ * Android zeigt Play/Pause (Sperrbildschirm, Galaxy Watch, Kopfhörer) nur, solange die Seite
+ * etwas abspielt. Über 5 s lang, sonst gilt sie als kurzer Effekt-Ton ohne Steuerung.
+ */
+export function silentWav(seconds = 10, rate = 8000) {
+  const length = Math.round(seconds * rate);
+  const silence = new Float32Array(length);
+  return encodeWav({ numberOfChannels: 1, sampleRate: rate, length, getChannelData: () => silence });
 }
