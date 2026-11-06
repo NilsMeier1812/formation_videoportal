@@ -22,6 +22,15 @@ database_name = "formation-portal"
 database_id = "a339958c-c739-4cc2-807f-da7170bf082c"
 migrations_dir = "migrations"
 
+# Fernsteuerung des Musik-Players: ein Raum für alle Trainer (src/remote-room.js)
+[[durable_objects.bindings]]
+name = "REMOTE"
+class_name = "RemoteRoom"
+
+[[migrations]]
+tag = "remote-v1"
+new_sqlite_classes = ["RemoteRoom"]  # SQLite-Variante – auch im Free-Tarif
+
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "formation-videos"

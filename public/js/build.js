@@ -4,7 +4,7 @@
 // Wozu: Startet die App, während das Netz kurz weg ist, kommt die Seite aus dem Cache des
 // Service Workers – das Programm aber vielleicht schon frisch vom Server. Passen Seite und
 // Programm nicht zusammen, lädt app.js die Seite einmal neu (siehe checkBuild).
-export const BUILD = "41";
+export const BUILD = "42";
 
 const KEY = "formation.build_reload";
 

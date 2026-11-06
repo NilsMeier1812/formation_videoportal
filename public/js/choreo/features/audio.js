@@ -142,6 +142,7 @@ export function audio() {
       }
       this.renderRegions();
       this.recalibrate();
+      this.rcChanged(); // Fernsteuerung: Lied ist bereit
     },
 
     /**
@@ -254,6 +255,7 @@ export function audio() {
       if (!rt.ws) return; // gilt beim nächsten Laden
       rt.ws.setPlaybackRate(rate, true);
       if (this.isPlaying) { rt.clockP = null; this.syncClock(rt.ws.getCurrentTime()); } // Uhr neu ansetzen
+      this.rcChanged();
     },
 
     // ---------------- Wavesurfer ----------------
@@ -295,13 +297,14 @@ export function audio() {
 
       rt.ws.on("ready", () => this.onAudioReady());
       rt.ws.on("decode", () => this.onAudioReady());
-      rt.ws.on("play", () => { this.isPlaying = true; this.recalibrate(); this.startPlayLoop(); });
-      rt.ws.on("pause", () => { this.isPlaying = false; this.stopPlayLoop(); });
-      rt.ws.on("finish", () => { this.isPlaying = false; this.stopPlayLoop(); });
+      rt.ws.on("play", () => { this.isPlaying = true; this.recalibrate(); this.startPlayLoop(); this.rcChanged(); });
+      rt.ws.on("pause", () => { this.isPlaying = false; this.stopPlayLoop(); this.rcChanged(); });
+      rt.ws.on("finish", () => { this.isPlaying = false; this.stopPlayLoop(); this.rcChanged(); });
       // Beim Abspielen treibt die Interpolations-Uhr den Playhead; timeupdate
       // liefert dann nur den groben Anker und die Sprungmarken-Logik.
       rt.ws.on("timeupdate", (t) => { this.onTimeUpdate(t); if (!this.isPlaying) this.updatePlayhead(); });
       rt.ws.on("error", (err) => this.handleAudioError(err));
+      rt.ws.on("seeking", () => this.rcOnSeeking()); // Fernsteuerung: Handys sofort Bescheid geben
       // 'scroll' liefert den exakten Sichtbereich (gleicher Bezug wie die Welle)
       rt.ws.on("scroll", (visibleStart, visibleEnd, scrollLeft, scrollRight) => {
         if (visibleEnd > visibleStart && scrollRight > scrollLeft) {
@@ -314,6 +317,8 @@ export function audio() {
       });
       rt.ws.on("zoom", () => { this.recomputeViewport(); this.scheduleDraw(); });
       rt.ws.on("redraw", () => { this.recomputeViewport(); this.scheduleDraw(); });
+
+      if (this.rcRole === "ctrl") this.rcWrapWs(); // Handy steuert: Play/Springen gehen an den PC
 
       rt.wsRegions.on("region-updated", (r) => this.onRegionMoved(r));
       rt.wsRegions.on("region-clicked", (r, e) => {

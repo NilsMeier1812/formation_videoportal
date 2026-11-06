@@ -11,6 +11,7 @@ import * as session from "./routes/session.js";
 import * as trainings from "./routes/trainings.js";
 import * as usage from "./routes/usage.js";
 import * as videos from "./routes/videos.js";
+import { connectRemote } from "./routes/remote.js";
 
 const ID = "([0-9a-f-]{36})";
 const KEY = "([A-Za-z0-9_-]{1,64})"; // IDs im Planer (aus Supabase übernommen oder im Browser erzeugt)
@@ -55,6 +56,9 @@ const routes = [
   ["POST", /^\/api\/tags$/, library.createTag],
   ["PATCH", new RegExp(`^/api/tags/${KEY}$`), library.updateTag],
   ["DELETE", new RegExp(`^/api/tags/${KEY}$`), library.deleteTag],
+
+  // Fernsteuerung des Musik-Players (WebSocket, nur Trainer)
+  ["GET", /^\/api\/remote$/, connectRemote],
 
   // Anmelden (Cookie, ein Jahr)
   ["POST", /^\/api\/session$/, session.login],
@@ -108,6 +112,9 @@ async function handle(request, env) {
   }
   throw new HttpError(pathMatched ? 405 : 404, pathMatched ? "Methode nicht erlaubt" : "Nicht gefunden");
 }
+
+// Raum der Fernsteuerung (Durable Object) – muss vom Einstieg exportiert werden
+export { RemoteRoom } from "./remote-room.js";
 
 export default {
   async fetch(request, env) {

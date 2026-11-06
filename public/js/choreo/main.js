@@ -13,6 +13,7 @@
 //   editing   Bearbeiten an/aus (nur Trainer), Bearbeitungssperre
 //   videos    Tab „Videos“, Stelle wählen (Admin), Menü nach Choreos gruppiert
 //   transfer  Audio austauschen, alles verschieben, aus anderer Audio übernehmen
+//   remote-control  Fernsteuerung: PC an der Anlage ↔ Handys der Trainer
 //
 // Die Komponente hängt am <body> der App: Das gemeinsame Menü (Choreo-Wahl,
 // Anmeldung, Hell/Dunkel) und die Dialoge liegen außerhalb des Planer-Bereichs,
@@ -33,6 +34,7 @@ import { tempo } from "./features/tempo.js";
 import { transfer } from "./features/transfer.js";
 import { gestures } from "./features/gestures.js";
 import { videos } from "./features/videos.js";
+import { remoteControl } from "./features/remote-control.js";
 
 /**
  * Fügt die Bereiche zu einem Objekt zusammen. Anders als Object.assign bleiben
@@ -52,7 +54,7 @@ function compose(...parts) {
 }
 
 Alpine.data("choreo", () =>
-  compose(core(), auth(), projects(), audio(), canvas(), gestures(), steps(), segments(), tempo(), groups(), editing(), videos(), transfer())
+  compose(core(), auth(), projects(), audio(), canvas(), gestures(), steps(), segments(), tempo(), groups(), editing(), videos(), transfer(), remoteControl())
 );
 
 window.Alpine = Alpine;

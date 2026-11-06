@@ -48,6 +48,27 @@ export const rt = {
   zoomGesturesReady: false,
   pinchGuard: false, // zwei Finger liegen auf: Sprungmarken nicht verschieben
 
+  // Fernsteuerung (siehe features/remote-control.js)
+  rc: {
+    socket: null,
+    attempt: 0, // Wiederverbinden: wievielter Versuch
+    retry: null, // Timer fürs Wiederverbinden
+    ping: null, // Lebenszeichen (siehe PING_MS)
+    lastPong: 0,
+    beat: null, // PC: Stand regelmäßig melden, solange die Musik läuft
+    lastSent: 0,
+    seekTimer: null,
+    wakeLock: null, // PC: Bildschirm bleibt an
+    watching: false,
+    // Handy:
+    status: null, // letzter Stand des PCs
+    statusAt: 0, // performance.now() beim Eingang
+    raf: 0,
+    applying: false, // Welle wird nachgezogen – kein Befehl an den PC
+    following: null, // Projekt, das gerade dem PC folgend geöffnet wird
+    ownRate: null, // eigenes Tempo vor dem Fernsteuern
+  },
+
   // Sonstiges
   heartbeatTimer: null,
   lastActiveSegmentId: null,
