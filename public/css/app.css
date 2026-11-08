@@ -297,6 +297,13 @@
 .vpage .upload-item.cancelled .name, .vpage .upload-item.cancelled .when { opacity: .55; }
 .vpage .upload-item .state.cancelled { color: var(--muted); font-style: italic; }
 .vpage .cancel-all { color: var(--danger); }
+.vpage .pre-hint {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius); font-size: 14px;
+  background: var(--accent-surface); color: var(--text);
+}
+.vpage .pre-hint svg { flex-shrink: 0; display: block; color: var(--accent); }
+.vpage .pre-hint[hidden] { display: none; }
 .vpage .stay-hint {
   margin: 12px 0; padding: 10px 12px; border-radius: var(--radius); font-size: 14px;
   background: var(--panel-2); border: 1px solid var(--accent);

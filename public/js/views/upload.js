@@ -61,6 +61,7 @@ async function setBusy(on) {
   const busy = active > 0;
   $("up-submit").disabled = busy;
   $("up-stay").hidden = !busy;
+  $("up-pre-hint").hidden = busy; // solange es läuft, steht der ausführliche Hinweis da
   $("up-cancel-all").hidden = !busy || !batch.some((r) => r.cancellable());
   // Punkt am Reiter „Hochladen“, solange etwas läuft – auch aus anderen Bereichen sichtbar
   document.querySelector('.bottom-nav [data-tab="upload"]')?.classList.toggle("busy", busy);
