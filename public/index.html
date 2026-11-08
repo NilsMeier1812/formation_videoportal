@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" data-build="43">
+<html lang="de" data-build="44">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
@@ -535,6 +535,11 @@
 
       <section id="up-main" hidden>
         <p class="signed-in" id="up-signed-in">Angemeldet</p>
+        <!-- schon vor der Auswahl; während des Uploads übernimmt der ausführliche Hinweis (#up-stay) -->
+        <p id="up-pre-hint" class="pre-hint">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+          <span>Beim Hochladen bitte den Bildschirm anlassen und die Website nicht verlassen.</span>
+        </p>
 
         <form id="up-form" class="card fields">
           <label class="dropzone" id="up-dropzone">
