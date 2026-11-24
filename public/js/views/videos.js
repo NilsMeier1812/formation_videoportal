@@ -31,7 +31,12 @@ function haystack(v) {
 
 function card(video) {
   const sub = [formatDateTime(video.recorded_at), video.uploaded_by].filter(Boolean).join(" · ");
-  const tags = video.tag_ids.map((id) => library.tag(id)?.name).filter(Boolean);
+  // Pillen: Choreo → Tanz → Tags – auch bei eigenem Titel („Vortanzen“) sieht man, was es ist
+  const pills = [
+    ...[library.choreo(video.choreo_id)?.title].filter(Boolean).map((t) => [t, "tag choreo"]),
+    ...video.dance_ids.map((id) => library.dance(id)?.name).filter(Boolean).map((t) => [t, "tag dance"]),
+    ...video.tag_ids.map((id) => library.tag(id)?.name).filter(Boolean).map((t) => [t, "tag plain"]),
+  ];
   return el("li", { class: "video-card" },
     el("a", { href: `/videos/${encodeURIComponent(video.id)}` },
       el("div", { class: "thumb" },
@@ -47,7 +52,7 @@ function card(video) {
       el("div", { class: "meta" },
         el("div", { class: "title" }, library.videoTitle(video)),
         sub && el("div", { class: "sub" }, sub),
-        tags.length ? el("div", { class: "card-tags" }, ...tags.map((t) => el("span", { class: "tag" }, t))) : null,
+        pills.length ? el("div", { class: "card-tags" }, ...pills.map(([t, cls]) => el("span", { class: cls }, t))) : null,
       ),
     ),
   );
