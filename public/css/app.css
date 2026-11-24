@@ -526,6 +526,10 @@
 
 /* Videothek: Filter */
 .vpage .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+/* abgestuft: Choreo kräftig, Tanz in Akzentfarbe, Tags dezent */
+.vpage .card-tags .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vpage .card-tags .tag.choreo { background: var(--text); color: var(--bg); }
+.vpage .card-tags .tag.plain { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
 
 /* Verwalten → Mehr: Speicher, Papierkorb */
 .vpage .more { display: grid; gap: 12px; }
